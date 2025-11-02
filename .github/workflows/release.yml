@@ -1,0 +1,162 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  RUST_VERSION: '1.77'
+
+jobs:
+  # Build native libraries for all platforms
+  build-native-all:
+    name: Build Native (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            rid: linux-x64
+            artifact: liboxidize_pdf_ffi.so
+          - os: windows-latest
+            target: x86_64-pc-windows-gnu
+            rid: win-x64
+            artifact: oxidize_pdf_ffi.dll
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            rid: osx-x64
+            artifact: liboxidize_pdf_ffi.dylib
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ matrix.target }}
+
+      - name: Build Native Library
+        working-directory: native
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Upload Native Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: native/target/${{ matrix.target }}/release/${{ matrix.artifact }}
+          retention-days: 30
+
+  # Create NuGet package with all native binaries
+  create-nuget:
+    name: Create NuGet Package
+    needs: build-native-all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Download All Native Libraries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Copy Native Libraries to Runtimes
+        run: |
+          mkdir -p dotnet/OxidizePdf.NET/runtimes/linux-x64/native
+          mkdir -p dotnet/OxidizePdf.NET/runtimes/win-x64/native
+          mkdir -p dotnet/OxidizePdf.NET/runtimes/osx-x64/native
+
+          cp artifacts/native-linux-x64/liboxidize_pdf_ffi.so dotnet/OxidizePdf.NET/runtimes/linux-x64/native/
+          cp artifacts/native-win-x64/oxidize_pdf_ffi.dll dotnet/OxidizePdf.NET/runtimes/win-x64/native/
+          cp artifacts/native-osx-x64/liboxidize_pdf_ffi.dylib dotnet/OxidizePdf.NET/runtimes/osx-x64/native/
+
+      - name: Extract Version from Tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Update Version in csproj
+        working-directory: dotnet/OxidizePdf.NET
+        run: |
+          sed -i "s/<Version>.*<\/Version>/<Version>${{ steps.version.outputs.VERSION }}<\/Version>/" OxidizePdf.NET.csproj
+
+      - name: Build .NET Project
+        working-directory: dotnet
+        run: dotnet build --configuration Release
+
+      - name: Create NuGet Package
+        working-directory: dotnet/OxidizePdf.NET
+        run: dotnet pack --configuration Release --output ../../nupkg
+
+      - name: Upload NuGet Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package
+          path: nupkg/*.nupkg
+          retention-days: 30
+
+      - name: Publish to NuGet.org
+        working-directory: nupkg
+        run: dotnet nuget push "*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+  # Create GitHub Release
+  create-release:
+    name: Create GitHub Release
+    needs: create-nuget
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download NuGet Package
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-package
+          path: release-artifacts
+
+      - name: Extract Version from Tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Generate Release Notes
+        id: notes
+        run: |
+          cat << EOF > release_notes.md
+          ## OxidizePdf.NET v${{ steps.version.outputs.VERSION }}
+
+          ### Installation
+          \`\`\`bash
+          dotnet add package OxidizePdf.NET --version ${{ steps.version.outputs.VERSION }}
+          \`\`\`
+
+          ### What's New
+          - See [CHANGELOG.md](CHANGELOG.md) for detailed changes
+
+          ### Supported Platforms
+          - Linux x64
+          - Windows x64
+          - macOS x64
+
+          ### Links
+          - [NuGet Package](https://www.nuget.org/packages/OxidizePdf.NET/${{ steps.version.outputs.VERSION }})
+          - [Documentation](https://github.com/bzsanti/oxidize-pdf-dotnet/blob/main/README.md)
+          - [Examples](https://github.com/bzsanti/oxidize-pdf-dotnet/tree/main/examples)
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/*.nupkg
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

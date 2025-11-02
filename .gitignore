@@ -1,0 +1,70 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+*.cache
+*.dll
+*.exe
+*.pdb
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.rsuser
+*.user
+*.userosscache
+*.sln.docstates
+.vscode/
+
+# Test Results
+TestResults/
+[Tt]est[Rr]esult*/
+*.trx
+
+# Native binaries (will be copied during build)
+dotnet/OxidizePdf.NET/runtimes/**/*.so
+dotnet/OxidizePdf.NET/runtimes/**/*.dll
+dotnet/OxidizePdf.NET/runtimes/**/*.dylib
+
+# macOS
+.DS_Store
+._*
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Examples output
+examples/**/bin/
+examples/**/obj/
+
+# Private notes
+.private/
+*.local.md

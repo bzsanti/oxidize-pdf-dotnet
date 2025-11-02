@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\dotnet\OxidizePdf.NET\OxidizePdf.NET.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- KernelMemory for RAG pipeline -->
+    <PackageReference Include="Microsoft.KernelMemory.Core" Version="0.78.241101.1" />
+
+    <!-- SharePoint/Graph API (optional - for full crawler) -->
+    <PackageReference Include="Microsoft.Graph" Version="5.58.0" />
+    <PackageReference Include="Azure.Identity" Version="1.12.1" />
+  </ItemGroup>
+
+</Project>

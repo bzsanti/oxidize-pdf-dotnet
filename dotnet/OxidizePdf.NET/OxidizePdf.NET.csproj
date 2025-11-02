@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>OxidizePdf.NET</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Santiago Fernández Muñoz</Authors>
+    <Company>BelowZero</Company>
+    <Description>.NET bindings for oxidize-pdf - Fast, memory-safe PDF text extraction optimized for RAG/LLM pipelines with intelligent chunking.</Description>
+    <PackageTags>pdf;extraction;rag;llm;kernelmemory;chunking;ai;embeddings</PackageTags>
+    <PackageProjectUrl>https://github.com/bzsanti/oxidize-pdf-dotnet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/bzsanti/oxidize-pdf-dotnet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\OxidizePdf.NET.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Include native binaries in NuGet package -->
+    <None Include="runtimes\**\*" Pack="true" PackagePath="runtimes\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <!-- Copy native binaries to output directory for development -->
+  <Target Name="CopyNativeBinaries" AfterTargets="Build">
+    <ItemGroup>
+      <NativeBinaries Include="runtimes\**\native\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeBinaries)" DestinationFolder="$(OutDir)runtimes\%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
