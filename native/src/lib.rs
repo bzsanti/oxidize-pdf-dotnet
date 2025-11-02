@@ -2,6 +2,7 @@ use std::ffi::CString;
 use std::io::Cursor;
 use std::os::raw::{c_char, c_int};
 use std::slice;
+use std::ptr;
 use oxidize_pdf::parser::{PdfReader, PdfDocument};
 use serde::{Deserialize, Serialize};
 
@@ -40,14 +41,17 @@ pub struct ChunkOptions {
 }
 
 /// Free a C string allocated by Rust
+///
+/// # Safety
+/// - `ptr` must have been returned by a previous call to an oxidize_* function
+/// - `ptr` must not have been freed previously
+/// - After calling this function, `ptr` must not be used again
 #[no_mangle]
-pub extern "C" fn oxidize_free_string(ptr: *mut c_char) {
+pub unsafe extern "C" fn oxidize_free_string(ptr: *mut c_char) {
     if ptr.is_null() {
         return;
     }
-    unsafe {
-        let _ = CString::from_raw(ptr);
-    }
+    let _ = CString::from_raw(ptr);
 }
 
 /// Extract plain text from PDF bytes
@@ -57,7 +61,7 @@ pub extern "C" fn oxidize_free_string(ptr: *mut c_char) {
 /// - `out_text` will be allocated by this function and must be freed with `oxidize_free_string`
 /// - Returns ErrorCode::Success on success
 #[no_mangle]
-pub extern "C" fn oxidize_extract_text(
+pub unsafe extern "C" fn oxidize_extract_text(
     pdf_bytes: *const u8,
     pdf_len: usize,
     out_text: *mut *mut c_char,
@@ -67,8 +71,11 @@ pub extern "C" fn oxidize_extract_text(
         return ErrorCode::NullPointer as c_int;
     }
 
+    // CRITICAL: Initialize output to null on entry (safety)
+    *out_text = ptr::null_mut();
+
     // Convert to Rust slice
-    let bytes = unsafe { slice::from_raw_parts(pdf_bytes, pdf_len) };
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
 
     // Parse PDF
     let cursor = Cursor::new(bytes);
@@ -99,9 +106,7 @@ pub extern "C" fn oxidize_extract_text(
     };
 
     // Transfer ownership to caller
-    unsafe {
-        *out_text = c_string.into_raw();
-    }
+    *out_text = c_string.into_raw();
 
     ErrorCode::Success as c_int
 }
@@ -114,7 +119,7 @@ pub extern "C" fn oxidize_extract_text(
 /// - `out_json` will contain JSON array of DocumentChunk, must be freed with `oxidize_free_string`
 /// - Returns ErrorCode::Success on success
 #[no_mangle]
-pub extern "C" fn oxidize_extract_chunks(
+pub unsafe extern "C" fn oxidize_extract_chunks(
     pdf_bytes: *const u8,
     pdf_len: usize,
     options: *const ChunkOptions,
@@ -125,6 +130,9 @@ pub extern "C" fn oxidize_extract_chunks(
         return ErrorCode::NullPointer as c_int;
     }
 
+    // CRITICAL: Initialize output to null on entry (safety)
+    *out_json = ptr::null_mut();
+
     // Parse options or use defaults
     let chunk_opts = if options.is_null() {
         ChunkOptions {
@@ -134,11 +142,11 @@ pub extern "C" fn oxidize_extract_chunks(
             include_metadata: true,
         }
     } else {
-        unsafe { *options }
+        *options
     };
 
     // Convert to Rust slice
-    let bytes = unsafe { slice::from_raw_parts(pdf_bytes, pdf_len) };
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
 
     // Parse PDF
     let cursor = Cursor::new(bytes);
@@ -197,10 +205,12 @@ pub extern "C" fn oxidize_extract_chunks(
             }
 
             // Move to next chunk with overlap
-            start = chunk_end.saturating_sub(chunk_opts.overlap);
-            if start >= page_content.len() {
+            let next_start = chunk_end.saturating_sub(chunk_opts.overlap);
+            // Break if no progress (prevents infinite loop)
+            if next_start >= chunk_end || chunk_end >= page_content.len() {
                 break;
             }
+            start = next_start;
         }
     }
 
@@ -217,19 +227,24 @@ pub extern "C" fn oxidize_extract_chunks(
     };
 
     // Transfer ownership to caller
-    unsafe {
-        *out_json = c_string.into_raw();
-    }
+    *out_json = c_string.into_raw();
 
     ErrorCode::Success as c_int
 }
 
 /// Get version string
+///
+/// # Safety
+/// - `out_version` must be a valid pointer to a mutable pointer location
+/// - The returned string must be freed with `oxidize_free_string`
 #[no_mangle]
-pub extern "C" fn oxidize_version(out_version: *mut *mut c_char) -> c_int {
+pub unsafe extern "C" fn oxidize_version(out_version: *mut *mut c_char) -> c_int {
     if out_version.is_null() {
         return ErrorCode::NullPointer as c_int;
     }
+
+    // CRITICAL: Initialize output to null on entry (safety)
+    *out_version = ptr::null_mut();
 
     let version = format!("oxidize-pdf-ffi v{} (oxidize-pdf v1.6.4)", env!("CARGO_PKG_VERSION"));
 
@@ -238,9 +253,7 @@ pub extern "C" fn oxidize_version(out_version: *mut *mut c_char) -> c_int {
         Err(_) => return ErrorCode::InvalidUtf8 as c_int,
     };
 
-    unsafe {
-        *out_version = c_string.into_raw();
-    }
+    *out_version = c_string.into_raw();
 
     ErrorCode::Success as c_int
 }

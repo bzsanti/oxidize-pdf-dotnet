@@ -42,13 +42,32 @@ public class ChunkOptions
     /// </summary>
     internal void Validate()
     {
+        const int MaxReasonableChunkSize = 10_000;  // ~2500 tokens at 4 chars/token
+        const int MinPracticalChunkSize = 50;        // Below this is meaningless
+
         if (MaxChunkSize <= 0)
             throw new ArgumentException("MaxChunkSize must be positive", nameof(MaxChunkSize));
+
+        if (MaxChunkSize < MinPracticalChunkSize)
+            throw new ArgumentException(
+                $"MaxChunkSize must be at least {MinPracticalChunkSize} for meaningful chunks",
+                nameof(MaxChunkSize));
+
+        if (MaxChunkSize > MaxReasonableChunkSize)
+            throw new ArgumentException(
+                $"MaxChunkSize exceeds reasonable limit ({MaxReasonableChunkSize}). " +
+                "Embedding models typically support 256-4096 tokens (~1000-16000 chars).",
+                nameof(MaxChunkSize));
 
         if (Overlap < 0)
             throw new ArgumentException("Overlap must be non-negative", nameof(Overlap));
 
         if (Overlap >= MaxChunkSize)
             throw new ArgumentException("Overlap must be less than MaxChunkSize", nameof(Overlap));
+
+        if (Overlap > MaxChunkSize * 0.5)
+            throw new ArgumentException(
+                "Overlap exceeds 50% of MaxChunkSize. Typical overlap is 10-20%.",
+                nameof(Overlap));
     }
 }
