@@ -13,12 +13,23 @@ class Program
         // Display version
         Console.WriteLine($"Library version: {PdfExtractor.Version}\n");
 
+        // Check for test mode
+        if (args.Length > 0 && args[0] == "--test-fixtures")
+        {
+            var maxFiles = args.Length > 1 && int.TryParse(args[1], out var n) ? n : 20;
+            await TestFixtures.RunAsync(maxFiles);
+            return;
+        }
+
         // Check if PDF file provided
         if (args.Length == 0)
         {
-            Console.WriteLine("Usage: BasicUsage <path-to-pdf>");
-            Console.WriteLine("\nRunning with sample data...\n");
-            await RunSampleExtraction();
+            Console.WriteLine("Usage:");
+            Console.WriteLine("  BasicUsage <path-to-pdf>           # Extract single PDF");
+            Console.WriteLine("  BasicUsage --test-fixtures [count] # Test with fixtures (default: 20)");
+            Console.WriteLine("\nExamples:");
+            Console.WriteLine("  BasicUsage sample.pdf");
+            Console.WriteLine("  BasicUsage --test-fixtures 50\n");
             return;
         }
 
@@ -88,17 +99,4 @@ class Program
         Console.WriteLine($"\n... and {chunks.Count - 3} more chunks");
     }
 
-    static async Task RunSampleExtraction()
-    {
-        // Create a minimal sample PDF for testing
-        // In real usage, you would load an actual PDF file
-        Console.WriteLine("No PDF file provided. To use this example:");
-        Console.WriteLine("  1. Download a sample PDF");
-        Console.WriteLine("  2. Run: dotnet run path/to/sample.pdf");
-        Console.WriteLine("\nAlternatively, test with oxidize-pdf test PDFs:");
-        Console.WriteLine("  git clone https://github.com/bzsanti/oxidizePdf");
-        Console.WriteLine("  dotnet run ../../../oxidize-pdf/test-pdfs/sample.pdf\n");
-
-        await Task.CompletedTask;
-    }
 }

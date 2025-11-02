@@ -1,7 +1,7 @@
 # OxidizePdf.NET
 
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-6.0%2B-purple)](https://dotnet.microsoft.com/)
 
 .NET bindings for [oxidize-pdf](https://github.com/bzsanti/oxidizePdf) - Fast, memory-safe PDF text extraction optimized for RAG/LLM pipelines with intelligent chunking.
@@ -214,9 +214,17 @@ See [examples/](examples/) directory:
 
 ## License
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file.
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) - see [LICENSE](LICENSE) file.
 
-The underlying [oxidize-pdf](https://github.com/bzsanti/oxidizePdf) library is licensed under AGPL-3.0.
+This is consistent with the underlying [oxidize-pdf](https://github.com/bzsanti/oxidizePdf) library which is also licensed under AGPL-3.0.
+
+**Key Points**:
+- ✅ Free for open-source projects
+- ✅ Commercial use allowed (must share modifications)
+- ⚠️ Network use = distribution (must share source)
+- ⚠️ If you use this in a web service, you must make your code public
+
+For commercial licensing or questions, contact: santiago@oxidizepdf.dev
 
 ## Contributing
 
