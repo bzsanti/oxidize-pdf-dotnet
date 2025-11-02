@@ -261,12 +261,13 @@ pub unsafe extern "C" fn oxidize_version(out_version: *mut *mut c_char) -> c_int
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::CStr;
     use std::ptr;
 
     #[test]
     fn test_version() {
         let mut version_ptr: *mut c_char = ptr::null_mut();
-        let result = oxidize_version(&mut version_ptr as *mut *mut c_char);
+        let result = unsafe { oxidize_version(&mut version_ptr as *mut *mut c_char) };
 
         assert_eq!(result, ErrorCode::Success as c_int);
         assert!(!version_ptr.is_null());
@@ -280,7 +281,7 @@ mod tests {
 
     #[test]
     fn test_null_pointer_handling() {
-        let result = oxidize_extract_text(ptr::null(), 0, ptr::null_mut());
+        let result = unsafe { oxidize_extract_text(ptr::null(), 0, ptr::null_mut()) };
         assert_eq!(result, ErrorCode::NullPointer as c_int);
     }
 }
