@@ -33,6 +33,7 @@
     <!-- Include native binaries in NuGet package -->
     <None Include="runtimes\**\*" Pack="true" PackagePath="runtimes\" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
