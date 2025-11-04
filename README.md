@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-6.0%2B-purple)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-8.0%2B-purple)](https://dotnet.microsoft.com/)
 
 .NET bindings for [oxidize-pdf](https://github.com/bzsanti/oxidizePdf) - Fast, memory-safe PDF text extraction optimized for RAG/LLM pipelines with intelligent chunking.
 
@@ -184,8 +184,10 @@ public class DocumentChunk
 
 ## Requirements
 
-- **.NET 6.0+** (tested on .NET 6, 7, 8)
+- **.NET 8.0+** (tested on .NET 8, 9)
 - **Native Runtime**: Automatically included in NuGet package
+
+> **Note**: .NET 6 support was dropped in v0.2.0 as it reached end-of-support in November 2024. Use v0.1.0 if you still require .NET 6 compatibility.
 
 ## Building from Source
 
