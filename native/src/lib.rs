@@ -1,10 +1,10 @@
+use oxidize_pdf::parser::{PdfDocument, PdfReader};
+use serde::{Deserialize, Serialize};
 use std::ffi::CString;
 use std::io::Cursor;
 use std::os::raw::{c_char, c_int};
-use std::slice;
 use std::ptr;
-use oxidize_pdf::parser::{PdfReader, PdfDocument};
-use serde::{Deserialize, Serialize};
+use std::slice;
 
 /// Error codes for C# interop
 #[repr(C)]
@@ -246,7 +246,10 @@ pub unsafe extern "C" fn oxidize_version(out_version: *mut *mut c_char) -> c_int
     // CRITICAL: Initialize output to null on entry (safety)
     *out_version = ptr::null_mut();
 
-    let version = format!("oxidize-pdf-ffi v{} (oxidize-pdf v1.6.4)", env!("CARGO_PKG_VERSION"));
+    let version = format!(
+        "oxidize-pdf-ffi v{} (oxidize-pdf v1.6.4)",
+        env!("CARGO_PKG_VERSION")
+    );
 
     let c_string = match CString::new(version) {
         Ok(s) => s,
