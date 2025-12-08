@@ -68,3 +68,6 @@ examples/**/obj/
 # Private notes
 .private/
 *.local.md
+
+# Build artifacts
+artifacts/
