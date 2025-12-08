@@ -226,7 +226,7 @@ This is consistent with the underlying [oxidize-pdf](https://github.com/bzsanti/
 - ⚠️ Network use = distribution (must share source)
 - ⚠️ If you use this in a web service, you must make your code public
 
-For commercial licensing or questions, contact: santiago@oxidizepdf.dev
+For commercial licensing or questions, contact: licensing@belowzero.tech
 
 ## Contributing
 

@@ -6,8 +6,8 @@ Thank you for your interest in contributing to OxidizePdf.NET!
 
 ### Prerequisites
 
-- **Rust**: 1.77 or later ([install](https://rustup.rs/))
-- **.NET SDK**: 6.0 or later ([install](https://dotnet.microsoft.com/download))
+- **Rust**: stable toolchain ([install](https://rustup.rs/))
+- **.NET SDK**: 8.0 or later ([install](https://dotnet.microsoft.com/download))
 - **Git**: For version control
 
 ### Clone Repository
@@ -49,11 +49,28 @@ oxidize-pdf-dotnet/
     └── build-native.sh
 ```
 
-## Development Workflow
+## GitFlow Branching Model
 
-### 1. Create Feature Branch
+This project follows GitFlow workflow:
+
+### Branch Structure
+
+- **`main`**: Production releases only. Tagged with `v*.*.*` for automated NuGet publishing
+- **`develop`**: Integration branch (default). All feature PRs target this branch
+- **`feature/*`**: Feature development (branch from `develop`, merge to `develop`)
+- **`release/*`**: Release preparation (branch from `develop`, merge to `main` and `develop`)
+- **`hotfix/*`**: Emergency production fixes (branch from `main`, merge to `main` and `develop`)
+
+### Development Workflow
+
+### 1. Start Feature Development
 
 ```bash
+# Switch to develop and update
+git checkout develop
+git pull origin develop
+
+# Create feature branch
 git checkout -b feature/your-feature-name
 ```
 
@@ -70,7 +87,7 @@ cd native
 cargo test
 
 # .NET tests
-cd dotnet
+cd dotnet/OxidizePdf.NET.Tests
 dotnet test
 ```
 
@@ -78,9 +95,12 @@ dotnet test
 
 ```bash
 # Rust
+cd native
 cargo fmt
+cargo clippy
 
 # .NET
+cd dotnet
 dotnet format
 ```
 
@@ -97,14 +117,65 @@ Use conventional commits:
 - `docs:` - Documentation changes
 - `test:` - Test additions/changes
 - `refactor:` - Code refactoring
+- `chore:` - Maintenance tasks
+- `ci:` - CI/CD changes
 
 ### 6. Push and Create PR
 
 ```bash
-git push origin feature/your-feature-name
+git push -u origin feature/your-feature-name
+
+# Create PR targeting develop
+gh pr create --base develop --title "feat: your feature description"
 ```
 
-Then create a Pull Request on GitHub.
+### Release Process
+
+Only maintainers create releases:
+
+```bash
+# 1. Create release branch from develop
+git checkout develop
+git checkout -b release/v0.3.0
+
+# 2. Update version in OxidizePdf.NET.csproj
+# 3. Update CHANGELOG.md
+# 4. Commit and merge to main
+git commit -m "chore: bump version to 0.3.0"
+git checkout main
+git merge --no-ff release/v0.3.0
+
+# 5. Tag release (triggers automated NuGet publish)
+git tag -a v0.3.0 -m "Release v0.3.0"
+git push origin main --tags
+
+# 6. Merge back to develop
+git checkout develop
+git merge --no-ff release/v0.3.0
+git push origin develop
+```
+
+### Hotfix Process
+
+For critical production bugs:
+
+```bash
+# 1. Branch from main
+git checkout main
+git checkout -b hotfix/v0.2.1
+
+# 2. Fix bug and update version
+# 3. Merge to main and tag
+git checkout main
+git merge --no-ff hotfix/v0.2.1
+git tag -a v0.2.1 -m "Hotfix v0.2.1"
+git push origin main --tags
+
+# 4. Merge back to develop
+git checkout develop
+git merge --no-ff hotfix/v0.2.1
+git push origin develop
+```
 
 ## Code Standards
 
