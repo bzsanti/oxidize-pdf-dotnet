@@ -103,15 +103,13 @@ pub unsafe extern "C" fn oxidize_get_last_error(out_error: *mut *mut c_char) -> 
     let error_msg = LAST_ERROR.with(|e| e.borrow().clone());
 
     match error_msg {
-        Some(msg) if !msg.is_empty() => {
-            match CString::new(msg) {
-                Ok(c_string) => {
-                    *out_error = c_string.into_raw();
-                    ErrorCode::Success as c_int
-                }
-                Err(_) => ErrorCode::InvalidUtf8 as c_int,
+        Some(msg) if !msg.is_empty() => match CString::new(msg) {
+            Ok(c_string) => {
+                *out_error = c_string.into_raw();
+                ErrorCode::Success as c_int
             }
-        }
+            Err(_) => ErrorCode::InvalidUtf8 as c_int,
+        },
         _ => ErrorCode::Success as c_int, // No error to report
     }
 }
@@ -283,7 +281,8 @@ pub unsafe extern "C" fn oxidize_extract_chunks(
             // Try to find sentence boundary near end
             let chunk_end = if chunk_opts.preserve_sentence_boundaries && end < page_content.len() {
                 // Look for sentence boundary (. ! ?) within last 20% of chunk
-                let raw_search_start = start + (chunk_opts.max_chunk_size * 4 / 5).min(end.saturating_sub(start));
+                let raw_search_start =
+                    start + (chunk_opts.max_chunk_size * 4 / 5).min(end.saturating_sub(start));
                 let search_start = find_char_boundary(page_content, raw_search_start);
 
                 if search_start < end {
