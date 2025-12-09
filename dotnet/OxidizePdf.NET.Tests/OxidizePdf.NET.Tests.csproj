@@ -29,4 +29,12 @@
     </Content>
   </ItemGroup>
 
+  <!-- Copy native binaries from main project to test output directory -->
+  <Target Name="CopyNativeBinariesToTestOutput" AfterTargets="Build">
+    <ItemGroup>
+      <NativeTestBinaries Include="..\OxidizePdf.NET\runtimes\**\native\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeTestBinaries)" DestinationFolder="$(OutDir)runtimes\%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>
