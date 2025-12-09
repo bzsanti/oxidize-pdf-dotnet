@@ -18,7 +18,12 @@ public class NativeBinariesTests
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return ("win-x64", "oxidize_pdf_ffi.dll");
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            return ("osx-x64", "liboxidize_pdf_ffi.dylib");
+        {
+            var rid = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                ? "osx-arm64"
+                : "osx-x64";
+            return (rid, "liboxidize_pdf_ffi.dylib");
+        }
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             return ("linux-x64", "liboxidize_pdf_ffi.so");
 
