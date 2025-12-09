@@ -6,10 +6,11 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
     <!-- NuGet Package Metadata -->
     <PackageId>OxidizePdf.NET</PackageId>
-    <Version>0.2.1</Version>
+    <Version>0.2.2</Version>
     <Authors>Santiago Fernández Muñoz</Authors>
     <Company>BelowZero</Company>
     <Description>.NET bindings for oxidize-pdf - Fast, memory-safe PDF text extraction optimized for RAG/LLM pipelines with intelligent chunking.</Description>

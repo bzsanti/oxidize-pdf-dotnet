@@ -70,6 +70,67 @@ internal static class NativeMethods
     internal static extern int oxidize_version(out IntPtr outVersion);
 
     /// <summary>
+    /// Get the last error message from native library
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_last_error(out IntPtr outError);
+
+    /// <summary>
+    /// Get the number of pages in a PDF
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_page_count(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        out nuint outCount
+    );
+
+    /// <summary>
+    /// Extract plain text from a specific page of a PDF
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_extract_text_from_page(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint pageNumber,
+        out IntPtr outText
+    );
+
+    /// <summary>
+    /// Extract text chunks from a specific page of a PDF
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_extract_chunks_from_page(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint pageNumber,
+        ref ChunkOptionsNative options,
+        out IntPtr outJson
+    );
+
+    /// <summary>
+    /// Gets the last error message from the native library and clears it
+    /// </summary>
+    /// <returns>The error message, or null if no error was set</returns>
+    internal static string? GetLastError()
+    {
+        IntPtr errorPtr = IntPtr.Zero;
+        try
+        {
+            var result = oxidize_get_last_error(out errorPtr);
+            if (result != (int)ErrorCode.Success || errorPtr == IntPtr.Zero)
+                return null;
+
+            return Marshal.PtrToStringUTF8(errorPtr);
+        }
+        finally
+        {
+            if (errorPtr != IntPtr.Zero)
+                oxidize_free_string(errorPtr);
+        }
+    }
+
+    /// <summary>
     /// Load native library for current platform
     /// </summary>
     static NativeMethods()
