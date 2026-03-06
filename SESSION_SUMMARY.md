@@ -8,7 +8,7 @@
 ### 1. Publicación en NuGet.org
 - ✅ v0.1.0: .NET 6/8 support
 - ✅ v0.2.0: .NET 8/9 support (BREAKING CHANGE)
-- ✅ Licencia AGPL-3.0 correctamente configurada
+- ✅ Licencia MIT correctamente configurada
 - ✅ Workflows CI/CD completamente funcionales
 - ✅ Cross-platform builds (Linux, Windows, macOS)
 
@@ -34,7 +34,7 @@
 ## 🔧 Cambios Técnicos
 
 ### Metadatos
-- Licencia: MIT → AGPL-3.0 (consistencia con Rust core)
+- Licencia: MIT
 - Version bumps: 0.1.0 → 0.2.0
 - Badges actualizados (.NET 6.0+ → 8.0+)
 
