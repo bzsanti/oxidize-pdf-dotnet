@@ -329,6 +329,4 @@ var results = await Task.WhenAll(tasks);
 
 ## License
 
-This project (OxidizePdf.NET) is licensed under AGPL-3.0.
-
-This is consistent with the underlying oxidize-pdf library. All users must comply with AGPL-3.0 terms, including making source code available when distributing or providing network services.
+This project (OxidizePdf.NET) is licensed under the MIT License.
