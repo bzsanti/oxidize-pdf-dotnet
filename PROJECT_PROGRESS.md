@@ -28,7 +28,7 @@ Se realizó auditoría comprehensiva con el agente quality-agent identificando:
 5. **Cero tests unitarios .NET** - No existe proyecto de tests
 
 #### ⚠️ 4 WARNINGS IMPORTANTES
-1. Licencia AGPL-3.0 necesita advertencias más prominentes
+1. ~~Licencia AGPL-3.0 necesita advertencias más prominentes~~ **RESUELTO** (migrado a MIT)
 2. Sin estrategia de versionado documentada
 3. Falta SECURITY.md
 4. Target framework .NET 6.0 EOL (noviembre 2024)
@@ -59,7 +59,7 @@ Se realizó auditoría comprehensiva con el agente quality-agent identificando:
 - [ ] Tests para IDisposable
 
 #### FASE 2: Warnings (Tareas 11-15)
-- [ ] Advertencia AGPL-3.0 prominente en README
+- [x] ~~Advertencia AGPL-3.0 prominente en README~~ **N/A** (migrado a MIT)
 - [ ] Actualizar target frameworks
 - [ ] Crear SECURITY.md
 - [ ] Documentar versionado semántico
@@ -170,7 +170,7 @@ Se realizó auditoría comprehensiva con el agente quality-agent identificando:
 
 - **Repositorio:** https://github.com/bzsanti/oxidize-pdf-dotnet
 - **Issues tracking:** GitHub Issues
-- **Licencia:** AGPL-3.0-only
+- **Licencia:** MIT
 - **Target:** NuGet.org publication readiness
 
 ---

@@ -648,7 +648,7 @@ pub unsafe extern "C" fn oxidize_version(out_version: *mut *mut c_char) -> c_int
     *out_version = ptr::null_mut();
 
     let version = format!(
-        "oxidize-pdf-ffi v{} (oxidize-pdf v2.0.0)",
+        "oxidize-pdf-ffi v{} (oxidize-pdf v2.1.0)",
         env!("CARGO_PKG_VERSION")
     );
 
