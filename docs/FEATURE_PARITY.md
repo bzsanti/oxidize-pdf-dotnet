@@ -1,6 +1,7 @@
 # Feature Parity — oxidize-pdf-dotnet
 
 Bridge version: 0.4.0
+Release: v0.4.0
 Core dependency: >=2.3.2, <3.0.0
 Last updated: 2026-03-15
 
