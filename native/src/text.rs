@@ -140,10 +140,7 @@ pub unsafe extern "C" fn oxidize_page_set_word_spacing(
 /// - `page` must be a valid pointer returned by `oxidize_page_create` or
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
-pub unsafe extern "C" fn oxidize_page_set_leading(
-    page: *mut PageHandle,
-    leading: f64,
-) -> c_int {
+pub unsafe extern "C" fn oxidize_page_set_leading(page: *mut PageHandle, leading: f64) -> c_int {
     clear_last_error();
     if page.is_null() {
         set_last_error("Null pointer provided to oxidize_page_set_leading");
@@ -232,9 +229,7 @@ pub struct TextFlowHandle {
 /// - Returns a heap-allocated `TextFlowHandle` that must be freed with
 ///   `oxidize_text_flow_free`.
 #[no_mangle]
-pub unsafe extern "C" fn oxidize_text_flow_create(
-    page: *const PageHandle,
-) -> *mut TextFlowHandle {
+pub unsafe extern "C" fn oxidize_text_flow_create(page: *const PageHandle) -> *mut TextFlowHandle {
     clear_last_error();
     if page.is_null() {
         set_last_error("Null pointer provided to oxidize_text_flow_create");

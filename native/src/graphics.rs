@@ -157,10 +157,7 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_cmyk(
 /// - `page` must be a valid pointer returned by `oxidize_page_create` or
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
-pub unsafe extern "C" fn oxidize_page_set_line_width(
-    page: *mut PageHandle,
-    width: f64,
-) -> c_int {
+pub unsafe extern "C" fn oxidize_page_set_line_width(page: *mut PageHandle, width: f64) -> c_int {
     clear_last_error();
     if page.is_null() {
         set_last_error("Null pointer provided to oxidize_page_set_line_width");
@@ -261,11 +258,7 @@ pub unsafe extern "C" fn oxidize_page_circle(
 /// - `page` must be a valid pointer returned by `oxidize_page_create` or
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
-pub unsafe extern "C" fn oxidize_page_move_to(
-    page: *mut PageHandle,
-    x: f64,
-    y: f64,
-) -> c_int {
+pub unsafe extern "C" fn oxidize_page_move_to(page: *mut PageHandle, x: f64, y: f64) -> c_int {
     clear_last_error();
     if page.is_null() {
         set_last_error("Null pointer provided to oxidize_page_move_to");
@@ -281,11 +274,7 @@ pub unsafe extern "C" fn oxidize_page_move_to(
 /// - `page` must be a valid pointer returned by `oxidize_page_create` or
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
-pub unsafe extern "C" fn oxidize_page_line_to(
-    page: *mut PageHandle,
-    x: f64,
-    y: f64,
-) -> c_int {
+pub unsafe extern "C" fn oxidize_page_line_to(page: *mut PageHandle, x: f64, y: f64) -> c_int {
     clear_last_error();
     if page.is_null() {
         set_last_error("Null pointer provided to oxidize_page_line_to");

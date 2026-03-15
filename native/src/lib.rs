@@ -165,8 +165,7 @@ mod tests {
 
     #[test]
     fn test_null_pointer_handling() {
-        let result =
-            unsafe { parser::oxidize_extract_text(ptr::null(), 0, ptr::null_mut()) };
+        let result = unsafe { parser::oxidize_extract_text(ptr::null(), 0, ptr::null_mut()) };
         assert_eq!(result, ErrorCode::NullPointer as c_int);
     }
 }

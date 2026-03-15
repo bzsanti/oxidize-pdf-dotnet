@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use std::ptr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use base64::Engine as _;
 use crate::{clear_last_error, set_last_error, ErrorCode};
+use base64::Engine as _;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -91,11 +91,7 @@ pub unsafe extern "C" fn oxidize_split_pdf_bytes(
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
-        let pattern = format!(
-            "{}/oxidize_split_{}_page_{{}}.pdf",
-            out_dir.display(),
-            ts
-        );
+        let pattern = format!("{}/oxidize_split_{}_page_{{}}.pdf", out_dir.display(), ts);
 
         let paths = oxidize_pdf::operations::split_into_pages(input_path, &pattern)
             .map_err(|e| format!("split_into_pages failed: {e}"))?;
