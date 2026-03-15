@@ -1,7 +1,7 @@
 # Feature Parity — oxidize-pdf-dotnet
 
 Bridge version: 0.4.0
-Core dependency: >=2.3.1, <3.0.0
+Core dependency: >=2.3.2, <3.0.0
 Last updated: 2026-03-15
 
 Reference: [API Surface definition](../../oxidize-python/docs/lifecycle/API_SURFACE.md)
