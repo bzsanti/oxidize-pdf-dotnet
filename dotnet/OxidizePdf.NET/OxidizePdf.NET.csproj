@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -10,11 +10,11 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>OxidizePdf.NET</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Authors>Santiago Fernández Muñoz</Authors>
     <Company>BelowZero</Company>
-    <Description>.NET bindings for oxidize-pdf - Fast, memory-safe PDF text extraction optimized for RAG/LLM pipelines with intelligent chunking.</Description>
-    <PackageTags>pdf;extraction;rag;llm;kernelmemory;chunking;ai;embeddings</PackageTags>
+    <Description>.NET bindings for oxidize-pdf - Fast, memory-safe PDF creation, extraction, and manipulation optimized for RAG/LLM pipelines. Supports document creation with text and graphics, intelligent chunking, split, merge, rotate, and page extraction.</Description>
+    <PackageTags>pdf;creation;extraction;manipulation;rag;llm;chunking;merge;split;rotate;rust</PackageTags>
     <PackageProjectUrl>https://github.com/bzsanti/oxidize-pdf-dotnet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/bzsanti/oxidize-pdf-dotnet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -37,9 +37,7 @@
     <None Include="icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
-  </ItemGroup>
+  <!-- System.Text.Json is included in the framework since net8.0 -->
 
   <!-- Copy native binaries to output directory for development -->
   <Target Name="CopyNativeBinaries" AfterTargets="Build">
