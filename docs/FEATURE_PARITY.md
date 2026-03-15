@@ -2,7 +2,7 @@
 
 Bridge version: 0.4.0
 Core dependency: >=2.3.1, <3.0.0
-Last updated: 2026-03-14
+Last updated: 2026-03-15
 
 Reference: [API Surface definition](../../oxidize-python/docs/lifecycle/API_SURFACE.md)
 
@@ -39,13 +39,13 @@ Status values:
 | Feature ID | Feature Name | .NET |
 |---|---|---|
 | TXT-001 | Standard fonts | yes |
-| TXT-002 | Custom/embedded fonts | no |
+| TXT-002 | Custom/embedded fonts | yes |
 | TXT-003 | Text color | yes |
 | TXT-004 | Character spacing | yes |
 | TXT-005 | Word spacing | yes |
 | TXT-006 | Line leading | yes |
 | TXT-007 | Text at position | yes |
-| TXT-008 | Text alignment | no |
+| TXT-008 | Text alignment | yes |
 
 ## GFX — Graphics operations
 
@@ -71,11 +71,11 @@ Status values:
 |---|---|---|
 | PARSE-001 | Open from file path | n/a (.NET bridge is bytes-only) |
 | PARSE-002 | Open from bytes | yes |
-| PARSE-003 | Is-encrypted | no |
-| PARSE-004 | Unlock with password | no |
+| PARSE-003 | Is-encrypted | yes |
+| PARSE-004 | Unlock with password | yes |
 | PARSE-005 | Page count | yes |
-| PARSE-006 | PDF version | no |
-| PARSE-007 | Parsed page dimensions | no |
+| PARSE-006 | PDF version | yes |
+| PARSE-007 | Parsed page dimensions | yes |
 | PARSE-008 | Extract text single page | yes |
 | PARSE-009 | Extract text all pages | yes |
 | PARSE-010 | Text chunking | yes |
@@ -105,11 +105,5 @@ Status values:
 
 ## Known gaps requiring work
 
-- **TXT-002** (custom fonts): Core capability, not yet wrapped in FFI.
-- **TXT-008** (text alignment): TextAlign enum not exposed in .NET FFI.
-- **PARSE-003** (is-encrypted): FFI function not yet implemented.
-- **PARSE-004** (unlock with password): FFI function not yet implemented.
-- **PARSE-006** (PDF version string): FFI function not yet implemented.
-- **PARSE-007** (parsed page dimensions): FFI function not yet implemented.
 - **GFX-013** (images): Depends on core image embedding support (TBD).
 - **OPS-005/006**: Not yet available in core.

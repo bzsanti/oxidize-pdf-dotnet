@@ -244,3 +244,40 @@ pub unsafe extern "C" fn oxidize_document_page_count(
     *out_count = (*handle).inner.page_count();
     ErrorCode::Success as c_int
 }
+
+/// Register a custom font from byte data (e.g., TTF/OTF).
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - `name` must be a valid null-terminated UTF-8 string.
+/// - `font_bytes` must be a valid pointer to `font_len` bytes.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_add_font_from_bytes(
+    handle: *mut DocumentHandle,
+    name: *const c_char,
+    font_bytes: *const u8,
+    font_len: usize,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || name.is_null() || font_bytes.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_add_font_from_bytes");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if font_len == 0 {
+        set_last_error("Font data is empty (0 bytes)");
+        return ErrorCode::IoError as c_int;
+    }
+    let font_name = match CStr::from_ptr(name).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in font name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let data = std::slice::from_raw_parts(font_bytes, font_len).to_vec();
+    if let Err(e) = (*handle).inner.add_font_from_bytes(font_name, data) {
+        set_last_error(format!("Failed to add font: {e}"));
+        return ErrorCode::IoError as c_int;
+    }
+    ErrorCode::Success as c_int
+}

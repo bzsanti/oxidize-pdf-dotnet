@@ -49,3 +49,24 @@ pub enum PagePreset {
     Legal = 4,
     LegalLandscape = 5,
 }
+
+/// Text alignment — C-compatible enum for FFI.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum TextAlign {
+    Left = 0,
+    Right = 1,
+    Center = 2,
+    Justified = 3,
+}
+
+impl TextAlign {
+    pub(crate) fn to_oxidize(self) -> oxidize_pdf::text::TextAlign {
+        match self {
+            TextAlign::Left => oxidize_pdf::text::TextAlign::Left,
+            TextAlign::Right => oxidize_pdf::text::TextAlign::Right,
+            TextAlign::Center => oxidize_pdf::text::TextAlign::Center,
+            TextAlign::Justified => oxidize_pdf::text::TextAlign::Justified,
+        }
+    }
+}

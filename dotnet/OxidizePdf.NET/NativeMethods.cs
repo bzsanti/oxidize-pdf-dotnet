@@ -60,6 +60,17 @@ internal static class NativeMethods
     }
 
     /// <summary>
+    /// Text alignment — mirrors Rust TextAlign enum
+    /// </summary>
+    internal enum TextAlign
+    {
+        Left = 0,
+        Right = 1,
+        Center = 2,
+        Justified = 3,
+    }
+
+    /// <summary>
     /// Chunk options for text extraction
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
@@ -140,6 +151,14 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_page_count(IntPtr handle, out nuint outCount);
 
+    /// <summary>Register a custom font from byte data (TTF/OTF)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_add_font_from_bytes(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr fontBytes,
+        nuint fontLen);
+
     // ── Page ──────────────────────────────────────────────────────────────────
 
     /// <summary>Create a new page with explicit dimensions in PDF points</summary>
@@ -172,6 +191,13 @@ internal static class NativeMethods
     internal static extern int oxidize_page_get_height(IntPtr handle, out double outValue);
 
     // ── Text operations ───────────────────────────────────────────────────────
+
+    /// <summary>Set a custom (embedded) font on a page by name</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_custom_font(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string fontName,
+        double size);
 
     /// <summary>Set the current font and size on a page</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -403,6 +429,67 @@ internal static class NativeMethods
         ref ChunkOptionsNative options,
         out IntPtr outJson
     );
+
+    // ── TextFlow operations ──────────────────────────────────────────────────
+
+    /// <summary>Create a text flow context from a page handle</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr oxidize_text_flow_create(IntPtr page);
+
+    /// <summary>Free a text flow handle</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void oxidize_text_flow_free(IntPtr handle);
+
+    /// <summary>Set font and size on a text flow context</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_text_flow_set_font(IntPtr handle, StandardFont font, double size);
+
+    /// <summary>Set text alignment on a text flow context</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_text_flow_set_alignment(IntPtr handle, TextAlign alignment);
+
+    /// <summary>Write wrapped text into a text flow context</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_text_flow_write_wrapped(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text);
+
+    /// <summary>Add a text flow's operations to a page</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_text_flow(IntPtr page, IntPtr flow);
+
+    // ── Parser — additional operations ───────────────────────────────────────
+
+    /// <summary>Check if a PDF is encrypted</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_is_encrypted(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        [MarshalAs(UnmanagedType.I1)] out bool outEncrypted);
+
+    /// <summary>Try to unlock an encrypted PDF with a password</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_unlock_pdf(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string password,
+        [MarshalAs(UnmanagedType.I1)] out bool outUnlocked);
+
+    /// <summary>Get the PDF version string</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_pdf_version(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        out IntPtr outVersion);
+
+    /// <summary>Get the dimensions of a specific page from a parsed PDF (1-based)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_page_dimensions(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint pageNumber,
+        out double outWidth,
+        out double outHeight);
 
     /// <summary>
     /// Gets the last error message from the native library and clears it

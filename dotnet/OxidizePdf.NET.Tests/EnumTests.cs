@@ -95,4 +95,37 @@ public class EnumTests
             Assert.True((value & (value - 1)) == 0, $"{flag} is not a power of two");
         }
     }
+
+    // ── TextAlign enum tests ─────────────────────────────────────────────────
+
+    [Fact]
+    public void TextAlign_HasFourValues()
+    {
+        var values = Enum.GetValues<TextAlign>();
+        Assert.Equal(4, values.Length);
+    }
+
+    [Fact]
+    public void TextAlign_Left_IsZero()
+    {
+        Assert.Equal(0, (int)TextAlign.Left);
+    }
+
+    [Fact]
+    public void TextAlign_Right_IsOne()
+    {
+        Assert.Equal(1, (int)TextAlign.Right);
+    }
+
+    [Fact]
+    public void TextAlign_Center_IsTwo()
+    {
+        Assert.Equal(2, (int)TextAlign.Center);
+    }
+
+    [Fact]
+    public void TextAlign_Justified_IsThree()
+    {
+        Assert.Equal(3, (int)TextAlign.Justified);
+    }
 }

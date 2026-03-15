@@ -251,6 +251,60 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Sets a custom (embedded) font by name and size. The font must have been
+    /// previously registered via <see cref="PdfDocument.AddFont"/>.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="fontName">The name used when registering the font.</param>
+    /// <param name="size">Font size in PDF points.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="fontName"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage SetCustomFont(string fontName, double size)
+    {
+        ArgumentNullException.ThrowIfNull(fontName);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_set_custom_font(_handle, fontName, size),
+            "Failed to set custom font");
+        return this;
+    }
+
+    // ── Text flow operations ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Creates a new text flow context initialized with this page's dimensions and margins.
+    /// Use the returned <see cref="PdfTextFlow"/> to set font, alignment, and write wrapped text,
+    /// then call <see cref="AddTextFlow"/> to render it on the page.
+    /// </summary>
+    /// <returns>A new <see cref="PdfTextFlow"/> instance that must be disposed after use.</returns>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If native creation fails.</exception>
+    public PdfTextFlow CreateTextFlow()
+    {
+        ThrowIfDisposed();
+        return new PdfTextFlow(this);
+    }
+
+    /// <summary>
+    /// Adds a text flow's rendered operations to this page.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="textFlow">The text flow to add.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="textFlow"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage AddTextFlow(PdfTextFlow textFlow)
+    {
+        ArgumentNullException.ThrowIfNull(textFlow);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_add_text_flow(_handle, textFlow.Handle),
+            "Failed to add text flow to page");
+        return this;
+    }
+
     // ── Graphics operations ───────────────────────────────────────────────────
 
     /// <summary>

@@ -121,6 +121,38 @@ public sealed class PdfDocument : IDisposable
         return this;
     }
 
+    // ── Fonts ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Registers a custom font from byte data (e.g., TTF/OTF) for use in pages.
+    /// After registration, use <see cref="PdfPage.SetCustomFont"/> with the same name.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="name">A unique name to identify the font.</param>
+    /// <param name="fontData">The raw font file bytes (TTF/OTF).</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="name"/> or <paramref name="fontData"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument AddFont(string name, byte[] fontData)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(fontData);
+        ThrowIfDisposed();
+
+        unsafe
+        {
+            fixed (byte* ptr = fontData)
+            {
+                ThrowIfError(
+                    NativeMethods.oxidize_document_add_font_from_bytes(
+                        _handle, name, (IntPtr)ptr, (nuint)fontData.Length),
+                    "Failed to add font");
+            }
+        }
+
+        return this;
+    }
+
     // ── Pages ─────────────────────────────────────────────────────────────────
 
     /// <summary>

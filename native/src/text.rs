@@ -2,7 +2,7 @@ use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 
 use crate::page::PageHandle;
-use crate::types::StandardFont;
+use crate::types::{StandardFont, TextAlign};
 use crate::{clear_last_error, set_last_error, ErrorCode};
 
 /// Set the current font and size on a page.
@@ -182,5 +182,164 @@ pub unsafe extern "C" fn oxidize_page_text_at(
         set_last_error(format!("Failed to write text: {e}"));
         return ErrorCode::PdfParseError as c_int;
     }
+    ErrorCode::Success as c_int
+}
+
+/// Set a custom (embedded) font on a page by name.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `font_name` must be a valid null-terminated UTF-8 string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_custom_font(
+    page: *mut PageHandle,
+    font_name: *const c_char,
+    size: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || font_name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_custom_font");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name = match CStr::from_ptr(font_name).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in font name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    (*page)
+        .inner
+        .text()
+        .set_font(oxidize_pdf::text::Font::Custom(name.to_string()), size);
+    ErrorCode::Success as c_int
+}
+
+// ── TextFlow operations ─────────────────────────────────────────────────────
+
+/// Opaque handle wrapping an `oxidize_pdf::text::TextFlowContext`.
+pub struct TextFlowHandle {
+    pub(crate) inner: oxidize_pdf::text::TextFlowContext,
+}
+
+/// Create a new text flow context from a page handle.
+/// The text flow inherits the page's dimensions and margins.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - Returns a heap-allocated `TextFlowHandle` that must be freed with
+///   `oxidize_text_flow_free`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_text_flow_create(
+    page: *const PageHandle,
+) -> *mut TextFlowHandle {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_text_flow_create");
+        return std::ptr::null_mut();
+    }
+    let flow = (*page).inner.text_flow();
+    let handle = Box::new(TextFlowHandle { inner: flow });
+    Box::into_raw(handle)
+}
+
+/// Free a text flow handle.
+///
+/// # Safety
+/// - `handle` must have been returned by `oxidize_text_flow_create`.
+/// - `handle` must not have been freed previously.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_text_flow_free(handle: *mut TextFlowHandle) {
+    if handle.is_null() {
+        return;
+    }
+    drop(Box::from_raw(handle));
+}
+
+/// Set the font and size on a text flow context.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_text_flow_create`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_text_flow_set_font(
+    handle: *mut TextFlowHandle,
+    font: StandardFont,
+    size: f64,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_text_flow_set_font");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*handle).inner.set_font(font.to_oxidize(), size);
+    ErrorCode::Success as c_int
+}
+
+/// Set the text alignment on a text flow context.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_text_flow_create`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_text_flow_set_alignment(
+    handle: *mut TextFlowHandle,
+    alignment: TextAlign,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_text_flow_set_alignment");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*handle).inner.set_alignment(alignment.to_oxidize());
+    ErrorCode::Success as c_int
+}
+
+/// Write wrapped text into a text flow context.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_text_flow_create`.
+/// - `text` must be a valid null-terminated UTF-8 string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_text_flow_write_wrapped(
+    handle: *mut TextFlowHandle,
+    text: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || text.is_null() {
+        set_last_error("Null pointer provided to oxidize_text_flow_write_wrapped");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let s = match CStr::from_ptr(text).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in text argument");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    if let Err(e) = (*handle).inner.write_wrapped(s) {
+        set_last_error(format!("Failed to write wrapped text: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Add a text flow's operations to a page.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `flow` must be a valid pointer returned by `oxidize_text_flow_create`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_add_text_flow(
+    page: *mut PageHandle,
+    flow: *const TextFlowHandle,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || flow.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_text_flow");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.add_text_flow(&(*flow).inner);
     ErrorCode::Success as c_int
 }

@@ -158,4 +158,84 @@ public class PdfDocumentTests
         var bytes = doc.SaveToBytes();
         Assert.True(bytes.Length > 100, "Generated PDF should be non-trivial size");
     }
+
+    // ── Custom font tests ────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void AddFont_WithValidTtfBytes_Succeeds()
+    {
+        var fontBytes = GetTestFontBytes();
+        if (fontBytes == null)
+            return; // Skip if no font available on system
+
+        using var doc = new PdfDocument();
+        var result = doc.AddFont("TestFont", fontBytes);
+        Assert.Same(doc, result);
+    }
+
+    [Fact]
+    public void AddFont_WithNullName_ThrowsArgumentNullException()
+    {
+        using var doc = new PdfDocument();
+        Assert.Throws<ArgumentNullException>(() => doc.AddFont(null!, new byte[10]));
+    }
+
+    [Fact]
+    public void AddFont_WithNullBytes_ThrowsArgumentNullException()
+    {
+        using var doc = new PdfDocument();
+        Assert.Throws<ArgumentNullException>(() => doc.AddFont("TestFont", null!));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetCustomFont_OnPage_CreatesValidPdf()
+    {
+        var fontBytes = GetTestFontBytes();
+        if (fontBytes == null)
+            return; // Skip if no font available on system
+
+        using var doc = new PdfDocument();
+        doc.AddFont("TestFont", fontBytes);
+
+        using var page = PdfPage.A4();
+        page.SetCustomFont("TestFont", 14)
+            .TextAt(50, 750, "Hello with custom font!");
+        doc.AddPage(page);
+
+        var bytes = doc.SaveToBytes();
+        Assert.True(bytes.Length > 100);
+    }
+
+    [Fact]
+    public void SetCustomFont_WithNullName_ThrowsArgumentNullException()
+    {
+        using var page = PdfPage.A4();
+        Assert.Throws<ArgumentNullException>(() => page.SetCustomFont(null!, 12));
+    }
+
+    /// <summary>
+    /// Tries to load a TTF font from the system for testing.
+    /// Returns null if no font is available (test will be skipped).
+    /// </summary>
+    private static byte[]? GetTestFontBytes()
+    {
+        var fontPaths = new[]
+        {
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+            "/Library/Fonts/Arial.ttf",
+            @"C:\Windows\Fonts\arial.ttf",
+        };
+
+        foreach (var path in fontPaths)
+        {
+            if (File.Exists(path))
+                return File.ReadAllBytes(path);
+        }
+
+        return null;
+    }
 }

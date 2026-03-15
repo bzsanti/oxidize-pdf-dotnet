@@ -63,3 +63,18 @@ public enum PdfPermissions : uint
     /// <summary>All permissions granted</summary>
     All = 0xFF,
 }
+
+/// <summary>
+/// Text alignment options for text flow operations.
+/// </summary>
+public enum TextAlign
+{
+    /// <summary>Align text to the left margin (default)</summary>
+    Left = 0,
+    /// <summary>Align text to the right margin</summary>
+    Right = 1,
+    /// <summary>Center text between margins</summary>
+    Center = 2,
+    /// <summary>Justify text to fill the full width between margins</summary>
+    Justified = 3,
+}

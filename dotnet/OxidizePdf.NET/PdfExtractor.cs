@@ -209,6 +209,108 @@ public class PdfExtractor
         return Task.Run(() => ExtractChunksFromPage(pdfBytes, pageNumber, options), cancellationToken);
     }
 
+    /// <summary>
+    /// Checks if a PDF is encrypted.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns><c>true</c> if the PDF is encrypted; otherwise <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If parsing fails.</exception>
+    public Task<bool> IsEncryptedAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => IsEncrypted(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Tries to unlock an encrypted PDF with the given password.
+    /// Returns <c>true</c> if the password is correct (or if the PDF is not encrypted).
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="password">The password to try.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns><c>true</c> if unlocking succeeded; otherwise <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes or password is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If parsing fails.</exception>
+    public Task<bool> UnlockWithPasswordAsync(byte[] pdfBytes, string password, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(password);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => UnlockWithPassword(pdfBytes, password), cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets the PDF version string (e.g., "1.4", "1.7").
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The PDF version string.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If parsing fails.</exception>
+    public Task<string> GetPdfVersionAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => GetPdfVersion(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets the dimensions of a specific page from a parsed PDF.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="pageNumber">Page number (1-based).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A tuple with the page width and height in PDF points.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">If pageNumber is less than 1.</exception>
+    /// <exception cref="PdfExtractionException">If parsing fails.</exception>
+    public Task<(double Width, double Height)> GetPageDimensionsAsync(
+        byte[] pdfBytes,
+        int pageNumber,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        if (pageNumber < 1)
+            throw new ArgumentOutOfRangeException(nameof(pageNumber), "Page number must be >= 1 (1-based indexing)");
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => GetPageDimensions(pdfBytes, pageNumber), cancellationToken);
+    }
+
     private void ValidatePdfSize(byte[] pdfBytes)
     {
         if (pdfBytes.LongLength > _maxFileSizeBytes)
@@ -394,6 +496,113 @@ public class PdfExtractor
 
             if (jsonPtr != IntPtr.Zero)
                 NativeMethods.oxidize_free_string(jsonPtr);
+        }
+    }
+
+    private bool IsEncrypted(byte[] pdfBytes)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var result = NativeMethods.oxidize_is_encrypted(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                out var encrypted);
+
+            ThrowIfError(result, "Failed to check if PDF is encrypted");
+
+            return encrypted;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(pdfPtr);
+        }
+    }
+
+    private bool UnlockWithPassword(byte[] pdfBytes, string password)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var result = NativeMethods.oxidize_unlock_pdf(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                password,
+                out var unlocked);
+
+            ThrowIfError(result, "Failed to unlock PDF");
+
+            return unlocked;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(pdfPtr);
+        }
+    }
+
+    private string GetPdfVersion(byte[] pdfBytes)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+        IntPtr versionPtr = IntPtr.Zero;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var result = NativeMethods.oxidize_get_pdf_version(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                out versionPtr);
+
+            ThrowIfError(result, "Failed to get PDF version");
+
+            return Marshal.PtrToStringUTF8(versionPtr) ?? string.Empty;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(pdfPtr);
+
+            if (versionPtr != IntPtr.Zero)
+                NativeMethods.oxidize_free_string(versionPtr);
+        }
+    }
+
+    private (double Width, double Height) GetPageDimensions(byte[] pdfBytes, int pageNumber)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var result = NativeMethods.oxidize_get_page_dimensions(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                (nuint)pageNumber,
+                out var width,
+                out var height);
+
+            ThrowIfError(result, $"Failed to get dimensions for page {pageNumber}");
+
+            return (width, height);
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(pdfPtr);
         }
     }
 

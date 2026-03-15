@@ -1,6 +1,6 @@
 use oxidize_pdf::parser::{PdfDocument, PdfReader};
 use serde::{Deserialize, Serialize};
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::io::Cursor;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
@@ -480,4 +480,190 @@ pub unsafe extern "C" fn oxidize_extract_chunks_from_page(
         }
         Err(code) => code,
     }
+}
+
+// ── Additional parser FFI functions ─────────────────────────────────────────
+
+/// Check if a PDF is encrypted.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_encrypted` must be a valid pointer to a `bool`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_is_encrypted(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_encrypted: *mut bool,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || out_encrypted.is_null() {
+        set_last_error("Null pointer provided to oxidize_is_encrypted");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_encrypted = false;
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let cursor = Cursor::new(bytes);
+    let reader = match PdfReader::new(cursor) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(format!("Failed to parse PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    *out_encrypted = reader.is_encrypted();
+    ErrorCode::Success as c_int
+}
+
+/// Try to unlock an encrypted PDF with a password.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `password` must be a valid null-terminated UTF-8 string.
+/// - `out_unlocked` must be a valid pointer to a `bool`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_unlock_pdf(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    password: *const c_char,
+    out_unlocked: *mut bool,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || password.is_null() || out_unlocked.is_null() {
+        set_last_error("Null pointer provided to oxidize_unlock_pdf");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_unlocked = false;
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    let pw = match CStr::from_ptr(password).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in password");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let cursor = Cursor::new(bytes);
+    let mut reader = match PdfReader::new(cursor) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(format!("Failed to parse PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    if !reader.is_encrypted() {
+        *out_unlocked = true;
+        return ErrorCode::Success as c_int;
+    }
+    match reader.unlock_with_password(pw) {
+        Ok(success) => {
+            *out_unlocked = success;
+            ErrorCode::Success as c_int
+        }
+        Err(e) => {
+            set_last_error(format!("Failed to unlock PDF: {e}"));
+            ErrorCode::EncryptionError as c_int
+        }
+    }
+}
+
+/// Get the PDF version string (e.g. "1.4", "1.7").
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_version` must be a valid pointer; on success it will point to a
+///   heap-allocated C string that must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_pdf_version(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_version: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || out_version.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_pdf_version");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_version = ptr::null_mut();
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let cursor = Cursor::new(bytes);
+    let reader = match PdfReader::new(cursor) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(format!("Failed to parse PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    let version = reader.version().to_string();
+    let c_string = match CString::new(version) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Version string contains invalid data: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    *out_version = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Get the dimensions of a specific page from a parsed PDF (1-based page number).
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `page_number` is 1-based (first page = 1).
+/// - `out_width` and `out_height` must be valid pointers to `f64`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_page_dimensions(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    page_number: usize,
+    out_width: *mut f64,
+    out_height: *mut f64,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || out_width.is_null() || out_height.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_page_dimensions");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_width = 0.0;
+    *out_height = 0.0;
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let cursor = Cursor::new(bytes);
+    let reader = match PdfReader::new(cursor) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(format!("Failed to parse PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    let document = PdfDocument::new(reader);
+    let page_index = (page_number - 1) as u32;
+    let page = match document.get_page(page_index) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!("Failed to get page {page_number}: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    *out_width = page.width();
+    *out_height = page.height();
+    ErrorCode::Success as c_int
 }
