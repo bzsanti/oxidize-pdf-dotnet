@@ -1,4 +1,4 @@
-use oxidize_pdf::parser::{PdfDocument, PdfReader};
+use oxidize_pdf::parser::{ParseOptions, PdfDocument, PdfReader};
 use serde::{Deserialize, Serialize};
 use std::ffi::{CStr, CString};
 use std::io::Cursor;
@@ -7,6 +7,20 @@ use std::ptr;
 use std::slice;
 
 use crate::{clear_last_error, find_char_boundary, set_last_error, ErrorCode};
+
+// ── PDF reader helper ─────────────────────────────────────────────────────────
+
+/// Open a PDF from raw bytes using lenient parsing mode.
+///
+/// Lenient mode enables xref recovery, tolerant syntax parsing, stream error
+/// recovery, and other compatibility mechanisms required for real-world PDFs.
+/// This is the only way to create a PdfReader in this module — all FFI
+/// functions must use this helper instead of `PdfReader::new()`.
+fn open_lenient(bytes: &[u8]) -> Result<PdfReader<Cursor<&[u8]>>, String> {
+    let cursor = Cursor::new(bytes);
+    PdfReader::new_with_options(cursor, ParseOptions::lenient())
+        .map_err(|e| format!("Failed to parse PDF: {e}"))
+}
 
 // ── Chunk types ───────────────────────────────────────────────────────────────
 
@@ -152,11 +166,10 @@ pub unsafe extern "C" fn oxidize_extract_text(
     }
 
     let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let cursor = Cursor::new(bytes);
-    let reader = match PdfReader::new(cursor) {
+    let reader = match open_lenient(bytes) {
         Ok(r) => r,
         Err(e) => {
-            set_last_error(format!("Failed to parse PDF: {e}"));
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
     };
@@ -224,11 +237,10 @@ pub unsafe extern "C" fn oxidize_extract_chunks(
     };
 
     let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let cursor = Cursor::new(bytes);
-    let reader = match PdfReader::new(cursor) {
+    let reader = match open_lenient(bytes) {
         Ok(r) => r,
         Err(e) => {
-            set_last_error(format!("Failed to parse PDF: {e}"));
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
     };
@@ -291,26 +303,24 @@ pub unsafe extern "C" fn oxidize_get_page_count(
     }
 
     let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let cursor = Cursor::new(bytes);
-
-    let reader = match PdfReader::new(cursor) {
+    let reader = match open_lenient(bytes) {
         Ok(r) => r,
         Err(e) => {
-            set_last_error(format!("Failed to parse PDF: {e}"));
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
     };
 
     let document = PdfDocument::new(reader);
-    let text_pages = match document.extract_text() {
-        Ok(pages) => pages,
+    let count = match document.page_count() {
+        Ok(c) => c,
         Err(e) => {
-            set_last_error(format!("Failed to extract text from PDF: {e}"));
+            set_last_error(format!("Failed to get page count: {e}"));
             return ErrorCode::PdfParseError as c_int;
         }
     };
 
-    *out_count = text_pages.len();
+    *out_count = count as usize;
     ErrorCode::Success as c_int
 }
 
@@ -348,12 +358,10 @@ pub unsafe extern "C" fn oxidize_extract_text_from_page(
     }
 
     let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let cursor = Cursor::new(bytes);
-
-    let reader = match PdfReader::new(cursor) {
+    let reader = match open_lenient(bytes) {
         Ok(r) => r,
         Err(e) => {
-            set_last_error(format!("Failed to parse PDF: {e}"));
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
     };
@@ -433,12 +441,10 @@ pub unsafe extern "C" fn oxidize_extract_chunks_from_page(
     };
 
     let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let cursor = Cursor::new(bytes);
-
-    let reader = match PdfReader::new(cursor) {
+    let reader = match open_lenient(bytes) {
         Ok(r) => r,
         Err(e) => {
-            set_last_error(format!("Failed to parse PDF: {e}"));
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
     };
@@ -506,11 +512,10 @@ pub unsafe extern "C" fn oxidize_is_encrypted(
         return ErrorCode::PdfParseError as c_int;
     }
     let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let cursor = Cursor::new(bytes);
-    let reader = match PdfReader::new(cursor) {
+    let reader = match open_lenient(bytes) {
         Ok(r) => r,
         Err(e) => {
-            set_last_error(format!("Failed to parse PDF: {e}"));
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
     };
@@ -549,11 +554,10 @@ pub unsafe extern "C" fn oxidize_unlock_pdf(
         }
     };
     let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let cursor = Cursor::new(bytes);
-    let mut reader = match PdfReader::new(cursor) {
+    let mut reader = match open_lenient(bytes) {
         Ok(r) => r,
         Err(e) => {
-            set_last_error(format!("Failed to parse PDF: {e}"));
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
     };
@@ -596,11 +600,10 @@ pub unsafe extern "C" fn oxidize_get_pdf_version(
         return ErrorCode::PdfParseError as c_int;
     }
     let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let cursor = Cursor::new(bytes);
-    let reader = match PdfReader::new(cursor) {
+    let reader = match open_lenient(bytes) {
         Ok(r) => r,
         Err(e) => {
-            set_last_error(format!("Failed to parse PDF: {e}"));
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
     };
@@ -646,11 +649,10 @@ pub unsafe extern "C" fn oxidize_get_page_dimensions(
         return ErrorCode::PdfParseError as c_int;
     }
     let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let cursor = Cursor::new(bytes);
-    let reader = match PdfReader::new(cursor) {
+    let reader = match open_lenient(bytes) {
         Ok(r) => r,
         Err(e) => {
-            set_last_error(format!("Failed to parse PDF: {e}"));
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
     };
