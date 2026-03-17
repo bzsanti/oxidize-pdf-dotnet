@@ -168,6 +168,111 @@ pub unsafe extern "C" fn oxidize_document_set_creator(
     ErrorCode::Success as c_int
 }
 
+/// Set the document producer metadata.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - `text` must be a valid null-terminated UTF-8 string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_set_producer(
+    handle: *mut DocumentHandle,
+    text: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || text.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_set_producer");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let s = match CStr::from_ptr(text).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in producer");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    (*handle).inner.set_producer(s);
+    ErrorCode::Success as c_int
+}
+
+/// Set the document creation date from a Unix timestamp (seconds since epoch).
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_set_creation_date(
+    handle: *mut DocumentHandle,
+    unix_timestamp_secs: i64,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_set_creation_date");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let date = match chrono::DateTime::from_timestamp(unix_timestamp_secs, 0) {
+        Some(d) => d,
+        None => {
+            set_last_error(format!("Invalid Unix timestamp: {unix_timestamp_secs}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    (*handle).inner.set_creation_date(date);
+    ErrorCode::Success as c_int
+}
+
+/// Set the document modification date from a Unix timestamp (seconds since epoch).
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_set_modification_date(
+    handle: *mut DocumentHandle,
+    unix_timestamp_secs: i64,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_set_modification_date");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let date = match chrono::DateTime::from_timestamp(unix_timestamp_secs, 0) {
+        Some(d) => d,
+        None => {
+            set_last_error(format!("Invalid Unix timestamp: {unix_timestamp_secs}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    (*handle).inner.set_modification_date(date);
+    ErrorCode::Success as c_int
+}
+
+/// Save the document to a file at the given path.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - `path` must be a valid null-terminated UTF-8 string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_save_to_file(
+    handle: *mut DocumentHandle,
+    path: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || path.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_save_to_file");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let p = match CStr::from_ptr(path).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in file path");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    if let Err(e) = (*handle).inner.save(p) {
+        set_last_error(format!("Failed to save document to file: {e}"));
+        return ErrorCode::IoError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
 /// Add a page to the document. The page is cloned internally; the caller retains ownership.
 ///
 /// # Safety

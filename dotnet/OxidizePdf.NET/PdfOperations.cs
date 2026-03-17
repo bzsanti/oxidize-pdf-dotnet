@@ -115,6 +115,115 @@ public static class PdfOperations
         return Task.Run(() => ExtractPages(pdfBytes, pageIndices), ct);
     }
 
+    /// <summary>
+    /// Reorders pages in a PDF according to the specified new order.
+    /// </summary>
+    /// <param name="pdfBytes">The source PDF as a byte array.</param>
+    /// <param name="newOrder">Array of 0-based page indices defining the new page order.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The reordered PDF as a byte array.</returns>
+    public static Task<byte[]> ReorderPagesAsync(byte[] pdfBytes, int[] newOrder, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(newOrder);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        if (newOrder.Length == 0)
+            throw new ArgumentException("Page order cannot be empty", nameof(newOrder));
+
+        for (var i = 0; i < newOrder.Length; i++)
+        {
+            if (newOrder[i] < 0)
+                throw new ArgumentOutOfRangeException(
+                    nameof(newOrder),
+                    $"Page index at position {i} is negative ({newOrder[i]}). Indices are 0-based.");
+        }
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => ReorderPages(pdfBytes, newOrder), ct);
+    }
+
+    /// <summary>
+    /// Swaps two pages in a PDF by their 0-based indices.
+    /// </summary>
+    /// <param name="pdfBytes">The source PDF as a byte array.</param>
+    /// <param name="pageA">0-based index of the first page.</param>
+    /// <param name="pageB">0-based index of the second page.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The PDF with swapped pages as a byte array.</returns>
+    public static Task<byte[]> SwapPagesAsync(byte[] pdfBytes, int pageA, int pageB, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ArgumentOutOfRangeException.ThrowIfNegative(pageA);
+        ArgumentOutOfRangeException.ThrowIfNegative(pageB);
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => SwapPages(pdfBytes, pageA, pageB), ct);
+    }
+
+    /// <summary>
+    /// Moves a page from one position to another in a PDF.
+    /// </summary>
+    /// <param name="pdfBytes">The source PDF as a byte array.</param>
+    /// <param name="fromIndex">0-based index of the page to move.</param>
+    /// <param name="toIndex">0-based destination index.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The PDF with the moved page as a byte array.</returns>
+    public static Task<byte[]> MovePageAsync(byte[] pdfBytes, int fromIndex, int toIndex, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ArgumentOutOfRangeException.ThrowIfNegative(fromIndex);
+        ArgumentOutOfRangeException.ThrowIfNegative(toIndex);
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => MovePage(pdfBytes, fromIndex, toIndex), ct);
+    }
+
+    /// <summary>
+    /// Reverses the order of all pages in a PDF.
+    /// </summary>
+    /// <param name="pdfBytes">The source PDF as a byte array.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The PDF with reversed page order as a byte array.</returns>
+    public static Task<byte[]> ReversePagesAsync(byte[] pdfBytes, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => ReversePages(pdfBytes), ct);
+    }
+
+    /// <summary>
+    /// Overlays one PDF on top of another using default options.
+    /// </summary>
+    /// <param name="basePdf">The base PDF as a byte array.</param>
+    /// <param name="overlayPdf">The overlay PDF as a byte array.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The combined PDF as a byte array.</returns>
+    public static Task<byte[]> OverlayAsync(byte[] basePdf, byte[] overlayPdf, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(basePdf);
+        ArgumentNullException.ThrowIfNull(overlayPdf);
+        if (basePdf.Length == 0)
+            throw new ArgumentException("Base PDF bytes cannot be empty", nameof(basePdf));
+        if (overlayPdf.Length == 0)
+            throw new ArgumentException("Overlay PDF bytes cannot be empty", nameof(overlayPdf));
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => Overlay(basePdf, overlayPdf), ct);
+    }
+
     // ── Private synchronous implementations ──────────────────────────────────
 
     private static List<byte[]> Split(byte[] pdfBytes)
@@ -248,6 +357,155 @@ public static class PdfOperations
                 Marshal.FreeHGlobal(pdfPtr);
             if (outPtr != IntPtr.Zero)
                 NativeMethods.oxidize_free_bytes(outPtr, outLen);
+        }
+    }
+
+    private static byte[] ReorderPages(byte[] pdfBytes, int[] newOrder)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+        IntPtr outPtr = IntPtr.Zero;
+        nuint outLen = 0;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var orderJson = JsonSerializer.Serialize(newOrder);
+
+            var result = NativeMethods.oxidize_reorder_pages_bytes(
+                pdfPtr, (nuint)pdfBytes.Length, orderJson, out outPtr, out outLen);
+
+            ThrowIfError(result, "Failed to reorder pages");
+
+            var length = (int)outLen;
+            var output = new byte[length];
+            Marshal.Copy(outPtr, output, 0, length);
+            return output;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero) Marshal.FreeHGlobal(pdfPtr);
+            if (outPtr != IntPtr.Zero) NativeMethods.oxidize_free_bytes(outPtr, outLen);
+        }
+    }
+
+    private static byte[] SwapPages(byte[] pdfBytes, int pageA, int pageB)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+        IntPtr outPtr = IntPtr.Zero;
+        nuint outLen = 0;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var result = NativeMethods.oxidize_swap_pages_bytes(
+                pdfPtr, (nuint)pdfBytes.Length, (nuint)pageA, (nuint)pageB, out outPtr, out outLen);
+
+            ThrowIfError(result, "Failed to swap pages");
+
+            var length = (int)outLen;
+            var output = new byte[length];
+            Marshal.Copy(outPtr, output, 0, length);
+            return output;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero) Marshal.FreeHGlobal(pdfPtr);
+            if (outPtr != IntPtr.Zero) NativeMethods.oxidize_free_bytes(outPtr, outLen);
+        }
+    }
+
+    private static byte[] MovePage(byte[] pdfBytes, int fromIndex, int toIndex)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+        IntPtr outPtr = IntPtr.Zero;
+        nuint outLen = 0;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var result = NativeMethods.oxidize_move_page_bytes(
+                pdfPtr, (nuint)pdfBytes.Length, (nuint)fromIndex, (nuint)toIndex, out outPtr, out outLen);
+
+            ThrowIfError(result, "Failed to move page");
+
+            var length = (int)outLen;
+            var output = new byte[length];
+            Marshal.Copy(outPtr, output, 0, length);
+            return output;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero) Marshal.FreeHGlobal(pdfPtr);
+            if (outPtr != IntPtr.Zero) NativeMethods.oxidize_free_bytes(outPtr, outLen);
+        }
+    }
+
+    private static byte[] ReversePages(byte[] pdfBytes)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+        IntPtr outPtr = IntPtr.Zero;
+        nuint outLen = 0;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var result = NativeMethods.oxidize_reverse_pages_bytes(
+                pdfPtr, (nuint)pdfBytes.Length, out outPtr, out outLen);
+
+            ThrowIfError(result, "Failed to reverse pages");
+
+            var length = (int)outLen;
+            var output = new byte[length];
+            Marshal.Copy(outPtr, output, 0, length);
+            return output;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero) Marshal.FreeHGlobal(pdfPtr);
+            if (outPtr != IntPtr.Zero) NativeMethods.oxidize_free_bytes(outPtr, outLen);
+        }
+    }
+
+    private static byte[] Overlay(byte[] basePdf, byte[] overlayPdf)
+    {
+        IntPtr basePtr = IntPtr.Zero;
+        IntPtr overlayPtr = IntPtr.Zero;
+        IntPtr outPtr = IntPtr.Zero;
+        nuint outLen = 0;
+
+        try
+        {
+            basePtr = Marshal.AllocHGlobal(basePdf.Length);
+            Marshal.Copy(basePdf, 0, basePtr, basePdf.Length);
+
+            overlayPtr = Marshal.AllocHGlobal(overlayPdf.Length);
+            Marshal.Copy(overlayPdf, 0, overlayPtr, overlayPdf.Length);
+
+            var result = NativeMethods.oxidize_overlay_pdf_bytes(
+                basePtr, (nuint)basePdf.Length,
+                overlayPtr, (nuint)overlayPdf.Length,
+                out outPtr, out outLen);
+
+            ThrowIfError(result, "Failed to overlay PDFs");
+
+            var length = (int)outLen;
+            var output = new byte[length];
+            Marshal.Copy(outPtr, output, 0, length);
+            return output;
+        }
+        finally
+        {
+            if (basePtr != IntPtr.Zero) Marshal.FreeHGlobal(basePtr);
+            if (overlayPtr != IntPtr.Zero) Marshal.FreeHGlobal(overlayPtr);
+            if (outPtr != IntPtr.Zero) NativeMethods.oxidize_free_bytes(outPtr, outLen);
         }
     }
 

@@ -78,3 +78,123 @@ public enum TextAlign
     /// <summary>Justify text to fill the full width between margins</summary>
     Justified = 3,
 }
+
+/// <summary>
+/// Numbering style for ordered lists.
+/// </summary>
+public enum OrderedListStyle
+{
+    /// <summary>Decimal numbers: 1, 2, 3, ...</summary>
+    Decimal = 0,
+    /// <summary>Lowercase letters: a, b, c, ...</summary>
+    LowerAlpha = 1,
+    /// <summary>Uppercase letters: A, B, C, ...</summary>
+    UpperAlpha = 2,
+    /// <summary>Lowercase Roman numerals: i, ii, iii, ...</summary>
+    LowerRoman = 3,
+    /// <summary>Uppercase Roman numerals: I, II, III, ...</summary>
+    UpperRoman = 4,
+}
+
+/// <summary>
+/// Bullet style for unordered lists.
+/// </summary>
+public enum BulletStyle
+{
+    /// <summary>Filled circle bullet</summary>
+    Disc = 0,
+    /// <summary>Empty circle bullet</summary>
+    Circle = 1,
+    /// <summary>Filled square bullet</summary>
+    Square = 2,
+    /// <summary>Dash bullet</summary>
+    Dash = 3,
+}
+
+/// <summary>
+/// Text rendering mode that controls how text glyphs are painted.
+/// </summary>
+public enum TextRenderingMode
+{
+    /// <summary>Fill text glyphs (default)</summary>
+    Fill = 0,
+    /// <summary>Stroke text outlines</summary>
+    Stroke = 1,
+    /// <summary>Fill and then stroke text</summary>
+    FillStroke = 2,
+    /// <summary>Neither fill nor stroke (invisible text, still selectable)</summary>
+    Invisible = 3,
+    /// <summary>Fill text and add to clipping path</summary>
+    FillClip = 4,
+    /// <summary>Stroke text and add to clipping path</summary>
+    StrokeClip = 5,
+    /// <summary>Fill, stroke, and add to clipping path</summary>
+    FillStrokeClip = 6,
+    /// <summary>Add text to clipping path only</summary>
+    Clip = 7,
+}
+
+/// <summary>
+/// Line cap style applied to the ends of open stroked paths.
+/// </summary>
+public enum LineCap
+{
+    /// <summary>Flat cap at the exact endpoint (default)</summary>
+    Butt = 0,
+    /// <summary>Semicircular cap extending beyond the endpoint</summary>
+    Round = 1,
+    /// <summary>Square cap extending beyond the endpoint by half the line width</summary>
+    Square = 2,
+}
+
+/// <summary>
+/// Line join style applied where two path segments meet.
+/// </summary>
+public enum LineJoin
+{
+    /// <summary>Sharp corner (default); subject to miter limit</summary>
+    Miter = 0,
+    /// <summary>Rounded corner</summary>
+    Round = 1,
+    /// <summary>Beveled (flat) corner</summary>
+    Bevel = 2,
+}
+
+/// <summary>
+/// Blend mode for compositing overlapping graphics elements.
+/// </summary>
+public enum BlendMode
+{
+    /// <summary>Normal compositing (default)</summary>
+    Normal = 0,
+    /// <summary>Multiplies base and blend colors</summary>
+    Multiply = 1,
+    /// <summary>Inverse of Multiply; lightens the image</summary>
+    Screen = 2,
+    /// <summary>Combines Multiply and Screen based on the base color</summary>
+    Overlay = 3,
+    /// <summary>Darkens or lightens depending on the blend color (gentle)</summary>
+    SoftLight = 4,
+    /// <summary>Combines Multiply and Screen based on the blend color</summary>
+    HardLight = 5,
+    /// <summary>Brightens the base color to reflect the blend color</summary>
+    ColorDodge = 6,
+    /// <summary>Darkens the base color to reflect the blend color</summary>
+    ColorBurn = 7,
+    /// <summary>Selects the darker of the base and blend colors</summary>
+    Darken = 8,
+    /// <summary>Selects the lighter of the base and blend colors</summary>
+    Lighten = 9,
+    /// <summary>Subtracts the darker from the lighter color</summary>
+    Difference = 10,
+    /// <summary>Similar to Difference with lower contrast</summary>
+    Exclusion = 11,
+    /// <summary>Uses the hue of the blend color with the saturation and luminosity of the base</summary>
+    Hue = 12,
+    /// <summary>Uses the saturation of the blend color with the hue and luminosity of the base</summary>
+    Saturation = 13,
+    /// <summary>Uses the hue and saturation of the blend color with the luminosity of the base</summary>
+    Color = 14,
+    /// <summary>Uses the luminosity of the blend color with the hue and saturation of the base</summary>
+    Luminosity = 15,
+}

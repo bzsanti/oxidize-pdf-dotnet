@@ -169,4 +169,182 @@ public class PdfPageTests
         page.Dispose();
         page.Dispose(); // Should not throw
     }
+
+    // ── Rotation ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetRotation_90_GetRotation_Returns90()
+    {
+        using var page = PdfPage.A4();
+        page.SetRotation(90);
+        Assert.Equal(90, page.Rotation);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void DefaultRotation_IsZero()
+    {
+        using var page = PdfPage.A4();
+        Assert.Equal(0, page.Rotation);
+    }
+
+    // ── Text operations (advanced) ─────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetHorizontalScaling_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetHorizontalScaling(120.0));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetTextRise_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetTextRise(3.0));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetTextRenderingMode_Stroke_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetTextRenderingMode(TextRenderingMode.Stroke));
+    }
+
+    // ── Line style (advanced) ────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetLineCap_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        var result = page.SetLineCap(LineCap.Round);
+        Assert.Same(page, result);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetLineJoin_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetLineJoin(LineJoin.Round));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetMiterLimit_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetMiterLimit(4.0));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetDashPattern_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetDashPattern(6.0, 3.0));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetLineSolid_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetLineSolid());
+    }
+
+    // ── Graphics state ───────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SaveAndRestoreGraphicsState_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        var result = page
+            .SaveGraphicsState()
+            .SetFillColor(1.0, 0.0, 0.0)
+            .RestoreGraphicsState();
+        Assert.Same(page, result);
+    }
+
+    // ── Clipping ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void ClipRect_ThenFill_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        var result = page
+            .ClipRect(50, 50, 200, 200)
+            .SetFillColor(1.0, 0.0, 0.0)
+            .DrawRect(0, 0, 400, 400)
+            .Fill();
+        Assert.Same(page, result);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void ClipCircle_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.ClipCircle(200, 400, 100));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void ClearClipping_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.ClipRect(10, 10, 100, 100).ClearClipping());
+    }
+
+    // ── Blend mode ───────────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetBlendMode_Multiply_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetBlendMode(BlendMode.Multiply));
+    }
+
+    // ── Advanced graphics integration ────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void AdvancedGraphics_FluentChaining_ProducesValidPdf()
+    {
+        using var page = PdfPage.A4();
+        using var doc = new PdfDocument();
+
+        page
+            .SaveGraphicsState()
+            .SetLineCap(LineCap.Round)
+            .SetLineJoin(LineJoin.Bevel)
+            .SetMiterLimit(8.0)
+            .SetDashPattern(5.0, 2.0)
+            .SetStrokeColor(0.0, 0.0, 1.0)
+            .SetLineWidth(3.0)
+            .MoveTo(50, 500)
+            .LineTo(200, 600)
+            .LineTo(350, 500)
+            .Stroke()
+            .SetLineSolid()
+            .ClipRect(50, 50, 400, 300)
+            .SetBlendMode(BlendMode.Multiply)
+            .SetFillColor(1.0, 0.0, 0.0)
+            .DrawRect(0, 0, 500, 400)
+            .Fill()
+            .ClearClipping()
+            .RestoreGraphicsState();
+
+        doc.AddPage(page);
+        var bytes = doc.SaveToBytes();
+        Assert.True(bytes.Length > 100);
+    }
 }

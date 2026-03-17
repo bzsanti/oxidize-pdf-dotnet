@@ -28,7 +28,10 @@ where
 {
     let path = temp_pdf_path("_in");
     fs::write(&path, bytes).map_err(|e| format!("Failed to write temp input: {e}"))?;
-    let result = f(path.to_str().unwrap_or(""));
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| "Temp path is not valid UTF-8".to_string())?;
+    let result = f(path_str);
     let _ = fs::remove_file(&path);
     result
 }
@@ -39,7 +42,10 @@ where
     F: FnOnce(&str) -> Result<(), String>,
 {
     let path = temp_pdf_path("_out");
-    f(path.to_str().unwrap_or(""))?;
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| "Temp path is not valid UTF-8".to_string())?;
+    f(path_str)?;
     let bytes = fs::read(&path).map_err(|e| format!("Failed to read temp output: {e}"))?;
     let _ = fs::remove_file(&path);
     Ok(bytes)
@@ -195,11 +201,24 @@ pub unsafe extern "C" fn oxidize_merge_pdfs_bytes(
         temp_paths.push(path);
     }
 
-    let inputs: Vec<oxidize_pdf::operations::MergeInput> = temp_paths
+    let inputs: Vec<oxidize_pdf::operations::MergeInput> = match temp_paths
         .iter()
-        .filter_map(|p| p.to_str())
-        .map(oxidize_pdf::operations::MergeInput::new)
-        .collect();
+        .map(|p| {
+            p.to_str()
+                .ok_or_else(|| "Temp path is not valid UTF-8".to_string())
+                .map(oxidize_pdf::operations::MergeInput::new)
+        })
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(v) => v,
+        Err(msg) => {
+            for p in &temp_paths {
+                let _ = fs::remove_file(p);
+            }
+            set_last_error(msg);
+            return ErrorCode::IoError as c_int;
+        }
+    };
 
     let merge_result = with_temp_output(|output_path| {
         oxidize_pdf::operations::merge_pdfs(
@@ -348,6 +367,296 @@ pub unsafe extern "C" fn oxidize_extract_pages_bytes(
                 .map_err(|e| format!("extract_pages_to_file failed: {e}"))
         })
     });
+
+    match result {
+        Ok(bytes) => {
+            set_out_bytes(bytes, out_bytes, out_len);
+            ErrorCode::Success as c_int
+        }
+        Err(msg) => {
+            set_last_error(msg);
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
+// ── reorder pages ────────────────────────────────────────────────────────────
+
+/// Reorder pages of a PDF according to a new order (JSON array of 0-based indices).
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `order_json` must be a valid null-terminated UTF-8 string containing a JSON array.
+/// - `out_bytes` and `out_len` must be valid non-null pointers.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_reorder_pages_bytes(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    order_json: *const c_char,
+    out_bytes: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || order_json.is_null() || out_bytes.is_null() || out_len.is_null() {
+        set_last_error("Null pointer provided to oxidize_reorder_pages_bytes");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_bytes = ptr::null_mut();
+    *out_len = 0;
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let json_str = match CStr::from_ptr(order_json).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in order_json");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let order: Vec<usize> = match serde_json::from_str(json_str) {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("Failed to parse order_json: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    if order.is_empty() {
+        set_last_error("Page order array cannot be empty");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+    let result = with_temp_input(input_bytes, |input_path| {
+        with_temp_output(|output_path| {
+            oxidize_pdf::operations::reorder_pdf_pages(input_path, output_path, order.clone())
+                .map_err(|e| format!("reorder_pdf_pages failed: {e}"))
+        })
+    });
+
+    match result {
+        Ok(bytes) => {
+            set_out_bytes(bytes, out_bytes, out_len);
+            ErrorCode::Success as c_int
+        }
+        Err(msg) => {
+            set_last_error(msg);
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
+// ── swap pages ───────────────────────────────────────────────────────────────
+
+/// Swap two pages in a PDF by their 0-based indices.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_bytes` and `out_len` must be valid non-null pointers.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_swap_pages_bytes(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    page_a: usize,
+    page_b: usize,
+    out_bytes: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+        set_last_error("Null pointer provided to oxidize_swap_pages_bytes");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_bytes = ptr::null_mut();
+    *out_len = 0;
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+    let result = with_temp_input(input_bytes, |input_path| {
+        with_temp_output(|output_path| {
+            oxidize_pdf::operations::swap_pdf_pages(input_path, output_path, page_a, page_b)
+                .map_err(|e| format!("swap_pdf_pages failed: {e}"))
+        })
+    });
+
+    match result {
+        Ok(bytes) => {
+            set_out_bytes(bytes, out_bytes, out_len);
+            ErrorCode::Success as c_int
+        }
+        Err(msg) => {
+            set_last_error(msg);
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
+// ── move page ────────────────────────────────────────────────────────────────
+
+/// Move a page from one position to another (0-based indices).
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_bytes` and `out_len` must be valid non-null pointers.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_move_page_bytes(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    from_index: usize,
+    to_index: usize,
+    out_bytes: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+        set_last_error("Null pointer provided to oxidize_move_page_bytes");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_bytes = ptr::null_mut();
+    *out_len = 0;
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+    let result = with_temp_input(input_bytes, |input_path| {
+        with_temp_output(|output_path| {
+            oxidize_pdf::operations::move_pdf_page(input_path, output_path, from_index, to_index)
+                .map_err(|e| format!("move_pdf_page failed: {e}"))
+        })
+    });
+
+    match result {
+        Ok(bytes) => {
+            set_out_bytes(bytes, out_bytes, out_len);
+            ErrorCode::Success as c_int
+        }
+        Err(msg) => {
+            set_last_error(msg);
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
+// ── reverse pages ────────────────────────────────────────────────────────────
+
+/// Reverse the order of all pages in a PDF.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_bytes` and `out_len` must be valid non-null pointers.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_reverse_pages_bytes(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_bytes: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+        set_last_error("Null pointer provided to oxidize_reverse_pages_bytes");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_bytes = ptr::null_mut();
+    *out_len = 0;
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+    let result = with_temp_input(input_bytes, |input_path| {
+        with_temp_output(|output_path| {
+            oxidize_pdf::operations::reverse_pdf_pages(input_path, output_path)
+                .map_err(|e| format!("reverse_pdf_pages failed: {e}"))
+        })
+    });
+
+    match result {
+        Ok(bytes) => {
+            set_out_bytes(bytes, out_bytes, out_len);
+            ErrorCode::Success as c_int
+        }
+        Err(msg) => {
+            set_last_error(msg);
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
+// ── overlay ──────────────────────────────────────────────────────────────────
+
+/// Overlay one PDF on top of another using default options.
+///
+/// # Safety
+/// - `base_bytes` must be a valid pointer to `base_len` bytes.
+/// - `overlay_bytes` must be a valid pointer to `overlay_len` bytes.
+/// - `out_bytes` and `out_len` must be valid non-null pointers.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_overlay_pdf_bytes(
+    base_bytes: *const u8,
+    base_len: usize,
+    overlay_bytes: *const u8,
+    overlay_len: usize,
+    out_bytes: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    clear_last_error();
+    if base_bytes.is_null() || overlay_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+        set_last_error("Null pointer provided to oxidize_overlay_pdf_bytes");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_bytes = ptr::null_mut();
+    *out_len = 0;
+
+    if base_len == 0 || overlay_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let base_data = std::slice::from_raw_parts(base_bytes, base_len);
+    let overlay_data = std::slice::from_raw_parts(overlay_bytes, overlay_len);
+
+    let base_path = temp_pdf_path("_overlay_base");
+    let overlay_path = temp_pdf_path("_overlay_top");
+
+    if let Err(e) = fs::write(&base_path, base_data) {
+        set_last_error(format!("Failed to write base temp file: {e}"));
+        return ErrorCode::IoError as c_int;
+    }
+    if let Err(e) = fs::write(&overlay_path, overlay_data) {
+        let _ = fs::remove_file(&base_path);
+        set_last_error(format!("Failed to write overlay temp file: {e}"));
+        return ErrorCode::IoError as c_int;
+    }
+
+    let result = with_temp_output(|output_path| {
+        oxidize_pdf::operations::overlay_pdf(
+            &base_path,
+            &overlay_path,
+            output_path,
+            oxidize_pdf::operations::OverlayOptions::default(),
+        )
+        .map_err(|e| format!("overlay_pdf failed: {e}"))
+    });
+
+    let _ = fs::remove_file(&base_path);
+    let _ = fs::remove_file(&overlay_path);
 
     match result {
         Ok(bytes) => {

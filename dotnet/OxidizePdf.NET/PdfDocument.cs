@@ -121,6 +121,53 @@ public sealed class PdfDocument : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Sets the document producer application name. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="producer">The producer application name.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="producer"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument SetProducer(string producer)
+    {
+        ArgumentNullException.ThrowIfNull(producer);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_set_producer(_handle, producer),
+            "Failed to set document producer");
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the document creation date. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="date">The creation date.</param>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument SetCreationDate(DateTimeOffset date)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_set_creation_date(_handle, date.ToUnixTimeSeconds()),
+            "Failed to set creation date");
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the document modification date. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="date">The modification date.</param>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument SetModificationDate(DateTimeOffset date)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_set_modification_date(_handle, date.ToUnixTimeSeconds()),
+            "Failed to set modification date");
+        return this;
+    }
+
     // ── Fonts ─────────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -219,6 +266,22 @@ public sealed class PdfDocument : IDisposable
             if (nativePtr != IntPtr.Zero)
                 NativeMethods.oxidize_free_bytes(nativePtr, nativeLen);
         }
+    }
+
+    /// <summary>
+    /// Saves the document to a file at the specified path.
+    /// </summary>
+    /// <param name="path">The file path to write the PDF to.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="path"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public void SaveToFile(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_save_to_file(_handle, path),
+            "Failed to save document to file");
     }
 
     // ── Security ──────────────────────────────────────────────────────────────

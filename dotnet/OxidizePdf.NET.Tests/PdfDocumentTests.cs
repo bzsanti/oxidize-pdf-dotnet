@@ -217,6 +217,64 @@ public class PdfDocumentTests
 
     /// <summary>
     /// Tries to load a TTF font from the system for testing.
+    // ── Metadata (extended) ────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetProducer_ReturnsSameInstance()
+    {
+        using var doc = new PdfDocument();
+        Assert.Same(doc, doc.SetProducer("My App v1.0"));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetCreationDate_ReturnsSameInstance()
+    {
+        using var doc = new PdfDocument();
+        Assert.Same(doc, doc.SetCreationDate(DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetModificationDate_ReturnsSameInstance()
+    {
+        using var doc = new PdfDocument();
+        Assert.Same(doc, doc.SetModificationDate(DateTimeOffset.UtcNow));
+    }
+
+    // ── Save to file ─────────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SaveToFile_CreatesFileOnDisk()
+    {
+        using var doc = new PdfDocument();
+        using var page = PdfPage.A4();
+        page.SetFont(StandardFont.Helvetica, 12).TextAt(50, 700, "Test");
+        doc.AddPage(page);
+        var path = Path.GetTempFileName() + ".pdf";
+        try
+        {
+            doc.SaveToFile(path);
+            Assert.True(File.Exists(path));
+            Assert.True(new FileInfo(path).Length > 0);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SaveToFile_NullPath_ThrowsArgumentNullException()
+    {
+        using var doc = new PdfDocument();
+        Assert.Throws<ArgumentNullException>(() => doc.SaveToFile(null!));
+    }
+
+    /// <summary>
     /// Returns null if no font is available (test will be skipped).
     /// </summary>
     private static byte[]? GetTestFontBytes()

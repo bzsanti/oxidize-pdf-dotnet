@@ -2,7 +2,7 @@ use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 
 use crate::page::PageHandle;
-use crate::types::{StandardFont, TextAlign};
+use crate::types::{StandardFont, TextAlign, TextRenderingMode};
 use crate::{clear_last_error, set_last_error, ErrorCode};
 
 /// Set the current font and size on a page.
@@ -210,6 +210,62 @@ pub unsafe extern "C" fn oxidize_page_set_custom_font(
         .inner
         .text()
         .set_font(oxidize_pdf::text::Font::Custom(name.to_string()), size);
+    ErrorCode::Success as c_int
+}
+
+// ── Advanced text operations ────────────────────────────────────────────────
+
+/// Set horizontal scaling for subsequent text operations.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_horizontal_scaling(
+    page: *mut PageHandle,
+    scale: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_horizontal_scaling");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.text().set_horizontal_scaling(scale);
+    ErrorCode::Success as c_int
+}
+
+/// Set text rise (vertical offset) for subsequent text operations.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_text_rise(page: *mut PageHandle, rise: f64) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_text_rise");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.text().set_text_rise(rise);
+    ErrorCode::Success as c_int
+}
+
+/// Set the text rendering mode.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_rendering_mode(
+    page: *mut PageHandle,
+    mode: TextRenderingMode,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_rendering_mode");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.text().set_rendering_mode(mode.to_oxidize());
     ErrorCode::Success as c_int
 }
 

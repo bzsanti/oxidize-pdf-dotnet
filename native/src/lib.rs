@@ -7,10 +7,14 @@ use std::ptr;
 
 pub mod document;
 pub mod graphics;
+pub mod header_footer;
+pub mod image;
+pub mod lists;
 pub mod operations;
 pub mod page;
 pub mod parser;
 pub mod security;
+pub mod table;
 pub mod text;
 pub mod types;
 

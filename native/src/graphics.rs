@@ -1,6 +1,7 @@
 use std::os::raw::c_int;
 
 use crate::page::PageHandle;
+use crate::types::{BlendMode, LineCap, LineJoin};
 use crate::{clear_last_error, set_last_error, ErrorCode};
 
 // ── Fill color ────────────────────────────────────────────────────────────────
@@ -371,5 +372,220 @@ pub unsafe extern "C" fn oxidize_page_fill_and_stroke(page: *mut PageHandle) -> 
         return ErrorCode::NullPointer as c_int;
     }
     (*page).inner.graphics().fill_stroke();
+    ErrorCode::Success as c_int
+}
+
+// ── Line style (advanced) ────────────────────────────────────────────────────
+
+/// Set the line cap style for stroke operations.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_line_cap(page: *mut PageHandle, cap: LineCap) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_line_cap");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().set_line_cap(cap.to_oxidize());
+    ErrorCode::Success as c_int
+}
+
+/// Set the line join style for stroke operations.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_line_join(
+    page: *mut PageHandle,
+    join: LineJoin,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_line_join");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().set_line_join(join.to_oxidize());
+    ErrorCode::Success as c_int
+}
+
+/// Set the miter limit for stroke joins.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_miter_limit(page: *mut PageHandle, limit: f64) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_miter_limit");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().set_miter_limit(limit);
+    ErrorCode::Success as c_int
+}
+
+/// Set a dash pattern for stroke operations.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_dash_pattern(
+    page: *mut PageHandle,
+    dash_length: f64,
+    gap_length: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_dash_pattern");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let pattern = oxidize_pdf::graphics::LineDashPattern::dashed(dash_length, gap_length);
+    (*page).inner.graphics().set_line_dash_pattern(pattern);
+    ErrorCode::Success as c_int
+}
+
+/// Reset stroke to solid line (no dash pattern).
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_line_solid(page: *mut PageHandle) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_line_solid");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().set_line_solid();
+    ErrorCode::Success as c_int
+}
+
+// ── Graphics state ───────────────────────────────────────────────────────────
+
+/// Save the current graphics state onto an internal stack.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_save_state(page: *mut PageHandle) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_save_state");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().save_state();
+    ErrorCode::Success as c_int
+}
+
+/// Restore the most recently saved graphics state.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_restore_state(page: *mut PageHandle) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_restore_state");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().restore_state();
+    ErrorCode::Success as c_int
+}
+
+// ── Clipping ─────────────────────────────────────────────────────────────────
+
+/// Set a rectangular clipping region.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_clip_rect(
+    page: *mut PageHandle,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_clip_rect");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if let Err(e) = (*page).inner.graphics().clip_rect(x, y, width, height) {
+        set_last_error(format!("Failed to set clipping rect: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Set a circular clipping region.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_clip_circle(
+    page: *mut PageHandle,
+    cx: f64,
+    cy: f64,
+    radius: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_clip_circle");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if let Err(e) = (*page).inner.graphics().clip_circle(cx, cy, radius) {
+        set_last_error(format!("Failed to set clipping circle: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Clear all clipping regions.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_clear_clipping(page: *mut PageHandle) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_clear_clipping");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().clear_clipping();
+    ErrorCode::Success as c_int
+}
+
+// ── Blend mode ───────────────────────────────────────────────────────────────
+
+/// Set the blend mode for compositing.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_blend_mode(
+    page: *mut PageHandle,
+    mode: BlendMode,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_blend_mode");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if let Err(e) = (*page).inner.graphics().set_blend_mode(mode.to_oxidize()) {
+        set_last_error(format!("Failed to set blend mode: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
     ErrorCode::Success as c_int
 }

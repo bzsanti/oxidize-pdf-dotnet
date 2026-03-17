@@ -164,4 +164,162 @@ public class PdfOperationsTests
 
         return doc.SaveToBytes();
     }
+
+    // ── ReorderPagesAsync ────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ReorderPagesAsync_ReversesOrder_ReturnsValidPdf()
+    {
+        var pdfBytes = CreateNPagePdf(3);
+        var result = await PdfOperations.ReorderPagesAsync(pdfBytes, [2, 1, 0]);
+        Assert.NotNull(result);
+        Assert.True(result.Length > 100);
+    }
+
+    [Fact]
+    public async Task ReorderPagesAsync_WithNull_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.ReorderPagesAsync(null!, [0]));
+    }
+
+    [Fact]
+    public async Task ReorderPagesAsync_EmptyOrder_ThrowsArgumentException()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => PdfOperations.ReorderPagesAsync(CreateNPagePdf(1), Array.Empty<int>()));
+    }
+
+    // ── SwapPagesAsync ───────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task SwapPagesAsync_ReturnsValidPdf()
+    {
+        var pdfBytes = CreateNPagePdf(3);
+        var result = await PdfOperations.SwapPagesAsync(pdfBytes, 0, 2);
+        Assert.True(result.Length > 100);
+    }
+
+    [Fact]
+    public async Task SwapPagesAsync_WithNull_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.SwapPagesAsync(null!, 0, 1));
+    }
+
+    // ── MovePageAsync ────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task MovePageAsync_ReturnsValidPdf()
+    {
+        var pdfBytes = CreateNPagePdf(3);
+        var result = await PdfOperations.MovePageAsync(pdfBytes, 0, 2);
+        Assert.True(result.Length > 100);
+    }
+
+    [Fact]
+    public async Task MovePageAsync_WithNull_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.MovePageAsync(null!, 0, 1));
+    }
+
+    // ── ReversePagesAsync ────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ReversePagesAsync_ReturnsValidPdf()
+    {
+        var pdfBytes = CreateNPagePdf(3);
+        var result = await PdfOperations.ReversePagesAsync(pdfBytes);
+        Assert.True(result.Length > 100);
+    }
+
+    [Fact]
+    public async Task ReversePagesAsync_WithNull_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.ReversePagesAsync(null!));
+    }
+
+    // ── OverlayAsync ─────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task OverlayAsync_ReturnsValidPdf()
+    {
+        var basePdf = CreateNPagePdf(1);
+        var overlayPdf = CreateNPagePdf(1);
+        var result = await PdfOperations.OverlayAsync(basePdf, overlayPdf);
+        Assert.True(result.Length > 100);
+    }
+
+    [Fact]
+    public async Task OverlayAsync_NullBase_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.OverlayAsync(null!, CreateNPagePdf(1)));
+    }
+
+    [Fact]
+    public async Task OverlayAsync_NullOverlay_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.OverlayAsync(CreateNPagePdf(1), null!));
+    }
+
+    // ── Negative index validation ──────────────────────────────────────
+
+    [Fact]
+    public async Task SwapPagesAsync_NegativePageA_ThrowsArgumentOutOfRangeException()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => PdfOperations.SwapPagesAsync(CreateNPagePdf(2), -1, 0));
+    }
+
+    [Fact]
+    public async Task SwapPagesAsync_NegativePageB_ThrowsArgumentOutOfRangeException()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => PdfOperations.SwapPagesAsync(CreateNPagePdf(2), 0, -1));
+    }
+
+    [Fact]
+    public async Task MovePageAsync_NegativeFromIndex_ThrowsArgumentOutOfRangeException()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => PdfOperations.MovePageAsync(CreateNPagePdf(2), -1, 0));
+    }
+
+    [Fact]
+    public async Task MovePageAsync_NegativeToIndex_ThrowsArgumentOutOfRangeException()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => PdfOperations.MovePageAsync(CreateNPagePdf(2), 0, -1));
+    }
+
+    [Fact]
+    public async Task ReorderPagesAsync_NegativeIndex_ThrowsArgumentOutOfRangeException()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => PdfOperations.ReorderPagesAsync(CreateNPagePdf(2), [0, -1]));
+    }
+
+    // ── Helper ───────────────────────────────────────────────────────────
+
+    private static byte[] CreateNPagePdf(int pageCount)
+    {
+        using var doc = new PdfDocument();
+        for (int i = 0; i < pageCount; i++)
+        {
+            using var page = PdfPage.A4();
+            page.SetFont(StandardFont.Helvetica, 12)
+                .TextAt(72, 700, $"Page {i + 1}");
+            doc.AddPage(page);
+        }
+        return doc.SaveToBytes();
+    }
 }

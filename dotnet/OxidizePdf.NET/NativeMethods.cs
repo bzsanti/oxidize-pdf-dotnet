@@ -71,6 +71,64 @@ internal static class NativeMethods
     }
 
     /// <summary>
+    /// Line cap style — mirrors Rust LineCap enum
+    /// </summary>
+    internal enum LineCap
+    {
+        Butt = 0,
+        Round = 1,
+        Square = 2,
+    }
+
+    /// <summary>
+    /// Line join style — mirrors Rust LineJoin enum
+    /// </summary>
+    internal enum LineJoin
+    {
+        Miter = 0,
+        Round = 1,
+        Bevel = 2,
+    }
+
+    /// <summary>
+    /// Text rendering mode — mirrors Rust TextRenderingMode enum
+    /// </summary>
+    internal enum TextRenderingMode
+    {
+        Fill = 0,
+        Stroke = 1,
+        FillStroke = 2,
+        Invisible = 3,
+        FillClip = 4,
+        StrokeClip = 5,
+        FillStrokeClip = 6,
+        Clip = 7,
+    }
+
+    /// <summary>
+    /// Blend mode — mirrors Rust BlendMode enum
+    /// </summary>
+    internal enum BlendMode
+    {
+        Normal = 0,
+        Multiply = 1,
+        Screen = 2,
+        Overlay = 3,
+        SoftLight = 4,
+        HardLight = 5,
+        ColorDodge = 6,
+        ColorBurn = 7,
+        Darken = 8,
+        Lighten = 9,
+        Difference = 10,
+        Exclusion = 11,
+        Hue = 12,
+        Saturation = 13,
+        Color = 14,
+        Luminosity = 15,
+    }
+
+    /// <summary>
     /// Chunk options for text extraction
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
@@ -136,6 +194,26 @@ internal static class NativeMethods
         IntPtr handle,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string text);
 
+    /// <summary>Set the document producer metadata</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_producer(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text);
+
+    /// <summary>Set the document creation date from Unix timestamp (seconds)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_creation_date(IntPtr handle, long unixTimestampSecs);
+
+    /// <summary>Set the document modification date from Unix timestamp (seconds)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_modification_date(IntPtr handle, long unixTimestampSecs);
+
+    /// <summary>Save document to a file path</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_save_to_file(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
+
     /// <summary>Add a page to the document (page is cloned internally)</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_add_page(IntPtr docHandle, IntPtr pageHandle);
@@ -186,6 +264,14 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_get_width(IntPtr handle, out double outValue);
 
+    /// <summary>Set page rotation in degrees</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_rotation(IntPtr handle, int degrees);
+
+    /// <summary>Get page rotation in degrees</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_get_rotation(IntPtr handle, out int outDegrees);
+
     /// <summary>Get the page height in PDF points</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_get_height(IntPtr handle, out double outValue);
@@ -226,6 +312,18 @@ internal static class NativeMethods
     /// <summary>Set text leading (line spacing) for subsequent text operations</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_set_leading(IntPtr page, double leading);
+
+    /// <summary>Set horizontal scaling for subsequent text operations</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_horizontal_scaling(IntPtr page, double scale);
+
+    /// <summary>Set text rise (vertical offset) for subsequent text operations</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_text_rise(IntPtr page, double rise);
+
+    /// <summary>Set the text rendering mode</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_rendering_mode(IntPtr page, TextRenderingMode mode);
 
     /// <summary>Write text at the given position on the page</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -313,6 +411,50 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_fill_and_stroke(IntPtr page);
 
+    /// <summary>Set the line cap style for stroke operations</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_line_cap(IntPtr page, LineCap cap);
+
+    /// <summary>Set the line join style for stroke operations</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_line_join(IntPtr page, LineJoin join);
+
+    /// <summary>Set the miter limit for stroke joins</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_miter_limit(IntPtr page, double limit);
+
+    /// <summary>Set a dash pattern for stroke operations</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_dash_pattern(IntPtr page, double dashLength, double gapLength);
+
+    /// <summary>Reset stroke to solid line (no dash pattern)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_line_solid(IntPtr page);
+
+    /// <summary>Save the current graphics state</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_save_state(IntPtr page);
+
+    /// <summary>Restore the most recently saved graphics state</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_restore_state(IntPtr page);
+
+    /// <summary>Set a rectangular clipping region</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_clip_rect(IntPtr page, double x, double y, double width, double height);
+
+    /// <summary>Set a circular clipping region</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_clip_circle(IntPtr page, double cx, double cy, double radius);
+
+    /// <summary>Clear all clipping regions</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_clear_clipping(IntPtr page);
+
+    /// <summary>Set the blend mode for compositing</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_blend_mode(IntPtr page, BlendMode mode);
+
     // ── Operations (bytes in / bytes out) ─────────────────────────────────────
 
     /// <summary>Split a PDF into individual single-page PDFs; returns JSON array of base64 strings</summary>
@@ -346,6 +488,171 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.LPUTF8Str)] string pagesJson,
         out IntPtr outBytes,
         out nuint outLen);
+
+    /// <summary>Reorder pages according to a new order (JSON array of 0-based indices)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_reorder_pages_bytes(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string orderJson,
+        out IntPtr outBytes,
+        out nuint outLen);
+
+    /// <summary>Swap two pages by 0-based indices</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_swap_pages_bytes(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint pageA,
+        nuint pageB,
+        out IntPtr outBytes,
+        out nuint outLen);
+
+    /// <summary>Move a page from one position to another (0-based)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_move_page_bytes(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint fromIndex,
+        nuint toIndex,
+        out IntPtr outBytes,
+        out nuint outLen);
+
+    /// <summary>Reverse the order of all pages</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_reverse_pages_bytes(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        out IntPtr outBytes,
+        out nuint outLen);
+
+    /// <summary>Overlay one PDF on top of another</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_overlay_pdf_bytes(
+        IntPtr baseBytes,
+        nuint baseLen,
+        IntPtr overlayBytes,
+        nuint overlayLen,
+        out IntPtr outBytes,
+        out nuint outLen);
+
+    // ── Table ─────────────────────────────────────────────────────────────────
+
+    /// <summary>Create a table builder with equal-width columns from JSON header array</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_table_builder_create(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string headersJson,
+        double totalWidth,
+        out IntPtr outHandle);
+
+    /// <summary>Free a table builder handle</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void oxidize_table_builder_free(IntPtr handle);
+
+    /// <summary>Set table position</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_table_builder_set_position(IntPtr handle, double x, double y);
+
+    /// <summary>Add a data row to the table (JSON array of cell strings)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_table_builder_add_row(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string cellsJson);
+
+    /// <summary>Build the table and add it to a page (consumes the builder)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_table(IntPtr page, IntPtr builder);
+
+    // ── Header/Footer ────────────────────────────────────────────────────────
+
+    /// <summary>Set a header on a page</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_header(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string content,
+        StandardFont font,
+        double size);
+
+    /// <summary>Set a footer on a page</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_footer(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string content,
+        StandardFont font,
+        double size);
+
+    // ── Lists ────────────────────────────────────────────────────────────────
+
+    /// <summary>Add an ordered list to a page (items as JSON array)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_ordered_list(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string itemsJson,
+        double x, double y,
+        OrderedListStyle style);
+
+    /// <summary>Add an unordered list to a page (items as JSON array)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_unordered_list(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string itemsJson,
+        double x, double y,
+        BulletStyle style);
+
+    /// <summary>Ordered list style — mirrors Rust enum</summary>
+    internal enum OrderedListStyle
+    {
+        Decimal = 0,
+        LowerAlpha = 1,
+        UpperAlpha = 2,
+        LowerRoman = 3,
+        UpperRoman = 4,
+    }
+
+    /// <summary>Bullet style — mirrors Rust enum</summary>
+    internal enum BulletStyle
+    {
+        Disc = 0,
+        Circle = 1,
+        Square = 2,
+        Dash = 3,
+    }
+
+    // ── Image ─────────────────────────────────────────────────────────────────
+
+    /// <summary>Create an image from JPEG data</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_image_from_jpeg(IntPtr data, nuint dataLen, out IntPtr outHandle);
+
+    /// <summary>Create an image from PNG data</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_image_from_png(IntPtr data, nuint dataLen, out IntPtr outHandle);
+
+    /// <summary>Free an image handle</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void oxidize_image_free(IntPtr handle);
+
+    /// <summary>Get image width in pixels</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_image_get_width(IntPtr handle, out uint outWidth);
+
+    /// <summary>Get image height in pixels</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_image_get_height(IntPtr handle, out uint outHeight);
+
+    /// <summary>Add an image to a page by name</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_image(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr image);
+
+    /// <summary>Draw a previously added image at position and dimensions</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_draw_image(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double x, double y, double width, double height);
 
     // ── Security ──────────────────────────────────────────────────────────────
 

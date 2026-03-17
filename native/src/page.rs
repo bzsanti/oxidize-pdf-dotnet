@@ -97,6 +97,45 @@ pub unsafe extern "C" fn oxidize_page_get_width(
     ErrorCode::Success as c_int
 }
 
+/// Set the page rotation in degrees (0, 90, 180, or 270).
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_rotation(
+    handle: *mut PageHandle,
+    degrees: c_int,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_rotation");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*handle).inner.set_rotation(degrees);
+    ErrorCode::Success as c_int
+}
+
+/// Get the page rotation in degrees.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `out_degrees` must be a valid pointer to a `c_int`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_get_rotation(
+    handle: *const PageHandle,
+    out_degrees: *mut c_int,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || out_degrees.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_get_rotation");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_degrees = (*handle).inner.get_rotation() as c_int;
+    ErrorCode::Success as c_int
+}
+
 /// Get the page height in PDF points.
 ///
 /// # Safety
