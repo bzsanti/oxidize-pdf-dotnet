@@ -1024,6 +1024,129 @@ public sealed class PdfPage : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    // ── Annotations ──────────────────────────────────────────────────────────
+
+    /// <summary>Add a URI link annotation.</summary>
+    public PdfPage AddLinkUri(double x, double y, double width, double height, string uri)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(uri);
+        ThrowIfError(NativeMethods.oxidize_page_add_link_uri(_handle, x, y, width, height, uri),
+            "Failed to add link URI annotation");
+        return this;
+    }
+
+    /// <summary>Add a GoTo-page link annotation (named destination).</summary>
+    public PdfPage AddLinkGoToPage(double x, double y, double width, double height, int targetPage)
+    {
+        ThrowIfDisposed();
+        if (targetPage < 1)
+            throw new ArgumentOutOfRangeException(nameof(targetPage), targetPage,
+                "Target page must be 1 or greater (pages are 1-based).");
+        ThrowIfError(NativeMethods.oxidize_page_add_link_goto(_handle, x, y, width, height, (uint)targetPage),
+            "Failed to add GoTo link annotation");
+        return this;
+    }
+
+    /// <summary>Add a highlight markup annotation.</summary>
+    /// <remarks>Color components r, g, b must be in the range [0.0, 1.0].</remarks>
+    public PdfPage AddHighlight(double x, double y, double width, double height,
+        double r = 1.0, double g = 1.0, double b = 0.0)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(NativeMethods.oxidize_page_add_highlight(_handle, x, y, width, height, r, g, b),
+            "Failed to add highlight annotation");
+        return this;
+    }
+
+    /// <summary>Add an underline markup annotation.</summary>
+    public PdfPage AddUnderline(double x, double y, double width, double height)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(NativeMethods.oxidize_page_add_underline(_handle, x, y, width, height),
+            "Failed to add underline annotation");
+        return this;
+    }
+
+    /// <summary>Add a strikeout markup annotation.</summary>
+    public PdfPage AddStrikeOut(double x, double y, double width, double height)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(NativeMethods.oxidize_page_add_strikeout(_handle, x, y, width, height),
+            "Failed to add strikeout annotation");
+        return this;
+    }
+
+    /// <summary>Add a text note (sticky note) annotation.</summary>
+    public PdfPage AddTextNote(double x, double y, string contents,
+        TextNoteIcon icon = TextNoteIcon.Note, bool open = false)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(contents);
+        ThrowIfError(NativeMethods.oxidize_page_add_text_note(_handle, x, y, contents, (NativeMethods.TextAnnotationIcon)icon, open),
+            "Failed to add text note annotation");
+        return this;
+    }
+
+    /// <summary>Add a standard stamp annotation.</summary>
+    public PdfPage AddStamp(double x, double y, double width, double height, StampType stamp)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(NativeMethods.oxidize_page_add_stamp(_handle, x, y, width, height, (NativeMethods.StampNameFFI)stamp, null),
+            "Failed to add stamp annotation");
+        return this;
+    }
+
+    /// <summary>Add a custom stamp annotation.</summary>
+    public PdfPage AddCustomStamp(double x, double y, double width, double height, string customName)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(customName);
+        ThrowIfError(NativeMethods.oxidize_page_add_stamp(_handle, x, y, width, height,
+            NativeMethods.StampNameFFI.Custom, customName),
+            "Failed to add custom stamp annotation");
+        return this;
+    }
+
+    /// <summary>Add a line annotation.</summary>
+    /// <remarks>Color components r, g, b must be in the range [0.0, 1.0].</remarks>
+    public PdfPage AddAnnotationLine(double x1, double y1, double x2, double y2,
+        double r = 0.0, double g = 0.0, double b = 0.0)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(NativeMethods.oxidize_page_add_annotation_line(_handle, x1, y1, x2, y2, r, g, b),
+            "Failed to add line annotation");
+        return this;
+    }
+
+    /// <summary>Add a rectangle annotation.</summary>
+    /// <remarks>Color components (stroke and fill) must be in the range [0.0, 1.0].</remarks>
+    public PdfPage AddAnnotationRect(double x, double y, double width, double height,
+        double strokeR = 0.0, double strokeG = 0.0, double strokeB = 0.0,
+        double? fillR = null, double? fillG = null, double? fillB = null)
+    {
+        ThrowIfDisposed();
+        bool hasFill = fillR.HasValue && fillG.HasValue && fillB.HasValue;
+        ThrowIfError(NativeMethods.oxidize_page_add_annotation_rect(_handle, x, y, width, height,
+            strokeR, strokeG, strokeB, fillR ?? 0, fillG ?? 0, fillB ?? 0, hasFill),
+            "Failed to add rectangle annotation");
+        return this;
+    }
+
+    /// <summary>Add a circle annotation.</summary>
+    /// <remarks>Color components (stroke and fill) must be in the range [0.0, 1.0].</remarks>
+    public PdfPage AddAnnotationCircle(double x, double y, double width, double height,
+        double strokeR = 0.0, double strokeG = 0.0, double strokeB = 0.0,
+        double? fillR = null, double? fillG = null, double? fillB = null)
+    {
+        ThrowIfDisposed();
+        bool hasFill = fillR.HasValue && fillG.HasValue && fillB.HasValue;
+        ThrowIfError(NativeMethods.oxidize_page_add_annotation_circle(_handle, x, y, width, height,
+            strokeR, strokeG, strokeB, fillR ?? 0, fillG ?? 0, fillB ?? 0, hasFill),
+            "Failed to add circle annotation");
+        return this;
+    }
+
     /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
     ~PdfPage() => Dispose();
 

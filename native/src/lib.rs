@@ -5,6 +5,7 @@ use std::ptr;
 
 // ── Sub-modules ───────────────────────────────────────────────────────────────
 
+pub mod annotations;
 pub mod document;
 pub mod graphics;
 pub mod header_footer;
@@ -59,6 +60,7 @@ pub enum ErrorCode {
     IoError = 6,
     EncryptionError = 7,
     PermissionError = 8,
+    InvalidArgument = 9,
 }
 
 // ── Free helpers ──────────────────────────────────────────────────────────────

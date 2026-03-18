@@ -184,3 +184,99 @@ impl BlendMode {
         }
     }
 }
+
+/// Text annotation icon — C-compatible enum for FFI.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum TextAnnotationIcon {
+    Comment = 0,
+    Key = 1,
+    Note = 2,
+    Help = 3,
+    NewParagraph = 4,
+    Paragraph = 5,
+    Insert = 6,
+}
+
+impl TextAnnotationIcon {
+    pub(crate) fn to_oxidize(self) -> oxidize_pdf::annotations::Icon {
+        match self {
+            TextAnnotationIcon::Comment => oxidize_pdf::annotations::Icon::Comment,
+            TextAnnotationIcon::Key => oxidize_pdf::annotations::Icon::Key,
+            TextAnnotationIcon::Note => oxidize_pdf::annotations::Icon::Note,
+            TextAnnotationIcon::Help => oxidize_pdf::annotations::Icon::Help,
+            TextAnnotationIcon::NewParagraph => oxidize_pdf::annotations::Icon::NewParagraph,
+            TextAnnotationIcon::Paragraph => oxidize_pdf::annotations::Icon::Paragraph,
+            TextAnnotationIcon::Insert => oxidize_pdf::annotations::Icon::Insert,
+        }
+    }
+}
+
+/// Standard stamp names — C-compatible enum for FFI.
+/// Use `Custom` (14) with a separate `*const c_char` parameter for custom names.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum StampNameFFI {
+    Approved = 0,
+    Draft = 1,
+    Confidential = 2,
+    Final = 3,
+    NotApproved = 4,
+    Experimental = 5,
+    AsIs = 6,
+    Expired = 7,
+    NotForPublicRelease = 8,
+    Sold = 9,
+    Departmental = 10,
+    ForComment = 11,
+    TopSecret = 12,
+    ForPublicRelease = 13,
+    Custom = 14,
+}
+
+impl StampNameFFI {
+    pub(crate) fn from_c_int(value: std::os::raw::c_int) -> Option<Self> {
+        match value {
+            0 => Some(StampNameFFI::Approved),
+            1 => Some(StampNameFFI::Draft),
+            2 => Some(StampNameFFI::Confidential),
+            3 => Some(StampNameFFI::Final),
+            4 => Some(StampNameFFI::NotApproved),
+            5 => Some(StampNameFFI::Experimental),
+            6 => Some(StampNameFFI::AsIs),
+            7 => Some(StampNameFFI::Expired),
+            8 => Some(StampNameFFI::NotForPublicRelease),
+            9 => Some(StampNameFFI::Sold),
+            10 => Some(StampNameFFI::Departmental),
+            11 => Some(StampNameFFI::ForComment),
+            12 => Some(StampNameFFI::TopSecret),
+            13 => Some(StampNameFFI::ForPublicRelease),
+            14 => Some(StampNameFFI::Custom),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn to_oxidize(
+        self,
+        custom_name: Option<String>,
+    ) -> oxidize_pdf::annotations::StampName {
+        use oxidize_pdf::annotations::StampName;
+        match self {
+            StampNameFFI::Approved => StampName::Approved,
+            StampNameFFI::Draft => StampName::Draft,
+            StampNameFFI::Confidential => StampName::Confidential,
+            StampNameFFI::Final => StampName::Final,
+            StampNameFFI::NotApproved => StampName::NotApproved,
+            StampNameFFI::Experimental => StampName::Experimental,
+            StampNameFFI::AsIs => StampName::AsIs,
+            StampNameFFI::Expired => StampName::Expired,
+            StampNameFFI::NotForPublicRelease => StampName::NotForPublicRelease,
+            StampNameFFI::Sold => StampName::Sold,
+            StampNameFFI::Departmental => StampName::Departmental,
+            StampNameFFI::ForComment => StampName::ForComment,
+            StampNameFFI::TopSecret => StampName::TopSecret,
+            StampNameFFI::ForPublicRelease => StampName::ForPublicRelease,
+            StampNameFFI::Custom => StampName::Custom(custom_name.unwrap_or_default()),
+        }
+    }
+}

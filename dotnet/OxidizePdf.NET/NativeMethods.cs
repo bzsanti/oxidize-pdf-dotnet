@@ -23,6 +23,7 @@ internal static class NativeMethods
         IoError = 6,
         EncryptionError = 7,
         PermissionError = 8,
+        InvalidArgument = 9,
     }
 
     /// <summary>
@@ -857,6 +858,76 @@ internal static class NativeMethods
         out IntPtr outJson);
 
     // ── Forms ─────────────────────────────────────────────────────────────────
+
+    // ── Annotations (write) ────────────────────────────────────────────────────
+
+    /// <summary>Text annotation icon</summary>
+    internal enum TextAnnotationIcon
+    {
+        Comment = 0, Key = 1, Note = 2, Help = 3, NewParagraph = 4, Paragraph = 5, Insert = 6,
+    }
+
+    /// <summary>Standard stamp names</summary>
+    internal enum StampNameFFI
+    {
+        Approved = 0, Draft = 1, Confidential = 2, Final = 3, NotApproved = 4,
+        Experimental = 5, AsIs = 6, Expired = 7, NotForPublicRelease = 8,
+        Sold = 9, Departmental = 10, ForComment = 11, TopSecret = 12, ForPublicRelease = 13,
+        Custom = 14,
+    }
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_link_uri(
+        IntPtr page, double x, double y, double width, double height,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string uri);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_link_goto(
+        IntPtr page, double x, double y, double width, double height, uint targetPage);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_highlight(
+        IntPtr page, double x, double y, double width, double height,
+        double r, double g, double b);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_underline(
+        IntPtr page, double x, double y, double width, double height);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_strikeout(
+        IntPtr page, double x, double y, double width, double height);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_text_note(
+        IntPtr page, double x, double y,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string contents,
+        TextAnnotationIcon icon, [MarshalAs(UnmanagedType.I1)] bool open);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_stamp(
+        IntPtr page, double x, double y, double width, double height,
+        StampNameFFI stamp,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? customName);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_annotation_line(
+        IntPtr page, double x1, double y1, double x2, double y2,
+        double r, double g, double b);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_annotation_rect(
+        IntPtr page, double x, double y, double width, double height,
+        double strokeR, double strokeG, double strokeB,
+        double fillR, double fillG, double fillB,
+        [MarshalAs(UnmanagedType.I1)] bool hasFill);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_annotation_circle(
+        IntPtr page, double x, double y, double width, double height,
+        double strokeR, double strokeG, double strokeB,
+        double fillR, double fillG, double fillB,
+        [MarshalAs(UnmanagedType.I1)] bool hasFill);
 
     /// <summary>Check if a PDF contains any form fields</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

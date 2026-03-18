@@ -198,3 +198,59 @@ public enum BlendMode
     /// <summary>Uses the luminosity of the blend color with the hue and saturation of the base</summary>
     Luminosity = 15,
 }
+
+/// <summary>
+/// Icon for text (sticky note) annotations.
+/// </summary>
+public enum TextNoteIcon
+{
+    /// <summary>Comment icon</summary>
+    Comment = 0,
+    /// <summary>Key icon</summary>
+    Key = 1,
+    /// <summary>Note icon (default)</summary>
+    Note = 2,
+    /// <summary>Help icon</summary>
+    Help = 3,
+    /// <summary>New paragraph icon</summary>
+    NewParagraph = 4,
+    /// <summary>Paragraph icon</summary>
+    Paragraph = 5,
+    /// <summary>Insert icon</summary>
+    Insert = 6,
+}
+
+/// <summary>
+/// Standard stamp names for stamp annotations.
+/// </summary>
+public enum StampType
+{
+    /// <summary>Approved</summary>
+    Approved = 0,
+    /// <summary>Draft</summary>
+    Draft = 1,
+    /// <summary>Confidential</summary>
+    Confidential = 2,
+    /// <summary>Final</summary>
+    Final = 3,
+    /// <summary>Not Approved</summary>
+    NotApproved = 4,
+    /// <summary>Experimental</summary>
+    Experimental = 5,
+    /// <summary>As Is</summary>
+    AsIs = 6,
+    /// <summary>Expired</summary>
+    Expired = 7,
+    /// <summary>Not For Public Release</summary>
+    NotForPublicRelease = 8,
+    /// <summary>Sold</summary>
+    Sold = 9,
+    /// <summary>Departmental</summary>
+    Departmental = 10,
+    /// <summary>For Comment</summary>
+    ForComment = 11,
+    /// <summary>Top Secret</summary>
+    TopSecret = 12,
+    /// <summary>For Public Release</summary>
+    ForPublicRelease = 13,
+}
