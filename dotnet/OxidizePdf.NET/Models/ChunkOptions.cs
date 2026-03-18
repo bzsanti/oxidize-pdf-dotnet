@@ -40,7 +40,7 @@ public class ChunkOptions
     /// <summary>
     /// Validate options and throw if invalid
     /// </summary>
-    internal void Validate()
+    public void Validate()
     {
         const int MaxReasonableChunkSize = 10_000;  // ~2500 tokens at 4 chars/token
         const int MinPracticalChunkSize = 50;        // Below this is meaningless

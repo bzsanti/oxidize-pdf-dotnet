@@ -765,6 +765,104 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_add_text_flow(IntPtr page, IntPtr flow);
 
+    // ── Parser — pipeline (partition + RAG chunks) ────────────────────────────
+
+    /// <summary>Partition PDF into typed semantic elements (JSON array)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_partition(
+        IntPtr pdfBytes, nuint pdfLen, out IntPtr outJson);
+
+    /// <summary>Extract structure-aware RAG chunks from a PDF (JSON array)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_rag_chunks(
+        IntPtr pdfBytes, nuint pdfLen, out IntPtr outJson);
+
+    // ── Parser — structured export ─────────────────────────────────────────────
+
+    /// <summary>Export PDF content as Markdown</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_to_markdown(
+        IntPtr pdfBytes, nuint pdfLen, out IntPtr outText);
+
+    /// <summary>Export PDF content in contextual format (LLM-optimized)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_to_contextual(
+        IntPtr pdfBytes, nuint pdfLen, out IntPtr outText);
+
+    /// <summary>Export PDF content as structured JSON</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_to_json(
+        IntPtr pdfBytes, nuint pdfLen, out IntPtr outText);
+
+    // ── Parser — extraction options ────────────────────────────────────────────
+
+    /// <summary>
+    /// FFI-compatible extraction options struct matching Rust ExtractionOptionsFFI.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ExtractionOptionsNative
+    {
+        [MarshalAs(UnmanagedType.I1)]
+        public bool PreserveLayout;
+        public double SpaceThreshold;
+        public double NewlineThreshold;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool SortByPosition;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool DetectColumns;
+        public double ColumnThreshold;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool MergeHyphenated;
+    }
+
+    /// <summary>Extract text from PDF bytes using custom extraction options</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_extract_text_with_options(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        ref ExtractionOptionsNative options,
+        out IntPtr outText);
+
+    // ── Parser — metadata ─────────────────────────────────────────────────────
+
+    /// <summary>Analyze a page's content to determine if it's text, scanned, or mixed</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_analyze_page_content(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint pageNumber,
+        out IntPtr outJson);
+
+    /// <summary>Get page resources (fonts, images, resource keys) as JSON</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_page_resources(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint pageNumber,
+        out IntPtr outJson);
+
+    /// <summary>Get raw content streams for a page as base64-encoded JSON</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_page_content_stream(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint pageNumber,
+        out IntPtr outJson);
+
+    /// <summary>Extract all annotations from a PDF as JSON array</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_annotations(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        out IntPtr outJson);
+
+    /// <summary>Extract document metadata as JSON from PDF bytes</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_metadata(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        out IntPtr outJson);
+
     // ── Parser — additional operations ───────────────────────────────────────
 
     /// <summary>Check if a PDF is encrypted</summary>

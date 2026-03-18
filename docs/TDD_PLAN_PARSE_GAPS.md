@@ -12,14 +12,14 @@
 | Phase | Gap(s) | Description | Status |
 |-------|--------|-------------|--------|
 | 1 | PARSE-002 + PARSE-005 | Lenient parsing + efficient page count | **DONE** |
-| 2 | PARSE-011 | Document metadata from existing PDFs | pending |
-| 3 | PARSE-014 | ExtractionOptions (granular control) | pending |
-| 4 | PARSE-013 | Structured export (markdown, json, contextual) | pending |
-| 5 | PARSE-010 + PARSE-012 | RAG pipeline (partition, chunk) | pending |
-| 6 | PARSE-016 | Read annotations | pending |
-| 7 | PARSE-017 | Page resources + content streams | pending |
-| 8 | PARSE-015 | Page content analysis (scanned vs text) | pending |
-| 9 | Wiring | Final verification | pending |
+| 2 | PARSE-011 | Document metadata from existing PDFs | **DONE** |
+| 3 | PARSE-014 | ExtractionOptions (granular control) | **DONE** |
+| 4 | PARSE-013 | Structured export (markdown, json, contextual) | **DONE** |
+| 5 | PARSE-010 + PARSE-012 | RAG pipeline (partition, chunk) | **DONE** |
+| 6 | PARSE-016 | Read annotations | **DONE** |
+| 7 | PARSE-017 | Page resources + content streams | **DONE** |
+| 8 | PARSE-015 | Page content analysis (scanned vs text) | **DONE** |
+| 9 | Wiring | Final verification | **DONE** |
 
 ---
 

@@ -1,3 +1,4 @@
+use base64::Engine as _;
 use oxidize_pdf::parser::{ParseOptions, PdfDocument, PdfReader};
 use serde::{Deserialize, Serialize};
 use std::ffi::{CStr, CString};
@@ -135,6 +136,121 @@ fn chunks_to_cstring(chunks: &[DocumentChunk]) -> Result<CString, c_int> {
             Err(ErrorCode::InvalidUtf8 as c_int)
         }
     }
+}
+
+// ── Extraction options (FFI-compatible) ─────────────────────────────────────
+
+/// FFI-compatible extraction options struct.
+/// Mirrors C# ExtractionOptions and maps to oxidize_pdf::text::ExtractionOptions.
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ExtractionOptionsFFI {
+    pub preserve_layout: bool,
+    pub space_threshold: f64,
+    pub newline_threshold: f64,
+    pub sort_by_position: bool,
+    pub detect_columns: bool,
+    pub column_threshold: f64,
+    pub merge_hyphenated: bool,
+}
+
+impl ExtractionOptionsFFI {
+    fn to_core(self) -> oxidize_pdf::text::ExtractionOptions {
+        oxidize_pdf::text::ExtractionOptions {
+            preserve_layout: self.preserve_layout,
+            space_threshold: self.space_threshold,
+            newline_threshold: self.newline_threshold,
+            sort_by_position: self.sort_by_position,
+            detect_columns: self.detect_columns,
+            column_threshold: self.column_threshold,
+            merge_hyphenated: self.merge_hyphenated,
+            track_space_decisions: false,
+        }
+    }
+}
+
+// ── Pipeline result types ────────────────────────────────────────────────────
+
+/// Serialization-friendly element struct for FFI output (partition).
+#[derive(Debug, Serialize)]
+struct PdfElementResult {
+    element_type: String,
+    text: String,
+    page_number: u32,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    confidence: f64,
+}
+
+/// Serialization-friendly RAG chunk struct for FFI output.
+#[derive(Debug, Serialize)]
+struct RagChunkResult {
+    chunk_index: usize,
+    text: String,
+    full_text: String,
+    page_numbers: Vec<u32>,
+    element_types: Vec<String>,
+    heading_context: Option<String>,
+    token_estimate: usize,
+    is_oversized: bool,
+}
+
+// ── Content analysis result ───────────────────────────────────────────────────
+
+/// Serialization-friendly content analysis struct for FFI output.
+#[derive(Debug, Serialize)]
+struct ContentAnalysisResult {
+    page_type: String,
+    character_count: usize,
+    has_content_stream: bool,
+    image_count: usize,
+}
+
+// ── Page resources result ─────────────────────────────────────────────────────
+
+/// Serialization-friendly page resources struct for FFI output.
+#[derive(Debug, Serialize)]
+struct PageResourcesResult {
+    font_names: Vec<String>,
+    has_xobjects: bool,
+    resource_keys: Vec<String>,
+}
+
+/// Serialization-friendly content stream result for FFI output.
+#[derive(Debug, Serialize)]
+struct ContentStreamResult {
+    streams: Vec<String>, // base64-encoded raw bytes
+}
+
+// ── Annotation result ────────────────────────────────────────────────────────
+
+/// Serialization-friendly annotation struct for FFI output.
+#[derive(Debug, Serialize)]
+struct AnnotationResult {
+    subtype: String,
+    contents: Option<String>,
+    title: Option<String>,
+    page_number: u32,
+    rect: Option<[f64; 4]>,
+}
+
+// ── Metadata result ─────────────────────────────────────────────────────────
+
+/// Serialization-friendly metadata struct for FFI output.
+#[derive(Debug, Serialize)]
+struct MetadataResult {
+    title: Option<String>,
+    author: Option<String>,
+    subject: Option<String>,
+    keywords: Option<String>,
+    creator: Option<String>,
+    producer: Option<String>,
+    creation_date: Option<String>,
+    modification_date: Option<String>,
+    version: String,
+    page_count: Option<u32>,
 }
 
 // ── Public FFI functions ──────────────────────────────────────────────────────
@@ -667,5 +783,840 @@ pub unsafe extern "C" fn oxidize_get_page_dimensions(
     };
     *out_width = page.width();
     *out_height = page.height();
+    ErrorCode::Success as c_int
+}
+
+/// Extract document metadata (Info dictionary + version + page count) from a PDF.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` will be allocated by this function and must be freed with `oxidize_free_string`.
+/// - Returns `ErrorCode::Success` on success.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_metadata(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_metadata");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let metadata = match document.metadata() {
+        Ok(m) => m,
+        Err(e) => {
+            set_last_error(format!("Failed to extract metadata: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let result = MetadataResult {
+        title: metadata.title,
+        author: metadata.author,
+        subject: metadata.subject,
+        keywords: metadata.keywords,
+        creator: metadata.creator,
+        producer: metadata.producer,
+        creation_date: metadata.creation_date,
+        modification_date: metadata.modification_date,
+        version: metadata.version,
+        page_count: metadata.page_count,
+    };
+
+    let json = match serde_json::to_string(&result) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize metadata to JSON: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Extract plain text from PDF bytes using custom extraction options.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `options` must be a valid pointer to an `ExtractionOptionsFFI` struct.
+/// - `out_text` will be allocated by this function and must be freed with `oxidize_free_string`.
+/// - Returns `ErrorCode::Success` on success.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_extract_text_with_options(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    options: *const ExtractionOptionsFFI,
+    out_text: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_text.is_null() {
+        set_last_error("Null pointer provided to oxidize_extract_text_with_options");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_text = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let core_options = if options.is_null() {
+        oxidize_pdf::text::ExtractionOptions::default()
+    } else {
+        (*options).to_core()
+    };
+    let document = PdfDocument::new(reader);
+    let text_pages = match document.extract_text_with_options(core_options) {
+        Ok(pages) => pages,
+        Err(e) => {
+            set_last_error(format!("Failed to extract text with options: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let text = text_pages
+        .iter()
+        .map(|p| p.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    let c_string = match CString::new(text) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Text contains invalid UTF-8: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_text = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+// ── Structured export helpers ────────────────────────────────────────────────
+
+type ExportFn = fn(&PdfDocument<Cursor<&[u8]>>) -> Result<String, oxidize_pdf::error::PdfError>;
+
+/// Common implementation for structured export functions.
+/// Opens the PDF, calls `export_fn` on the PdfDocument, and returns the result as a C string.
+unsafe fn structured_export_impl(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_text: *mut *mut c_char,
+    fn_name: &str,
+    export_fn: ExportFn,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_text.is_null() {
+        set_last_error(format!("Null pointer provided to {fn_name}"));
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_text = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let output = match export_fn(&document) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Failed in {fn_name}: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(output) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Output contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_text = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Export PDF content as Markdown.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_text` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_to_markdown(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_text: *mut *mut c_char,
+) -> c_int {
+    structured_export_impl(pdf_bytes, pdf_len, out_text, "oxidize_to_markdown", |doc| {
+        doc.to_markdown()
+    })
+}
+
+/// Export PDF content in contextual format (optimized for LLM context windows).
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_text` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_to_contextual(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_text: *mut *mut c_char,
+) -> c_int {
+    structured_export_impl(
+        pdf_bytes,
+        pdf_len,
+        out_text,
+        "oxidize_to_contextual",
+        |doc| doc.to_contextual(),
+    )
+}
+
+/// Export PDF content as structured JSON.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_text` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_to_json(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_text: *mut *mut c_char,
+) -> c_int {
+    structured_export_impl(pdf_bytes, pdf_len, out_text, "oxidize_to_json", |doc| {
+        doc.to_json()
+    })
+}
+
+// ── Pipeline FFI functions ───────────────────────────────────────────────────
+
+/// Partition a PDF into typed semantic elements (title, paragraph, table, etc.).
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_partition(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_partition");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition() {
+        Ok(elems) => elems,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<PdfElementResult> = elements
+        .iter()
+        .map(|el| {
+            let bbox = el.bbox();
+            PdfElementResult {
+                element_type: el.type_name().to_string(),
+                text: el.display_text(),
+                page_number: el.page() + 1, // Convert 0-based to 1-based
+                x: bbox.x,
+                y: bbox.y,
+                width: bbox.width,
+                height: bbox.height,
+                confidence: el.metadata().confidence,
+            }
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize elements: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Extract structure-aware RAG chunks from a PDF.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_rag_chunks(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_rag_chunks");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let chunks = match document.rag_chunks() {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(format!("Failed to extract RAG chunks: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<RagChunkResult> = chunks
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| RagChunkResult {
+            chunk_index: i,
+            text: chunk.text.clone(),
+            full_text: chunk.full_text.clone(),
+            page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(), // 0-based to 1-based
+            element_types: chunk.element_types.clone(),
+            heading_context: chunk.heading_context.clone(),
+            token_estimate: chunk.token_estimate,
+            is_oversized: chunk.is_oversized,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize RAG chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+// ── Annotations FFI ──────────────────────────────────────────────────────────
+
+/// Extract all annotations from a PDF document as JSON.
+///
+/// Returns a JSON array of annotation objects with subtype, contents, title,
+/// page_number (1-based), and rect fields.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_annotations(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_annotations");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let all_annotations = match document.get_all_annotations() {
+        Ok(a) => a,
+        Err(e) => {
+            set_last_error(format!("Failed to get annotations: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let mut annotations: Vec<AnnotationResult> = Vec::new();
+
+    for (page_index, dicts) in &all_annotations {
+        for dict in dicts {
+            let subtype = dict
+                .get("Subtype")
+                .and_then(|o| o.as_name())
+                .map(|n| n.as_str().to_string())
+                .unwrap_or_default();
+
+            let contents = dict
+                .get("Contents")
+                .and_then(|o| o.as_string())
+                .and_then(|s| s.as_str().ok())
+                .map(|s| s.to_string());
+
+            let title = dict
+                .get("T")
+                .and_then(|o| o.as_string())
+                .and_then(|s| s.as_str().ok())
+                .map(|s| s.to_string());
+
+            let rect = dict.get("Rect").and_then(|o| o.as_array()).and_then(|arr| {
+                if arr.0.len() == 4 {
+                    let values: Vec<f64> = arr.0.iter().filter_map(|v| v.as_real()).collect();
+                    if values.len() == 4 {
+                        Some([values[0], values[1], values[2], values[3]])
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            });
+
+            annotations.push(AnnotationResult {
+                subtype,
+                contents,
+                title,
+                page_number: page_index + 1, // 0-based to 1-based
+                rect,
+            });
+        }
+    }
+
+    let json = match serde_json::to_string(&annotations) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize annotations: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Annotations JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+// ── Page Resources FFI ───────────────────────────────────────────────────────
+
+/// Get the resources for a specific page (fonts, images, resource keys).
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `page_number` is 1-based (first page = 1).
+/// - `out_json` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_page_resources(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    page_number: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_page_resources");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let page_index = (page_number - 1) as u32;
+    let page = match document.get_page(page_index) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!("Failed to get page {page_number}: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let mut font_names = Vec::new();
+    let mut has_xobjects = false;
+    let mut resource_keys = Vec::new();
+
+    if let Some(resources) = page.get_resources() {
+        // Collect top-level resource keys
+        for key in resources.0.keys() {
+            resource_keys.push(key.as_str().to_string());
+        }
+        resource_keys.sort();
+
+        // Extract font names
+        if let Some(fonts) = resources.get("Font").and_then(|f| f.as_dict()) {
+            for key in fonts.0.keys() {
+                font_names.push(key.as_str().to_string());
+            }
+            font_names.sort();
+        }
+
+        // Check for images in XObjects
+        if let Some(xobjects) = resources.get("XObject").and_then(|x| x.as_dict()) {
+            has_xobjects = !xobjects.0.is_empty();
+        }
+    }
+
+    let result = PageResourcesResult {
+        font_names,
+        has_xobjects,
+        resource_keys,
+    };
+
+    let json = match serde_json::to_string(&result) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize page resources: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Page resources JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Get the raw content streams for a specific page as base64-encoded JSON.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `page_number` is 1-based (first page = 1).
+/// - `out_json` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_page_content_stream(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    page_number: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_page_content_stream");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let page_index = (page_number - 1) as u32;
+    let page = match document.get_page(page_index) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!("Failed to get page {page_number}: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let raw_streams = match page.content_streams_with_document(&document) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!(
+                "Failed to get content streams for page {page_number}: {e}"
+            ));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let b64_engine = base64::engine::general_purpose::STANDARD;
+    let streams: Vec<String> = raw_streams.iter().map(|s| b64_engine.encode(s)).collect();
+
+    let result = ContentStreamResult { streams };
+
+    let json = match serde_json::to_string(&result) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize content streams: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Content stream JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+// ── Page Content Analysis FFI ────────────────────────────────────────────────
+
+/// Analyze a page's content to determine if it's text-based, scanned, or mixed.
+///
+/// Uses a heuristic: extracts text character count and counts image XObjects.
+/// - "Text": character_count > 0 and image_count == 0
+/// - "Scanned": character_count == 0 and image_count > 0
+/// - "Mixed": both character_count > 0 and image_count > 0
+/// - "Text": character_count == 0 and image_count == 0 (empty page defaults to Text)
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `page_number` is 1-based (first page = 1).
+/// - `out_json` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_analyze_page_content(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    page_number: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_analyze_page_content");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let page_index = (page_number - 1) as u32;
+    let page = match document.get_page(page_index) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!("Failed to get page {page_number}: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    // Count characters from extracted text for this specific page only
+    let character_count = match document.extract_text_from_page(page_index) {
+        Ok(extracted) => extracted.text.chars().count(),
+        Err(_) => 0,
+    };
+
+    // Check for content streams
+    let has_content_stream = page.get_contents().is_some();
+
+    // Count image XObjects
+    let image_count = if let Some(resources) = page.get_resources() {
+        if let Some(xobjects) = resources.get("XObject").and_then(|x| x.as_dict()) {
+            xobjects.0.len()
+        } else {
+            0
+        }
+    } else {
+        0
+    };
+
+    // Determine page type using heuristic
+    let page_type = if character_count > 0 && image_count > 0 {
+        "Mixed"
+    } else if character_count == 0 && image_count > 0 {
+        "Scanned"
+    } else if character_count > 0 {
+        "Text"
+    } else {
+        "Unknown" // truly empty page — no text, no images
+    };
+
+    let result = ContentAnalysisResult {
+        page_type: page_type.to_string(),
+        character_count,
+        has_content_stream,
+        image_count,
+    };
+
+    let json = match serde_json::to_string(&result) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize content analysis: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Content analysis JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
     ErrorCode::Success as c_int
 }

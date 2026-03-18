@@ -89,6 +89,148 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Partition a PDF into typed semantic elements (title, paragraph, table, etc.).
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of semantic elements with type, text, page number, and bounding box.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If partitioning fails.</exception>
+    public Task<List<PdfElement>> PartitionAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => Partition(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Extract structure-aware RAG chunks from a PDF using the hybrid chunking pipeline.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of RAG-ready chunks with text, context, page numbers, and token estimates.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If chunking fails.</exception>
+    public Task<List<RagChunk>> RagChunksAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => ExtractRagChunks(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Export PDF content as Markdown.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Markdown representation of the PDF content.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If export fails.</exception>
+    public Task<string> ToMarkdownAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => StructuredExport(pdfBytes, NativeMethods.oxidize_to_markdown, "markdown"), cancellationToken);
+    }
+
+    /// <summary>
+    /// Export PDF content in contextual format (optimized for LLM context windows).
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Contextual representation of the PDF content.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If export fails.</exception>
+    public Task<string> ToContextualAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => StructuredExport(pdfBytes, NativeMethods.oxidize_to_contextual, "contextual"), cancellationToken);
+    }
+
+    /// <summary>
+    /// Export PDF content as structured JSON.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>JSON representation of the PDF content.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If export fails.</exception>
+    public Task<string> ToJsonAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => StructuredExport(pdfBytes, NativeMethods.oxidize_to_json, "JSON"), cancellationToken);
+    }
+
+    /// <summary>
+    /// Extract plain text from PDF bytes using custom extraction options.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="options">Extraction options controlling layout, columns, hyphenation, etc.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Extracted plain text.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes or options is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If extraction fails.</exception>
+    public Task<string> ExtractTextAsync(byte[] pdfBytes, ExtractionOptions options, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        options ??= new ExtractionOptions();
+        options.Validate();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => ExtractTextWithOptions(pdfBytes, options), cancellationToken);
+    }
+
+    /// <summary>
     /// Extract text chunks optimized for RAG/LLM pipelines
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array</param>
@@ -282,6 +424,133 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Extract document metadata from a PDF (Info dictionary, version, page count).
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="PdfMetadata"/> instance with the extracted metadata.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If extraction fails.</exception>
+    public Task<PdfMetadata> ExtractMetadataAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => ExtractMetadata(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Extract all annotations from a PDF document.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of <see cref="PdfAnnotation"/> instances found in the document.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If extraction fails.</exception>
+    public Task<List<PdfAnnotation>> GetAnnotationsAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => GetAnnotations(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Get the resources for a specific page (fonts, images, resource keys).
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="pageNumber">Page number (1-based).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="PageResources"/> instance with the page's resources.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">If pageNumber is less than 1.</exception>
+    /// <exception cref="PdfExtractionException">If extraction fails.</exception>
+    public Task<PageResources> GetPageResourcesAsync(byte[] pdfBytes, int pageNumber, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        if (pageNumber < 1)
+            throw new ArgumentOutOfRangeException(nameof(pageNumber), "Page number must be >= 1 (1-based indexing)");
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => GetPageResources(pdfBytes, pageNumber), cancellationToken);
+    }
+
+    /// <summary>
+    /// Get the raw content streams for a specific page as decoded byte arrays.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="pageNumber">Page number (1-based).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of decoded content stream byte arrays.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">If pageNumber is less than 1.</exception>
+    /// <exception cref="PdfExtractionException">If extraction fails.</exception>
+    public Task<PageContentStreams> GetPageContentStreamAsync(byte[] pdfBytes, int pageNumber, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        if (pageNumber < 1)
+            throw new ArgumentOutOfRangeException(nameof(pageNumber), "Page number must be >= 1 (1-based indexing)");
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => GetPageContentStream(pdfBytes, pageNumber), cancellationToken);
+    }
+
+    /// <summary>
+    /// Analyze a page's content to determine if it's text-based, scanned, or mixed.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="pageNumber">Page number (1-based).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="ContentAnalysis"/> with the page's content classification.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">If pageNumber is less than 1.</exception>
+    /// <exception cref="PdfExtractionException">If analysis fails.</exception>
+    public Task<ContentAnalysis> AnalyzePageContentAsync(byte[] pdfBytes, int pageNumber, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        if (pageNumber < 1)
+            throw new ArgumentOutOfRangeException(nameof(pageNumber), "Page number must be >= 1 (1-based indexing)");
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => AnalyzePageContent(pdfBytes, pageNumber), cancellationToken);
+    }
+
+    /// <summary>
     /// Gets the dimensions of a specific page from a parsed PDF.
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
@@ -322,38 +591,70 @@ public class PdfExtractor
         }
     }
 
-    private string ExtractText(byte[] pdfBytes)
+    // ── FFI helpers ──────────────────────────────────────────────────────────
+
+    private delegate int NativeJsonCall(IntPtr pdfBytes, nuint pdfLen, out IntPtr outJson);
+    private delegate int NativeStringCall(IntPtr pdfBytes, nuint pdfLen, out IntPtr outText);
+
+    private static T WithPinnedPdf<T>(byte[] pdfBytes, Func<IntPtr, nuint, T> action)
     {
         IntPtr pdfPtr = IntPtr.Zero;
-        IntPtr textPtr = IntPtr.Zero;
-
         try
         {
-            // Pin PDF bytes in memory
             pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
             Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
-
-            // Call native function
-            var result = NativeMethods.oxidize_extract_text(
-                pdfPtr,
-                (nuint)pdfBytes.Length,
-                out textPtr
-            );
-
-            ThrowIfError(result, "Failed to extract text from PDF");
-
-            // Marshal result back to C#
-            return Marshal.PtrToStringUTF8(textPtr) ?? string.Empty;
+            return action(pdfPtr, (nuint)pdfBytes.Length);
         }
         finally
         {
             if (pdfPtr != IntPtr.Zero)
                 Marshal.FreeHGlobal(pdfPtr);
-
-            if (textPtr != IntPtr.Zero)
-                NativeMethods.oxidize_free_string(textPtr);
         }
     }
+
+    private static T CallNativeJson<T>(byte[] pdfBytes, NativeJsonCall nativeCall, string errorMsg) where T : class, new()
+    {
+        return WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var result = nativeCall(ptr, len, out jsonPtr);
+                ThrowIfError(result, errorMsg);
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "{}";
+                return JsonSerializer.Deserialize<T>(json) ?? new T();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+    }
+
+    private static string CallNativeString(byte[] pdfBytes, NativeStringCall nativeCall, string errorMsg)
+    {
+        return WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr textPtr = IntPtr.Zero;
+            try
+            {
+                var result = nativeCall(ptr, len, out textPtr);
+                ThrowIfError(result, errorMsg);
+                return Marshal.PtrToStringUTF8(textPtr) ?? string.Empty;
+            }
+            finally
+            {
+                if (textPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(textPtr);
+            }
+        });
+    }
+
+    // ── Private FFI method implementations ───────────────────────────────────
+
+    private string ExtractText(byte[] pdfBytes) =>
+        CallNativeString(pdfBytes, NativeMethods.oxidize_extract_text, "Failed to extract text from PDF");
 
     private List<DocumentChunk> ExtractChunks(byte[] pdfBytes, ChunkOptions options)
     {
@@ -400,62 +701,30 @@ public class PdfExtractor
         }
     }
 
-    private int GetPageCount(byte[] pdfBytes)
-    {
-        IntPtr pdfPtr = IntPtr.Zero;
-
-        try
+    private int GetPageCount(byte[] pdfBytes) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
         {
-            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
-            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
-
-            var result = NativeMethods.oxidize_get_page_count(
-                pdfPtr,
-                (nuint)pdfBytes.Length,
-                out var pageCount
-            );
-
+            var result = NativeMethods.oxidize_get_page_count(ptr, len, out var pageCount);
             ThrowIfError(result, "Failed to get page count from PDF");
-
             return (int)pageCount;
-        }
-        finally
+        });
+
+    private string ExtractTextFromPage(byte[] pdfBytes, int pageNumber) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
         {
-            if (pdfPtr != IntPtr.Zero)
-                Marshal.FreeHGlobal(pdfPtr);
-        }
-    }
-
-    private string ExtractTextFromPage(byte[] pdfBytes, int pageNumber)
-    {
-        IntPtr pdfPtr = IntPtr.Zero;
-        IntPtr textPtr = IntPtr.Zero;
-
-        try
-        {
-            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
-            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
-
-            var result = NativeMethods.oxidize_extract_text_from_page(
-                pdfPtr,
-                (nuint)pdfBytes.Length,
-                (nuint)pageNumber,
-                out textPtr
-            );
-
-            ThrowIfError(result, $"Failed to extract text from page {pageNumber}");
-
-            return Marshal.PtrToStringUTF8(textPtr) ?? string.Empty;
-        }
-        finally
-        {
-            if (pdfPtr != IntPtr.Zero)
-                Marshal.FreeHGlobal(pdfPtr);
-
-            if (textPtr != IntPtr.Zero)
-                NativeMethods.oxidize_free_string(textPtr);
-        }
-    }
+            IntPtr textPtr = IntPtr.Zero;
+            try
+            {
+                var result = NativeMethods.oxidize_extract_text_from_page(ptr, len, (nuint)pageNumber, out textPtr);
+                ThrowIfError(result, $"Failed to extract text from page {pageNumber}");
+                return Marshal.PtrToStringUTF8(textPtr) ?? string.Empty;
+            }
+            finally
+            {
+                if (textPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(textPtr);
+            }
+        });
 
     private List<DocumentChunk> ExtractChunksFromPage(byte[] pdfBytes, int pageNumber, ChunkOptions options)
     {
@@ -499,112 +768,144 @@ public class PdfExtractor
         }
     }
 
-    private bool IsEncrypted(byte[] pdfBytes)
-    {
-        IntPtr pdfPtr = IntPtr.Zero;
-
-        try
+    private bool IsEncrypted(byte[] pdfBytes) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
         {
-            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
-            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
-
-            var result = NativeMethods.oxidize_is_encrypted(
-                pdfPtr,
-                (nuint)pdfBytes.Length,
-                out var encrypted);
-
+            var result = NativeMethods.oxidize_is_encrypted(ptr, len, out var encrypted);
             ThrowIfError(result, "Failed to check if PDF is encrypted");
-
             return encrypted;
-        }
-        finally
+        });
+
+    private bool UnlockWithPassword(byte[] pdfBytes, string password) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
         {
-            if (pdfPtr != IntPtr.Zero)
-                Marshal.FreeHGlobal(pdfPtr);
-        }
-    }
-
-    private bool UnlockWithPassword(byte[] pdfBytes, string password)
-    {
-        IntPtr pdfPtr = IntPtr.Zero;
-
-        try
-        {
-            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
-            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
-
-            var result = NativeMethods.oxidize_unlock_pdf(
-                pdfPtr,
-                (nuint)pdfBytes.Length,
-                password,
-                out var unlocked);
-
+            var result = NativeMethods.oxidize_unlock_pdf(ptr, len, password, out var unlocked);
             ThrowIfError(result, "Failed to unlock PDF");
-
             return unlocked;
-        }
-        finally
-        {
-            if (pdfPtr != IntPtr.Zero)
-                Marshal.FreeHGlobal(pdfPtr);
-        }
-    }
+        });
 
-    private string GetPdfVersion(byte[] pdfBytes)
+    private string GetPdfVersion(byte[] pdfBytes) =>
+        CallNativeString(pdfBytes, NativeMethods.oxidize_get_pdf_version, "Failed to get PDF version");
+
+    private List<PdfElement> Partition(byte[] pdfBytes) =>
+        CallNativeJson<List<PdfElement>>(pdfBytes, NativeMethods.oxidize_partition, "Failed to partition PDF");
+
+    private List<RagChunk> ExtractRagChunks(byte[] pdfBytes) =>
+        CallNativeJson<List<RagChunk>>(pdfBytes, NativeMethods.oxidize_rag_chunks, "Failed to extract RAG chunks");
+
+    private string StructuredExport(byte[] pdfBytes, NativeStringCall nativeFunc, string formatName) =>
+        CallNativeString(pdfBytes, nativeFunc, $"Failed to export PDF as {formatName}");
+
+    private string ExtractTextWithOptions(byte[] pdfBytes, ExtractionOptions options)
     {
         IntPtr pdfPtr = IntPtr.Zero;
-        IntPtr versionPtr = IntPtr.Zero;
+        IntPtr textPtr = IntPtr.Zero;
 
         try
         {
             pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
             Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
 
-            var result = NativeMethods.oxidize_get_pdf_version(
+            var nativeOptions = new NativeMethods.ExtractionOptionsNative
+            {
+                PreserveLayout = options.PreserveLayout,
+                SpaceThreshold = options.SpaceThreshold,
+                NewlineThreshold = options.NewlineThreshold,
+                SortByPosition = options.SortByPosition,
+                DetectColumns = options.DetectColumns,
+                ColumnThreshold = options.ColumnThreshold,
+                MergeHyphenated = options.MergeHyphenated
+            };
+
+            var result = NativeMethods.oxidize_extract_text_with_options(
                 pdfPtr,
                 (nuint)pdfBytes.Length,
-                out versionPtr);
+                ref nativeOptions,
+                out textPtr);
 
-            ThrowIfError(result, "Failed to get PDF version");
+            ThrowIfError(result, "Failed to extract text with options");
 
-            return Marshal.PtrToStringUTF8(versionPtr) ?? string.Empty;
+            return Marshal.PtrToStringUTF8(textPtr) ?? string.Empty;
         }
         finally
         {
             if (pdfPtr != IntPtr.Zero)
                 Marshal.FreeHGlobal(pdfPtr);
 
-            if (versionPtr != IntPtr.Zero)
-                NativeMethods.oxidize_free_string(versionPtr);
+            if (textPtr != IntPtr.Zero)
+                NativeMethods.oxidize_free_string(textPtr);
         }
     }
 
-    private (double Width, double Height) GetPageDimensions(byte[] pdfBytes, int pageNumber)
-    {
-        IntPtr pdfPtr = IntPtr.Zero;
+    private PdfMetadata ExtractMetadata(byte[] pdfBytes) =>
+        CallNativeJson<PdfMetadata>(pdfBytes, NativeMethods.oxidize_get_metadata, "Failed to extract metadata from PDF");
 
-        try
+    private List<PdfAnnotation> GetAnnotations(byte[] pdfBytes) =>
+        CallNativeJson<List<PdfAnnotation>>(pdfBytes, NativeMethods.oxidize_get_annotations, "Failed to get annotations from PDF");
+
+    private ContentAnalysis AnalyzePageContent(byte[] pdfBytes, int pageNumber) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
         {
-            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
-            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var result = NativeMethods.oxidize_analyze_page_content(ptr, len, (nuint)pageNumber, out jsonPtr);
+                ThrowIfError(result, $"Failed to analyze content for page {pageNumber}");
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "{}";
+                return JsonSerializer.Deserialize<ContentAnalysis>(json) ?? new ContentAnalysis();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
 
-            var result = NativeMethods.oxidize_get_page_dimensions(
-                pdfPtr,
-                (nuint)pdfBytes.Length,
-                (nuint)pageNumber,
-                out var width,
-                out var height);
+    private PageResources GetPageResources(byte[] pdfBytes, int pageNumber) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var result = NativeMethods.oxidize_get_page_resources(ptr, len, (nuint)pageNumber, out jsonPtr);
+                ThrowIfError(result, $"Failed to get resources for page {pageNumber}");
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "{}";
+                return JsonSerializer.Deserialize<PageResources>(json) ?? new PageResources();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
 
+    private PageContentStreams GetPageContentStream(byte[] pdfBytes, int pageNumber) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var result = NativeMethods.oxidize_get_page_content_stream(ptr, len, (nuint)pageNumber, out jsonPtr);
+                ThrowIfError(result, $"Failed to get content streams for page {pageNumber}");
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "{\"streams\":[]}";
+                var streamResult = JsonSerializer.Deserialize<ContentStreamResult>(json) ?? new ContentStreamResult();
+                var decoded = streamResult.Streams.Select(Convert.FromBase64String).ToList();
+                return new PageContentStreams(decoded);
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+
+    private (double Width, double Height) GetPageDimensions(byte[] pdfBytes, int pageNumber) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            var result = NativeMethods.oxidize_get_page_dimensions(ptr, len, (nuint)pageNumber, out var width, out var height);
             ThrowIfError(result, $"Failed to get dimensions for page {pageNumber}");
-
             return (width, height);
-        }
-        finally
-        {
-            if (pdfPtr != IntPtr.Zero)
-                Marshal.FreeHGlobal(pdfPtr);
-        }
-    }
+        });
 
     private static void ThrowIfError(int errorCode, string message)
     {
