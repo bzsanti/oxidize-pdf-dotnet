@@ -833,6 +833,45 @@ internal static class NativeMethods
         nuint pageNumber,
         out IntPtr outJson);
 
+    // ── Digital Signatures ─────────────────────────────────────────────────────
+
+    /// <summary>Check if a PDF contains any digital signature fields</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_has_signatures(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        [MarshalAs(UnmanagedType.I1)] out bool hasSignatures);
+
+    /// <summary>Extract all digital signature fields from a PDF as JSON array</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_signatures(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        out IntPtr outJson);
+
+    /// <summary>Verify all digital signatures in a PDF and return verification results as JSON</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_verify_signatures(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        out IntPtr outJson);
+
+    // ── Forms ─────────────────────────────────────────────────────────────────
+
+    /// <summary>Check if a PDF contains any form fields</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_has_form_fields(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        [MarshalAs(UnmanagedType.I1)] out bool outHasFields);
+
+    /// <summary>Extract all form fields from a PDF as JSON array</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_form_fields(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        out IntPtr outJson);
+
     /// <summary>Get page resources (fonts, images, resource keys) as JSON</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_get_page_resources(

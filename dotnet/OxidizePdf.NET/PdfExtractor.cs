@@ -447,12 +447,125 @@ public class PdfExtractor
     }
 
     /// <summary>
-    /// Extract all annotations from a PDF document.
+    /// Check whether a PDF document contains any digital signature fields.
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of <see cref="PdfAnnotation"/> instances found in the document.</returns>
+    /// <returns><c>true</c> if at least one signature field is present; otherwise <c>false</c>.</returns>
     /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If the native library call fails.</exception>
+    public Task<bool> HasDigitalSignaturesAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => HasDigitalSignatures(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Extract all digital signature fields from a PDF document.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of <see cref="DigitalSignature"/> instances with field metadata and signer info.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If the native library call fails.</exception>
+    public Task<List<DigitalSignature>> GetDigitalSignaturesAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => GetDigitalSignatures(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Verify all digital signatures in a PDF and return detailed verification results.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of <see cref="SignatureVerificationResult"/> with hash, signature, and certificate validation.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If the native library call fails.</exception>
+    public Task<List<SignatureVerificationResult>> VerifySignaturesAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => VerifySignatures(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Check whether a PDF document contains any interactive form fields (AcroForm widgets).
+    /// </summary>
+    /// <remarks>
+    /// Calling this method followed by <see cref="GetFormFieldsAsync"/> will parse the PDF twice.
+    /// If you need both results, call <see cref="GetFormFieldsAsync"/> directly and check
+    /// whether the returned list is empty.
+    /// </remarks>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns><c>true</c> if at least one form field is present; otherwise <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If the native library call fails.</exception>
+    public Task<bool> HasFormFieldsAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => HasFormFields(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Extract all interactive form fields from a PDF document.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of <see cref="FormField"/> instances with field metadata, values, and options.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If the native library call fails.</exception>
+    public Task<List<FormField>> GetFormFieldsAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => GetFormFields(pdfBytes), cancellationToken);
+    }
+
     /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
     /// <exception cref="PdfExtractionException">If extraction fails.</exception>
     public Task<List<PdfAnnotation>> GetAnnotationsAsync(byte[] pdfBytes, CancellationToken cancellationToken = default)
@@ -621,7 +734,9 @@ public class PdfExtractor
             {
                 var result = nativeCall(ptr, len, out jsonPtr);
                 ThrowIfError(result, errorMsg);
-                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "{}";
+                // Use "[]" as fallback: List<T> types need a JSON array, not object.
+                // This path only triggers if Rust returns Success without setting out_json.
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
                 return JsonSerializer.Deserialize<T>(json) ?? new T();
             }
             finally
@@ -836,6 +951,31 @@ public class PdfExtractor
                 NativeMethods.oxidize_free_string(textPtr);
         }
     }
+
+    private bool HasDigitalSignatures(byte[] pdfBytes) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            var result = NativeMethods.oxidize_has_signatures(ptr, len, out var hasSignatures);
+            ThrowIfError(result, "Failed to check for digital signatures");
+            return hasSignatures;
+        });
+
+    private bool HasFormFields(byte[] pdfBytes) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            var result = NativeMethods.oxidize_has_form_fields(ptr, len, out var hasFields);
+            ThrowIfError(result, "Failed to check for form fields");
+            return hasFields;
+        });
+
+    private List<FormField> GetFormFields(byte[] pdfBytes) =>
+        CallNativeJson<List<FormField>>(pdfBytes, NativeMethods.oxidize_get_form_fields, "Failed to get form fields");
+
+    private List<DigitalSignature> GetDigitalSignatures(byte[] pdfBytes) =>
+        CallNativeJson<List<DigitalSignature>>(pdfBytes, NativeMethods.oxidize_get_signatures, "Failed to get digital signatures");
+
+    private List<SignatureVerificationResult> VerifySignatures(byte[] pdfBytes) =>
+        CallNativeJson<List<SignatureVerificationResult>>(pdfBytes, NativeMethods.oxidize_verify_signatures, "Failed to verify signatures");
 
     private PdfMetadata ExtractMetadata(byte[] pdfBytes) =>
         CallNativeJson<PdfMetadata>(pdfBytes, NativeMethods.oxidize_get_metadata, "Failed to extract metadata from PDF");

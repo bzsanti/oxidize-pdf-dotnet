@@ -1,5 +1,6 @@
 use base64::Engine as _;
 use oxidize_pdf::parser::{ParseOptions, PdfDocument, PdfReader};
+use oxidize_pdf::signatures;
 use serde::{Deserialize, Serialize};
 use std::ffi::{CStr, CString};
 use std::io::Cursor;
@@ -195,6 +196,74 @@ struct RagChunkResult {
     heading_context: Option<String>,
     token_estimate: usize,
     is_oversized: bool,
+}
+
+// ── Signature result types ────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+struct SignatureFieldResult {
+    field_name: Option<String>,
+    filter: String,
+    sub_filter: Option<String>,
+    reason: Option<String>,
+    location: Option<String>,
+    contact_info: Option<String>,
+    signing_time: Option<String>,
+    signer_name: Option<String>,
+    contents_size: usize,
+    is_pades: bool,
+    is_pkcs7_detached: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct CertificateInfoResult {
+    subject: String,
+    issuer: String,
+    valid_from: String,
+    valid_to: String,
+    is_time_valid: bool,
+    is_trusted: bool,
+    is_signature_capable: bool,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SignatureVerificationFFIResult {
+    field_name: Option<String>,
+    signer_name: Option<String>,
+    signing_time: Option<String>,
+    hash_valid: bool,
+    signature_valid: bool,
+    is_valid: bool,
+    has_modifications_after_signing: bool,
+    errors: Vec<String>,
+    warnings: Vec<String>,
+    digest_algorithm: Option<String>,
+    signature_algorithm: Option<String>,
+    certificate: Option<CertificateInfoResult>,
+}
+
+// ── Form field result types ───────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+struct FormFieldOptionResult {
+    export_value: String,
+    display_text: String,
+}
+
+#[derive(Debug, Serialize)]
+struct FormFieldResult {
+    field_name: String,
+    field_type: String,
+    page_number: u32,
+    value: Option<String>,
+    default_value: Option<String>,
+    is_read_only: bool,
+    is_required: bool,
+    is_multiline: bool,
+    max_length: Option<i64>,
+    options: Vec<FormFieldOptionResult>,
+    rect: Option<[f64; 4]>,
 }
 
 // ── Content analysis result ───────────────────────────────────────────────────
@@ -1288,7 +1357,7 @@ pub unsafe extern "C" fn oxidize_get_annotations(
                 subtype,
                 contents,
                 title,
-                page_number: page_index + 1, // 0-based to 1-based
+                page_number: page_index.saturating_add(1), // 0-based to 1-based
                 rect,
             });
         }
@@ -1619,4 +1688,578 @@ pub unsafe extern "C" fn oxidize_analyze_page_content(
 
     *out_json = c_string.into_raw();
     ErrorCode::Success as c_int
+}
+
+// ── Digital Signatures FFI ───────────────────────────────────────────────────
+
+/// Helper: detect signature fields from raw PDF bytes.
+fn detect_sigs(bytes: &[u8]) -> Result<Vec<signatures::SignatureField>, c_int> {
+    let mut reader = open_lenient(bytes).map_err(|e| {
+        set_last_error(e);
+        ErrorCode::PdfParseError as c_int
+    })?;
+
+    signatures::detect_signature_fields(&mut reader).map_err(|e| {
+        set_last_error(format!("Failed to detect signatures: {e}"));
+        ErrorCode::PdfParseError as c_int
+    })
+}
+
+/// Helper: build SignatureFieldResult from a SignatureField, optionally parsing CMS.
+fn build_signature_result(sig: &signatures::SignatureField) -> SignatureFieldResult {
+    let signer_name = signatures::parse_pkcs7_signature(&sig.contents)
+        .ok()
+        .and_then(|p| p.signer_common_name().ok());
+
+    SignatureFieldResult {
+        field_name: sig.name.clone(),
+        filter: sig.filter.clone(),
+        sub_filter: sig.sub_filter.clone(),
+        reason: sig.reason.clone(),
+        location: sig.location.clone(),
+        contact_info: sig.contact_info.clone(),
+        signing_time: sig.signing_time.clone(),
+        signer_name,
+        contents_size: sig.contents_size(),
+        is_pades: sig.is_pades(),
+        is_pkcs7_detached: sig.is_pkcs7_detached(),
+    }
+}
+
+/// Check if a PDF contains any digital signature fields.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_has_signatures` must be a valid pointer to a `bool`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_has_signatures(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_has_signatures: *mut bool,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_has_signatures.is_null() {
+        set_last_error("Null pointer provided to oxidize_has_signatures");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_has_signatures = false;
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let sigs = match detect_sigs(bytes) {
+        Ok(s) => s,
+        Err(code) => return code,
+    };
+
+    *out_has_signatures = !sigs.is_empty();
+    ErrorCode::Success as c_int
+}
+
+/// Extract all digital signature fields from a PDF as JSON.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_signatures(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_signatures");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let sigs = match detect_sigs(bytes) {
+        Ok(s) => s,
+        Err(code) => return code,
+    };
+
+    let results: Vec<SignatureFieldResult> = sigs.iter().map(build_signature_result).collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize signatures: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Signatures JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Verify all digital signatures in a PDF and return detailed results as JSON.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_verify_signatures(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_verify_signatures");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let sigs = match detect_sigs(bytes) {
+        Ok(s) => s,
+        Err(code) => return code,
+    };
+
+    let mut results: Vec<SignatureVerificationFFIResult> = Vec::new();
+
+    for sig in &sigs {
+        let has_modifications = signatures::has_incremental_update(bytes, &sig.byte_range);
+
+        // Parse CMS and verify
+        let parsed = signatures::parse_pkcs7_signature(&sig.contents);
+
+        let (
+            signer_name,
+            hash_valid,
+            signature_valid,
+            digest_algorithm,
+            signature_algorithm,
+            certificate,
+            errors,
+            mut warnings,
+        ) = match &parsed {
+            Ok(p) => {
+                let signer = p.signer_common_name().ok();
+                let verify_result = signatures::verify_signature(bytes, p, &sig.byte_range);
+                let (hv, sv, da, sa, mut errs) = match verify_result {
+                    Ok(vr) => (
+                        vr.hash_valid,
+                        vr.signature_valid,
+                        Some(vr.digest_algorithm.name().to_string()),
+                        Some(vr.signature_algorithm.name().to_string()),
+                        vec![],
+                    ),
+                    Err(e) => (
+                        false,
+                        false,
+                        None,
+                        None,
+                        vec![format!("Verify failed: {e}")],
+                    ),
+                };
+
+                let cert_result = signatures::validate_certificate(
+                    &p.signer_certificate_der,
+                    &signatures::TrustStore::default(),
+                );
+                let (cert_info, cert_warnings) = match cert_result {
+                    Ok(cr) => {
+                        let w = cr.warnings.clone();
+                        (
+                            Some(CertificateInfoResult {
+                                subject: cr.subject,
+                                issuer: cr.issuer,
+                                valid_from: cr.valid_from,
+                                valid_to: cr.valid_to,
+                                is_time_valid: cr.is_time_valid,
+                                is_trusted: cr.is_trusted,
+                                is_signature_capable: cr.is_signature_capable,
+                                warnings: cr.warnings,
+                            }),
+                            w,
+                        )
+                    }
+                    Err(e) => {
+                        errs.push(format!("Certificate validation failed: {e}"));
+                        (None, vec![])
+                    }
+                };
+
+                (signer, hv, sv, da, sa, cert_info, errs, cert_warnings)
+            }
+            Err(e) => (
+                None,
+                false,
+                false,
+                None,
+                None,
+                None,
+                vec![format!("CMS parsing failed: {e}")],
+                vec![],
+            ),
+        };
+
+        if has_modifications {
+            warnings.push("Document was modified after signing".to_string());
+        }
+
+        let is_valid = hash_valid
+            && signature_valid
+            && errors.is_empty()
+            && !has_modifications
+            && certificate
+                .as_ref()
+                .map(|c| c.is_time_valid && c.is_trusted && c.is_signature_capable)
+                .unwrap_or(false);
+
+        results.push(SignatureVerificationFFIResult {
+            field_name: sig.name.clone(),
+            signer_name,
+            signing_time: sig.signing_time.clone(),
+            hash_valid,
+            signature_valid,
+            is_valid,
+            has_modifications_after_signing: has_modifications,
+            errors,
+            warnings,
+            digest_algorithm,
+            signature_algorithm,
+            certificate,
+        });
+    }
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize verification results: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Verification JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+// ── Form Fields FFI ──────────────────────────────────────────────────────────
+
+use oxidize_pdf::parser::objects::PdfDictionary;
+
+/// Extract a string value from a PdfObject (tries Name then String).
+fn pdf_obj_to_string(obj: &oxidize_pdf::parser::objects::PdfObject) -> Option<String> {
+    if let Some(name) = obj.as_name() {
+        return Some(name.as_str().to_string());
+    }
+    if let Some(s) = obj.as_string() {
+        return s.as_str().ok().map(|v| v.to_string());
+    }
+    None
+}
+
+/// Classify a Widget annotation dictionary as a form field.
+/// Returns None if it's not a Widget or has no FT entry.
+fn classify_form_field(dict: &PdfDictionary, page_number: u32) -> Option<FormFieldResult> {
+    // Must be Widget subtype
+    let subtype = dict.get("Subtype").and_then(|o| o.as_name())?;
+    if subtype.as_str() != "Widget" {
+        return None;
+    }
+
+    // Must have FT (field type).
+    // NOTE: AcroForm fields can inherit FT from a parent field dictionary.
+    // Child widget annotations that omit FT are silently dropped here.
+    // Full AcroForm tree traversal (following /Parent chains) would be
+    // required to resolve inherited FT values. PDFs produced by Adobe
+    // Acrobat often use this structure, so some fields may be missed.
+    // See: PDF spec ISO 32000 section 12.7.3.1 "Field Dictionaries".
+    let ft = dict.get("FT").and_then(|o| o.as_name())?;
+    let ft_str = ft.as_str();
+
+    // Field flags
+    let ff = dict
+        .get("Ff")
+        .and_then(|o| o.as_integer())
+        .map(|v| v.max(0) as u32)
+        .unwrap_or(0);
+
+    let is_read_only = ff & 1 != 0;
+    let is_required = (ff >> 1) & 1 != 0;
+    let is_multiline = (ff >> 12) & 1 != 0;
+    let is_pushbutton = (ff >> 16) & 1 != 0;
+    let is_radio = (ff >> 15) & 1 != 0;
+    let is_combo = (ff >> 17) & 1 != 0;
+
+    let field_type = match ft_str {
+        "Tx" => "text",
+        "Btn" => {
+            if is_pushbutton {
+                "pushbutton"
+            } else if is_radio {
+                "radio"
+            } else {
+                "checkbox"
+            }
+        }
+        "Ch" => {
+            if is_combo {
+                "dropdown"
+            } else {
+                "listbox"
+            }
+        }
+        "Sig" => "signature",
+        _ => "unknown",
+    };
+
+    let field_name = dict
+        .get("T")
+        .and_then(|o| o.as_string())
+        .and_then(|s| s.as_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+
+    let value = dict.get("V").and_then(pdf_obj_to_string);
+    let default_value = dict.get("DV").and_then(pdf_obj_to_string);
+
+    let max_length = dict.get("MaxLen").and_then(|o| o.as_integer());
+
+    // Parse Opt array for choice fields
+    let options = dict
+        .get("Opt")
+        .and_then(|o| o.as_array())
+        .map(|arr| {
+            arr.0
+                .iter()
+                .map(|item| {
+                    // Option can be a simple string or [export_value, display_text]
+                    if let Some(sub_arr) = item.as_array() {
+                        let export = sub_arr
+                            .0
+                            .first()
+                            .and_then(pdf_obj_to_string)
+                            .unwrap_or_default();
+                        let display = sub_arr
+                            .0
+                            .get(1)
+                            .and_then(pdf_obj_to_string)
+                            .unwrap_or_else(|| export.clone());
+                        FormFieldOptionResult {
+                            export_value: export,
+                            display_text: display,
+                        }
+                    } else {
+                        let text = pdf_obj_to_string(item).unwrap_or_default();
+                        FormFieldOptionResult {
+                            export_value: text.clone(),
+                            display_text: text,
+                        }
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let rect = dict.get("Rect").and_then(|o| o.as_array()).and_then(|arr| {
+        if arr.0.len() == 4 {
+            let vals: Vec<f64> = arr.0.iter().filter_map(|v| v.as_real()).collect();
+            if vals.len() == 4 {
+                Some([vals[0], vals[1], vals[2], vals[3]])
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    });
+
+    Some(FormFieldResult {
+        field_name,
+        field_type: field_type.to_string(),
+        page_number,
+        value,
+        default_value,
+        is_read_only,
+        is_required,
+        is_multiline,
+        max_length,
+        options,
+        rect,
+    })
+}
+
+/// Check if a PDF contains any form fields (Widget annotations with FT entry).
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_has` must be a valid pointer to a `bool`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_has_form_fields(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_has: *mut bool,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_has.is_null() {
+        set_last_error("Null pointer provided to oxidize_has_form_fields");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_has = false;
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let all_annots = match document.get_all_annotations() {
+        Ok(a) => a,
+        Err(e) => {
+            set_last_error(format!("Failed to get annotations: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    for (page_index, dicts) in &all_annots {
+        for dict in dicts {
+            if classify_form_field(dict, page_index.saturating_add(1)).is_some() {
+                *out_has = true;
+                return ErrorCode::Success as c_int;
+            }
+        }
+    }
+
+    ErrorCode::Success as c_int
+}
+
+/// Extract all form fields from a PDF as JSON.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` will be allocated and must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_form_fields(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_form_fields");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let all_annots = match document.get_all_annotations() {
+        Ok(a) => a,
+        Err(e) => {
+            set_last_error(format!("Failed to get annotations: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let mut fields: Vec<FormFieldResult> = Vec::new();
+    for (page_index, dicts) in &all_annots {
+        for dict in dicts {
+            if let Some(field) = classify_form_field(dict, page_index.saturating_add(1)) {
+                fields.push(field);
+            }
+        }
+    }
+
+    let json = match serde_json::to_string(&fields) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize form fields: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Form fields JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod form_tests {
+    #[test]
+    fn negative_ff_does_not_activate_flags() {
+        let raw: i64 = -1;
+        let ff_fixed = raw.max(0) as u32;
+        assert_eq!(ff_fixed, 0, "negative Ff must clamp to 0");
+        assert_eq!(ff_fixed & 1, 0, "read-only must not activate");
+        assert_eq!((ff_fixed >> 1) & 1, 0, "required must not activate");
+    }
+
+    #[test]
+    fn page_index_saturating_add_does_not_overflow() {
+        let max_page: u32 = u32::MAX;
+        assert_eq!(max_page.saturating_add(1), u32::MAX);
+    }
 }
