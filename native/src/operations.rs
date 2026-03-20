@@ -599,6 +599,373 @@ pub unsafe extern "C" fn oxidize_reverse_pages_bytes(
     }
 }
 
+// ── split with options ────────────────────────────────────────────────────────
+
+/// Options JSON tag for split mode dispatch.
+#[derive(serde::Deserialize)]
+#[serde(tag = "mode")]
+enum SplitOptionsJson {
+    SinglePages,
+    ChunkSize { chunk_size: usize },
+    Ranges { ranges: Vec<[usize; 2]> },
+    SplitAt { split_at: Vec<usize> },
+}
+
+/// Split a PDF (supplied as bytes) with configurable split options.
+///
+/// `options_json` must be a null-terminated JSON object with a `mode` tag,
+/// e.g. `{"mode":"ChunkSize","chunk_size":3}`.
+/// Returns a JSON array of base64-encoded PDF strings.
+/// The JSON string must be freed with `oxidize_free_string`.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `options_json` must be a valid null-terminated UTF-8 string.
+/// - `out_json` must be a valid pointer to a mutable pointer.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_split_pdf_bytes_with_options(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    options_json: *const c_char,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || options_json.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_split_pdf_bytes_with_options");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let opts_str = match CStr::from_ptr(options_json).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in options_json");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let opts_json: SplitOptionsJson = match serde_json::from_str(opts_str) {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("Failed to parse options_json: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let split_mode = match opts_json {
+        SplitOptionsJson::SinglePages => oxidize_pdf::operations::SplitMode::SinglePages,
+        SplitOptionsJson::ChunkSize { chunk_size } => {
+            oxidize_pdf::operations::SplitMode::ChunkSize(chunk_size)
+        }
+        SplitOptionsJson::Ranges { ranges } => {
+            let page_ranges: Vec<oxidize_pdf::operations::PageRange> = ranges
+                .iter()
+                .map(|&[from, to]| oxidize_pdf::operations::PageRange::Range(from, to))
+                .collect();
+            oxidize_pdf::operations::SplitMode::Ranges(page_ranges)
+        }
+        SplitOptionsJson::SplitAt { split_at } => {
+            oxidize_pdf::operations::SplitMode::SplitAt(split_at)
+        }
+    };
+
+    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+    let result = with_temp_input(input_bytes, |input_path| {
+        let out_dir = std::env::temp_dir();
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let pattern = format!(
+            "{}/oxidize_split_opts_{}_chunk_{{}}.pdf",
+            out_dir.display(),
+            ts
+        );
+
+        let options = oxidize_pdf::operations::SplitOptions {
+            mode: split_mode,
+            output_pattern: pattern,
+            ..Default::default()
+        };
+
+        let paths = oxidize_pdf::operations::split_pdf(input_path, options)
+            .map_err(|e| format!("split_pdf failed: {e}"))?;
+
+        let mut encoded_chunks = Vec::with_capacity(paths.len());
+        for path in &paths {
+            let chunk_bytes =
+                fs::read(path).map_err(|e| format!("Failed to read split chunk: {e}"))?;
+            encoded_chunks.push(base64::engine::general_purpose::STANDARD.encode(&chunk_bytes));
+            let _ = fs::remove_file(path);
+        }
+
+        serde_json::to_string(&encoded_chunks)
+            .map_err(|e| format!("JSON serialization failed: {e}"))
+    });
+
+    match result {
+        Ok(json) => match CString::new(json) {
+            Ok(cs) => {
+                *out_json = cs.into_raw();
+                ErrorCode::Success as c_int
+            }
+            Err(_) => {
+                set_last_error("JSON output contains null bytes");
+                ErrorCode::SerializationError as c_int
+            }
+        },
+        Err(msg) => {
+            set_last_error(msg);
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
+// ── merge with page ranges ─────────────────────────────────────────────────────
+
+/// JSON representation of a page range for merge inputs.
+#[derive(serde::Deserialize)]
+#[serde(tag = "kind")]
+enum PageRangeJson {
+    All,
+    Single { index: usize },
+    Range { from: usize, to: usize },
+    List { indices: Vec<usize> },
+}
+
+impl PageRangeJson {
+    fn into_core(self) -> oxidize_pdf::operations::PageRange {
+        match self {
+            PageRangeJson::All => oxidize_pdf::operations::PageRange::All,
+            PageRangeJson::Single { index } => oxidize_pdf::operations::PageRange::Single(index),
+            PageRangeJson::Range { from, to } => {
+                oxidize_pdf::operations::PageRange::Range(from, to)
+            }
+            PageRangeJson::List { indices } => oxidize_pdf::operations::PageRange::List(indices),
+        }
+    }
+}
+
+/// JSON representation of a single merge input.
+#[derive(serde::Deserialize)]
+struct MergeInputJson {
+    /// Base64-encoded PDF bytes.
+    pdf: String,
+    /// Optional page range selector.
+    pages: Option<PageRangeJson>,
+}
+
+/// Merge multiple PDFs with per-input page range selection.
+///
+/// `inputs_json` must be a null-terminated JSON array of objects with shape
+/// `{"pdf":"<base64>","pages":null}` or `{"pdf":"<base64>","pages":{"kind":"Range","from":0,"to":2}}`.
+/// On success, `out_bytes` / `out_len` receive the merged PDF bytes (free with `oxidize_free_bytes`).
+///
+/// # Safety
+/// - `inputs_json` must be a valid null-terminated UTF-8 string.
+/// - `out_bytes` and `out_len` must be valid non-null pointers.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_merge_pdfs_with_ranges(
+    inputs_json: *const c_char,
+    out_bytes: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    clear_last_error();
+    if inputs_json.is_null() || out_bytes.is_null() || out_len.is_null() {
+        set_last_error("Null pointer provided to oxidize_merge_pdfs_with_ranges");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_bytes = ptr::null_mut();
+    *out_len = 0;
+
+    let json_str = match CStr::from_ptr(inputs_json).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in inputs_json");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let inputs_data: Vec<MergeInputJson> = match serde_json::from_str(json_str) {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("Failed to parse inputs_json: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    if inputs_data.is_empty() {
+        set_last_error("At least one PDF is required for merge");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    // Decode all base64 PDFs and write to temp files.
+    let mut temp_paths: Vec<PathBuf> = Vec::with_capacity(inputs_data.len());
+
+    for (i, input) in inputs_data.iter().enumerate() {
+        let decoded = match base64::engine::general_purpose::STANDARD.decode(&input.pdf) {
+            Ok(d) => d,
+            Err(e) => {
+                for p in &temp_paths {
+                    let _ = fs::remove_file(p);
+                }
+                set_last_error(format!("Failed to decode PDF #{i}: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
+        let path = temp_pdf_path(&format!("_merge_ranges_{i}"));
+        if let Err(e) = fs::write(&path, &decoded) {
+            for p in &temp_paths {
+                let _ = fs::remove_file(p);
+            }
+            set_last_error(format!("Failed to write temp file for PDF #{i}: {e}"));
+            return ErrorCode::IoError as c_int;
+        }
+        temp_paths.push(path);
+    }
+
+    // Build MergeInput list with optional page ranges.
+    let merge_inputs: Vec<oxidize_pdf::operations::MergeInput> = temp_paths
+        .iter()
+        .zip(inputs_data.into_iter())
+        .filter_map(|(path, data)| {
+            path.to_str().map(|path_str| match data.pages {
+                Some(range) => {
+                    oxidize_pdf::operations::MergeInput::with_pages(path_str, range.into_core())
+                }
+                None => oxidize_pdf::operations::MergeInput::new(path_str),
+            })
+        })
+        .collect();
+
+    if merge_inputs.len() != temp_paths.len() {
+        for p in &temp_paths {
+            let _ = fs::remove_file(p);
+        }
+        set_last_error("One or more temp paths are not valid UTF-8");
+        return ErrorCode::IoError as c_int;
+    }
+
+    let merge_result = with_temp_output(|output_path| {
+        oxidize_pdf::operations::merge_pdfs(
+            merge_inputs,
+            output_path,
+            oxidize_pdf::operations::MergeOptions::default(),
+        )
+        .map_err(|e| format!("merge_pdfs failed: {e}"))
+    });
+
+    for p in &temp_paths {
+        let _ = fs::remove_file(p);
+    }
+
+    match merge_result {
+        Ok(bytes) => {
+            set_out_bytes(bytes, out_bytes, out_len);
+            ErrorCode::Success as c_int
+        }
+        Err(msg) => {
+            set_last_error(msg);
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
+// ── rotate selected pages ─────────────────────────────────────────────────────
+
+/// Rotate specific pages (or all pages) of a PDF.
+///
+/// `pages_json` must be a null-terminated JSON object with a `kind` tag describing the
+/// page range, e.g. `{"kind":"All"}`, `{"kind":"Range","from":0,"to":2}`, or
+/// `{"kind":"Single","index":1}`. If `pages_json` is null, all pages are rotated.
+/// On success, `out_bytes` / `out_len` receive the rotated PDF bytes (free with `oxidize_free_bytes`).
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `pages_json` may be null (meaning "all pages") or a valid null-terminated UTF-8 string.
+/// - `out_bytes` and `out_len` must be valid non-null pointers.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_rotate_pages_bytes(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    degrees: c_int,
+    pages_json: *const c_char,
+    out_bytes: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+        set_last_error("Null pointer provided to oxidize_rotate_pages_bytes");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_bytes = ptr::null_mut();
+    *out_len = 0;
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let angle = match oxidize_pdf::operations::RotationAngle::from_degrees(degrees) {
+        Ok(a) => a,
+        Err(e) => {
+            set_last_error(format!("Invalid rotation angle {degrees}: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let page_range = if pages_json.is_null() {
+        oxidize_pdf::operations::PageRange::All
+    } else {
+        let range_str = match CStr::from_ptr(pages_json).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in pages_json");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let range_json: PageRangeJson = match serde_json::from_str(range_str) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Failed to parse pages_json: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+        range_json.into_core()
+    };
+
+    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+    let result = with_temp_input(input_bytes, |input_path| {
+        with_temp_output(|output_path| {
+            let options = oxidize_pdf::operations::RotateOptions {
+                pages: page_range,
+                angle,
+                preserve_page_size: false,
+            };
+            oxidize_pdf::operations::rotate_pdf_pages(input_path, output_path, options)
+                .map_err(|e| format!("rotate_pdf_pages failed: {e}"))
+        })
+    });
+
+    match result {
+        Ok(bytes) => {
+            set_out_bytes(bytes, out_bytes, out_len);
+            ErrorCode::Success as c_int
+        }
+        Err(msg) => {
+            set_last_error(msg);
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
 // ── overlay ──────────────────────────────────────────────────────────────────
 
 /// Overlay one PDF on top of another using default options.

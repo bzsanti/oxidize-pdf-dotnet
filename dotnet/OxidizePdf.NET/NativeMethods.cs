@@ -238,6 +238,13 @@ internal static class NativeMethods
         IntPtr fontBytes,
         nuint fontLen);
 
+    /// <summary>Register a custom font from a file path (TTF/OTF)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_add_font_from_file(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
+
     // ── Page ──────────────────────────────────────────────────────────────────
 
     /// <summary>Create a new page with explicit dimensions in PDF points</summary>
@@ -277,6 +284,15 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_get_height(IntPtr handle, out double outValue);
 
+    /// <summary>Get all four page margins in PDF points</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_get_margins(
+        IntPtr handle,
+        out double outTop,
+        out double outRight,
+        out double outBottom,
+        out double outLeft);
+
     // ── Text operations ───────────────────────────────────────────────────────
 
     /// <summary>Set a custom (embedded) font on a page by name</summary>
@@ -301,6 +317,18 @@ internal static class NativeMethods
     /// <summary>Set text fill color using CMYK components (each 0.0–1.0)</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_set_text_color_cmyk(IntPtr page, double c, double m, double y, double k);
+
+    /// <summary>Set text stroke color using RGB components (each 0.0–1.0)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_text_stroke_color_rgb(IntPtr page, double r, double g, double b);
+
+    /// <summary>Set text stroke color using a gray value (0.0 = black, 1.0 = white)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_text_stroke_color_gray(IntPtr page, double value);
+
+    /// <summary>Set text stroke color using CMYK components (each 0.0–1.0)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_text_stroke_color_cmyk(IntPtr page, double c, double m, double y, double k);
 
     /// <summary>Set character spacing for subsequent text operations</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -456,6 +484,22 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_set_blend_mode(IntPtr page, BlendMode mode);
 
+    /// <summary>Translate the coordinate system by (tx, ty)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_translate(IntPtr page, double tx, double ty);
+
+    /// <summary>Scale the coordinate system by (sx, sy)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_scale(IntPtr page, double sx, double sy);
+
+    /// <summary>Rotate the coordinate system by the given angle in radians</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_rotate_radians(IntPtr page, double angle);
+
+    /// <summary>Apply a 6-element CTM transformation matrix [a b c d e f]</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_transform(IntPtr page, double a, double b, double c, double d, double e, double f);
+
     // ── Operations (bytes in / bytes out) ─────────────────────────────────────
 
     /// <summary>Split a PDF into individual single-page PDFs; returns JSON array of base64 strings</summary>
@@ -534,6 +578,40 @@ internal static class NativeMethods
         nuint baseLen,
         IntPtr overlayBytes,
         nuint overlayLen,
+        out IntPtr outBytes,
+        out nuint outLen);
+
+    /// <summary>
+    /// Split a PDF with configurable split options (JSON object with "mode" tag).
+    /// Returns a JSON array of base64-encoded PDF strings, one per resulting chunk.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_split_pdf_bytes_with_options(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string optionsJson,
+        out IntPtr outJson);
+
+    /// <summary>
+    /// Merge multiple PDFs with per-input page range selection.
+    /// inputsJson is a JSON array of {pdf: base64, pages: {kind: ...} | null} objects.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_merge_pdfs_with_ranges(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string inputsJson,
+        out IntPtr outBytes,
+        out nuint outLen);
+
+    /// <summary>
+    /// Rotate specific pages of a PDF. pagesJson is a JSON object with a "kind" tag,
+    /// or null to rotate all pages.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_rotate_pages_bytes(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        int degrees,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? pagesJson,
         out IntPtr outBytes,
         out nuint outLen);
 
@@ -629,6 +707,12 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_image_from_png(IntPtr data, nuint dataLen, out IntPtr outHandle);
 
+    /// <summary>Create an image from a file path (auto-detects JPEG/PNG/TIFF)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_image_from_file(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+        out IntPtr outHandle);
+
     /// <summary>Free an image handle</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void oxidize_image_free(IntPtr handle);
@@ -667,6 +751,36 @@ internal static class NativeMethods
     /// <summary>Encrypt a document with user and owner passwords and explicit permission flags</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_encrypt_with_permissions(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string userPw,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string ownerPw,
+        uint permissionsFlags);
+
+    /// <summary>Encrypt a document with AES-128 and default permissions</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_encrypt_aes128(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string userPw,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string ownerPw);
+
+    /// <summary>Encrypt a document with AES-128 and explicit permission flags</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_encrypt_aes128_with_permissions(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string userPw,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string ownerPw,
+        uint permissionsFlags);
+
+    /// <summary>Encrypt a document with AES-256 and default permissions</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_encrypt_aes256(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string userPw,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string ownerPw);
+
+    /// <summary>Encrypt a document with AES-256 and explicit permission flags</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_encrypt_aes256_with_permissions(
         IntPtr handle,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string userPw,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string ownerPw,
@@ -1005,6 +1119,16 @@ internal static class NativeMethods
         nuint pageNumber,
         out double outWidth,
         out double outHeight);
+
+    /// <summary>Measure the width and height of a string using an embedded TTF/OTF font.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_measure_text(
+        IntPtr fontBytes,
+        nuint fontLen,
+        float fontSize,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        out float outWidth,
+        out float outHeight);
 
     /// <summary>
     /// Gets the last error message from the native library and clears it

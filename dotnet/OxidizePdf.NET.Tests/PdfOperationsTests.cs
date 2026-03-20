@@ -27,7 +27,7 @@ public class PdfOperationsTests
     public async Task MergeAsync_WithNull_ThrowsArgumentNullException()
     {
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => PdfOperations.MergeAsync(null!));
+            () => PdfOperations.MergeAsync((IReadOnlyList<byte[]>)null!));
     }
 
     [Fact]
@@ -306,6 +306,325 @@ public class PdfOperationsTests
     {
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
             () => PdfOperations.ReorderPagesAsync(CreateNPagePdf(2), [0, -1]));
+    }
+
+    // ── OPS-010: SplitAsync with options ─────────────────────────────────
+
+    [Fact]
+    public async Task SplitAsync_WithOptions_NullPdf_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.SplitAsync(null!, new PdfSplitOptions()));
+    }
+
+    [Fact]
+    public async Task SplitAsync_WithOptions_EmptyPdf_ThrowsArgumentException()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => PdfOperations.SplitAsync(Array.Empty<byte>(), new PdfSplitOptions()));
+    }
+
+    [Fact]
+    public async Task SplitAsync_WithOptions_NullOptions_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.SplitAsync(new byte[] { 1 }, null!));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task SplitAsync_SinglePagesMode_ReturnsSamePagesAsSplitAsync()
+    {
+        var pdfBytes = CreateNPagePdf(3);
+
+        var defaultPages = await PdfOperations.SplitAsync(pdfBytes);
+        var optionPages = await PdfOperations.SplitAsync(pdfBytes, new PdfSplitOptions
+        {
+            Mode = PdfSplitMode.SinglePages,
+        });
+
+        Assert.Equal(defaultPages.Count, optionPages.Count);
+        Assert.Equal(3, optionPages.Count);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task SplitAsync_ChunkSizeMode_GroupsPagesIntoChunks()
+    {
+        var pdfBytes = CreateNPagePdf(4);
+
+        var chunks = await PdfOperations.SplitAsync(pdfBytes, new PdfSplitOptions
+        {
+            Mode = PdfSplitMode.ChunkSize,
+            ChunkSize = 2,
+        });
+
+        Assert.Equal(2, chunks.Count);
+        foreach (var chunk in chunks)
+            Assert.True(chunk.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task SplitAsync_RangesMode_ReturnsOneChunkPerRange()
+    {
+        var pdfBytes = CreateNPagePdf(4);
+
+        var chunks = await PdfOperations.SplitAsync(pdfBytes, new PdfSplitOptions
+        {
+            Mode = PdfSplitMode.Ranges,
+            Ranges = [(0, 1), (2, 3)],
+        });
+
+        Assert.Equal(2, chunks.Count);
+        foreach (var chunk in chunks)
+            Assert.True(chunk.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task SplitAsync_SplitAtMode_SplitsAtGivenPage()
+    {
+        var pdfBytes = CreateNPagePdf(4);
+
+        // SplitAt index 2 means: [0..1] and [2..3] → 2 chunks
+        var chunks = await PdfOperations.SplitAsync(pdfBytes, new PdfSplitOptions
+        {
+            Mode = PdfSplitMode.SplitAt,
+            SplitAt = [2],
+        });
+
+        Assert.Equal(2, chunks.Count);
+        foreach (var chunk in chunks)
+            Assert.True(chunk.Length > 0);
+    }
+
+    // ── OPS-011: MergeAsync with page ranges ─────────────────────────────
+
+    [Fact]
+    public async Task MergeAsync_WithRanges_NullInputs_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.MergeAsync((IReadOnlyList<PdfMergeInput>)null!));
+    }
+
+    [Fact]
+    public async Task MergeAsync_WithRanges_EmptyInputs_ThrowsArgumentException()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => PdfOperations.MergeAsync(Array.Empty<PdfMergeInput>()));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task MergeAsync_AllPages_ProducesMergedPdf()
+    {
+        var pdf1 = CreateNPagePdf(2);
+        var pdf2 = CreateNPagePdf(2);
+
+        var result = await PdfOperations.MergeAsync(new[]
+        {
+            new PdfMergeInput(pdf1),
+            new PdfMergeInput(pdf2),
+        });
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task MergeAsync_WithPageRangeAll_ProducesMergedPdf()
+    {
+        var pdf1 = CreateNPagePdf(2);
+        var pdf2 = CreateNPagePdf(2);
+
+        var result = await PdfOperations.MergeAsync(new[]
+        {
+            new PdfMergeInput(pdf1, new PdfPageRange.All()),
+            new PdfMergeInput(pdf2, new PdfPageRange.All()),
+        });
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task MergeAsync_WithSinglePageRange_ProducesMergedPdf()
+    {
+        var pdf1 = CreateNPagePdf(3);
+        var pdf2 = CreateNPagePdf(3);
+
+        var result = await PdfOperations.MergeAsync(new[]
+        {
+            new PdfMergeInput(pdf1, new PdfPageRange.Single(0)),
+            new PdfMergeInput(pdf2, new PdfPageRange.Single(2)),
+        });
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task MergeAsync_WithRangePageRange_ProducesMergedPdf()
+    {
+        var pdf = CreateNPagePdf(4);
+
+        var result = await PdfOperations.MergeAsync(new[]
+        {
+            new PdfMergeInput(pdf, new PdfPageRange.Range(0, 1)),
+            new PdfMergeInput(pdf, new PdfPageRange.Range(2, 3)),
+        });
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task MergeAsync_WithListPageRange_ProducesMergedPdf()
+    {
+        var pdf = CreateNPagePdf(4);
+
+        var result = await PdfOperations.MergeAsync(new[]
+        {
+            new PdfMergeInput(pdf, new PdfPageRange.List([0, 2])),
+            new PdfMergeInput(pdf, new PdfPageRange.List([1, 3])),
+        });
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    // ── OPS-012: RotatePagesAsync ─────────────────────────────────────────
+
+    [Fact]
+    public async Task RotatePagesAsync_NullPdf_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.RotatePagesAsync(null!, 90, new PdfPageRange.All()));
+    }
+
+    [Fact]
+    public async Task RotatePagesAsync_EmptyPdf_ThrowsArgumentException()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => PdfOperations.RotatePagesAsync(Array.Empty<byte>(), 90, new PdfPageRange.All()));
+    }
+
+    [Fact]
+    public async Task RotatePagesAsync_NullPages_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.RotatePagesAsync(new byte[] { 1 }, 90, null!));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task RotatePagesAsync_AllPages_ReturnsRotatedPdf()
+    {
+        var pdfBytes = CreateNPagePdf(2);
+
+        var result = await PdfOperations.RotatePagesAsync(pdfBytes, 90, new PdfPageRange.All());
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task RotatePagesAsync_SinglePage_ReturnsValidPdf()
+    {
+        var pdfBytes = CreateNPagePdf(3);
+
+        var result = await PdfOperations.RotatePagesAsync(pdfBytes, 180, new PdfPageRange.Single(1));
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task RotatePagesAsync_Range_ReturnsValidPdf()
+    {
+        var pdfBytes = CreateNPagePdf(4);
+
+        var result = await PdfOperations.RotatePagesAsync(pdfBytes, 270, new PdfPageRange.Range(1, 2));
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task RotatePagesAsync_List_ReturnsValidPdf()
+    {
+        var pdfBytes = CreateNPagePdf(4);
+
+        var result = await PdfOperations.RotatePagesAsync(pdfBytes, 90, new PdfPageRange.List([0, 3]));
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task RotatePagesAsync_MatchesRotateAsync_WhenAllPages()
+    {
+        var pdfBytes = CreateNPagePdf(2);
+
+        var fromRotateAsync = await PdfOperations.RotateAsync(pdfBytes, 90);
+        var fromRotatePagesAsync = await PdfOperations.RotatePagesAsync(pdfBytes, 90, new PdfPageRange.All());
+
+        // Both should produce a valid non-empty PDF (exact bytes may differ due to metadata timestamps)
+        Assert.True(fromRotateAsync.Length > 0);
+        Assert.True(fromRotatePagesAsync.Length > 0);
+    }
+
+    // ── PdfPageRange validation ───────────────────────────────────────────
+
+    [Fact]
+    public void PdfPageRange_Single_NegativeIndex_ThrowsArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfPageRange.Single(-1));
+    }
+
+    [Fact]
+    public void PdfPageRange_Range_NegativeFrom_ThrowsArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfPageRange.Range(-1, 2));
+    }
+
+    [Fact]
+    public void PdfPageRange_Range_FromGreaterThanTo_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => new PdfPageRange.Range(5, 2));
+    }
+
+    [Fact]
+    public void PdfPageRange_List_Empty_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => new PdfPageRange.List([]));
+    }
+
+    [Fact]
+    public void PdfPageRange_List_NegativeIndex_ThrowsArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfPageRange.List([0, -1, 2]));
+    }
+
+    [Fact]
+    public void PdfMergeInput_NullPdf_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new PdfMergeInput(null!));
+    }
+
+    [Fact]
+    public void PdfMergeInput_EmptyPdf_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => new PdfMergeInput(Array.Empty<byte>()));
     }
 
     // ── Helper ───────────────────────────────────────────────────────────

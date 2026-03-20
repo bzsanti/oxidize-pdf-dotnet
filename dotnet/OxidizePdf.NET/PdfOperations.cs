@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace OxidizePdf.NET;
 
@@ -222,6 +223,74 @@ public static class PdfOperations
 
         ct.ThrowIfCancellationRequested();
         return Task.Run(() => Overlay(basePdf, overlayPdf), ct);
+    }
+
+    /// <summary>
+    /// Splits a PDF into multiple PDFs according to the specified options.
+    /// </summary>
+    /// <param name="pdfBytes">The source PDF as a byte array.</param>
+    /// <param name="options">Split options controlling how the document is divided.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A list of byte arrays, one per resulting chunk.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> or <paramref name="options"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    /// <exception cref="PdfExtractionException">If the native split operation fails.</exception>
+    public static Task<List<byte[]>> SplitAsync(byte[] pdfBytes, PdfSplitOptions options, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(options);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => SplitWithOptions(pdfBytes, options), ct);
+    }
+
+    /// <summary>
+    /// Merges multiple PDFs into a single PDF, with optional per-input page range selection.
+    /// </summary>
+    /// <param name="inputs">Collection of <see cref="PdfMergeInput"/> entries to merge in order.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The merged PDF as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="inputs"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="inputs"/> is empty.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    /// <exception cref="PdfExtractionException">If the native merge operation fails.</exception>
+    public static Task<byte[]> MergeAsync(IReadOnlyList<PdfMergeInput> inputs, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(inputs);
+        if (inputs.Count == 0)
+            throw new ArgumentException("At least one PDF is required for merge", nameof(inputs));
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => MergeWithRanges(inputs), ct);
+    }
+
+    /// <summary>
+    /// Rotates specific pages of a PDF by the specified number of degrees.
+    /// </summary>
+    /// <param name="pdfBytes">The source PDF as a byte array.</param>
+    /// <param name="degrees">Rotation angle. Must be 0, 90, 180, or 270.</param>
+    /// <param name="pages">Pages to rotate. Pass <see cref="PdfPageRange.All"/> to rotate all pages.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The rotated PDF as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> or <paramref name="pages"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    /// <exception cref="PdfExtractionException">If the native rotate operation fails or degrees is invalid.</exception>
+    public static Task<byte[]> RotatePagesAsync(byte[] pdfBytes, int degrees, PdfPageRange pages, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(pages);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => RotatePages(pdfBytes, degrees, pages), ct);
     }
 
     // ── Private synchronous implementations ──────────────────────────────────
@@ -506,6 +575,109 @@ public static class PdfOperations
             if (basePtr != IntPtr.Zero) Marshal.FreeHGlobal(basePtr);
             if (overlayPtr != IntPtr.Zero) Marshal.FreeHGlobal(overlayPtr);
             if (outPtr != IntPtr.Zero) NativeMethods.oxidize_free_bytes(outPtr, outLen);
+        }
+    }
+
+    private static List<byte[]> SplitWithOptions(byte[] pdfBytes, PdfSplitOptions options)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+        IntPtr jsonPtr = IntPtr.Zero;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var optionsJson = options.ToJson();
+
+            var result = NativeMethods.oxidize_split_pdf_bytes_with_options(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                optionsJson,
+                out jsonPtr);
+
+            ThrowIfError(result, "Failed to split PDF with options");
+
+            var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+            var base64Chunks = JsonSerializer.Deserialize<List<string>>(json)
+                ?? new List<string>();
+
+            var chunks = new List<byte[]>(base64Chunks.Count);
+            foreach (var encoded in base64Chunks)
+                chunks.Add(Convert.FromBase64String(encoded));
+
+            return chunks;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(pdfPtr);
+            if (jsonPtr != IntPtr.Zero)
+                NativeMethods.oxidize_free_string(jsonPtr);
+        }
+    }
+
+    private static byte[] MergeWithRanges(IReadOnlyList<PdfMergeInput> inputs)
+    {
+        IntPtr outPtr = IntPtr.Zero;
+        nuint outLen = 0;
+
+        try
+        {
+            var inputObjects = inputs.Select(i => i.ToJsonObject()).ToArray();
+            var inputsJson = JsonSerializer.Serialize(inputObjects);
+
+            var result = NativeMethods.oxidize_merge_pdfs_with_ranges(inputsJson, out outPtr, out outLen);
+            ThrowIfError(result, "Failed to merge PDFs with page ranges");
+
+            var length = (int)outLen;
+            var output = new byte[length];
+            Marshal.Copy(outPtr, output, 0, length);
+            return output;
+        }
+        finally
+        {
+            if (outPtr != IntPtr.Zero)
+                NativeMethods.oxidize_free_bytes(outPtr, outLen);
+        }
+    }
+
+    private static byte[] RotatePages(byte[] pdfBytes, int degrees, PdfPageRange pages)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+        IntPtr outPtr = IntPtr.Zero;
+        nuint outLen = 0;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            string? pagesJson = pages is PdfPageRange.All
+                ? null
+                : JsonSerializer.Serialize(pages.ToJsonObject());
+
+            var result = NativeMethods.oxidize_rotate_pages_bytes(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                degrees,
+                pagesJson,
+                out outPtr,
+                out outLen);
+
+            ThrowIfError(result, $"Failed to rotate selected pages by {degrees} degrees");
+
+            var length = (int)outLen;
+            var output = new byte[length];
+            Marshal.Copy(outPtr, output, 0, length);
+            return output;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(pdfPtr);
+            if (outPtr != IntPtr.Zero)
+                NativeMethods.oxidize_free_bytes(outPtr, outLen);
         }
     }
 
