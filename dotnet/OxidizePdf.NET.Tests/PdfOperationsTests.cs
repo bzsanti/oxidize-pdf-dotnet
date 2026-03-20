@@ -627,6 +627,34 @@ public class PdfOperationsTests
         Assert.Throws<ArgumentException>(() => new PdfMergeInput(Array.Empty<byte>()));
     }
 
+    // ── OPS-013: ExtractImagesAsync ───────────────────────────────────────
+
+    [Fact]
+    public async Task ExtractImagesAsync_NullPdf_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => PdfOperations.ExtractImagesAsync(null!));
+    }
+
+    [Fact]
+    public async Task ExtractImagesAsync_EmptyPdf_ThrowsArgumentException()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => PdfOperations.ExtractImagesAsync(Array.Empty<byte>()));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ExtractImages_EmptyPdf_ReturnsEmpty()
+    {
+        using var doc = new PdfDocument();
+        using var page = PdfPage.A4();
+        doc.AddPage(page);
+        var pdfBytes = doc.SaveToBytes();
+        var images = await PdfOperations.ExtractImagesAsync(pdfBytes);
+        Assert.Empty(images);
+    }
+
     // ── Helper ───────────────────────────────────────────────────────────
 
     private static byte[] CreateNPagePdf(int pageCount)

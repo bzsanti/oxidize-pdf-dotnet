@@ -245,6 +245,12 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
 
+    /// <summary>Set the document outline (bookmarks) from a JSON tree</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_outline(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string outlineJson);
+
     // ── Page ──────────────────────────────────────────────────────────────────
 
     /// <summary>Create a new page with explicit dimensions in PDF points</summary>
@@ -580,6 +586,16 @@ internal static class NativeMethods
         nuint overlayLen,
         out IntPtr outBytes,
         out nuint outLen);
+
+    /// <summary>
+    /// Extract all images from a PDF. Returns a JSON array of image objects with base64-encoded data.
+    /// The returned string must be freed with <see cref="oxidize_free_string"/>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_extract_images_bytes(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        out IntPtr outJson);
 
     /// <summary>
     /// Split a PDF with configurable split options (JSON object with "mode" tag).

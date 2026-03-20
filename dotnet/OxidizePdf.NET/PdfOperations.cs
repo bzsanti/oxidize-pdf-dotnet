@@ -205,6 +205,27 @@ public static class PdfOperations
     }
 
     /// <summary>
+    /// Extracts all images from a PDF document.
+    /// </summary>
+    /// <param name="pdfBytes">The source PDF as a byte array.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A list of <see cref="ExtractedImageInfo"/> objects, one per extracted image.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    /// <exception cref="PdfExtractionException">If the native extraction operation fails.</exception>
+    public static Task<List<ExtractedImageInfo>> ExtractImagesAsync(byte[] pdfBytes, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => ExtractImages(pdfBytes), ct);
+    }
+
+    /// <summary>
     /// Overlays one PDF on top of another using default options.
     /// </summary>
     /// <param name="basePdf">The base PDF as a byte array.</param>
@@ -578,6 +599,49 @@ public static class PdfOperations
         }
     }
 
+    private static List<ExtractedImageInfo> ExtractImages(byte[] pdfBytes)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+        IntPtr jsonPtr = IntPtr.Zero;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var result = NativeMethods.oxidize_extract_images_bytes(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                out jsonPtr);
+
+            ThrowIfError(result, "Failed to extract images from PDF");
+
+            var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+            var dtos = JsonSerializer.Deserialize<List<ExtractedImageDto>>(json) ?? [];
+
+            var images = new List<ExtractedImageInfo>(dtos.Count);
+            foreach (var dto in dtos)
+            {
+                images.Add(new ExtractedImageInfo
+                {
+                    PageNumber = dto.PageNumber,
+                    ImageIndex = dto.ImageIndex,
+                    Width = dto.Width,
+                    Height = dto.Height,
+                    Format = dto.Format,
+                    ImageData = Convert.FromBase64String(dto.Data),
+                });
+            }
+
+            return images;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero) Marshal.FreeHGlobal(pdfPtr);
+            if (jsonPtr != IntPtr.Zero) NativeMethods.oxidize_free_string(jsonPtr);
+        }
+    }
+
     private static List<byte[]> SplitWithOptions(byte[] pdfBytes, PdfSplitOptions options)
     {
         IntPtr pdfPtr = IntPtr.Zero;
@@ -692,4 +756,28 @@ public static class PdfOperations
         var detail = !string.IsNullOrEmpty(rustError) ? rustError : ((NativeMethods.ErrorCode)errorCode).ToString();
         throw new PdfExtractionException($"{message}: {detail}");
     }
+
+    // ── Private DTOs ──────────────────────────────────────────────────────────
+
+    private sealed class ExtractedImageDto
+    {
+        [JsonPropertyName("page_number")]
+        public int PageNumber { get; init; }
+
+        [JsonPropertyName("image_index")]
+        public int ImageIndex { get; init; }
+
+        [JsonPropertyName("width")]
+        public uint Width { get; init; }
+
+        [JsonPropertyName("height")]
+        public uint Height { get; init; }
+
+        [JsonPropertyName("format")]
+        public string Format { get; init; } = string.Empty;
+
+        [JsonPropertyName("data")]
+        public string Data { get; init; } = string.Empty;
+    }
+
 }

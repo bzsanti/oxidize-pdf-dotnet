@@ -833,7 +833,7 @@ pub unsafe extern "C" fn oxidize_merge_pdfs_with_ranges(
     // Build MergeInput list with optional page ranges.
     let merge_inputs: Vec<oxidize_pdf::operations::MergeInput> = temp_paths
         .iter()
-        .zip(inputs_data.into_iter())
+        .zip(inputs_data)
         .filter_map(|(path, data)| {
             path.to_str().map(|path_str| match data.pages {
                 Some(range) => {
@@ -1030,6 +1030,104 @@ pub unsafe extern "C" fn oxidize_overlay_pdf_bytes(
             set_out_bytes(bytes, out_bytes, out_len);
             ErrorCode::Success as c_int
         }
+        Err(msg) => {
+            set_last_error(msg);
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
+// ── extract images ───────────────────────────────────────────────────────────
+
+/// Extract all images from a PDF (supplied as bytes).
+///
+/// On success, `out_json` receives a null-terminated JSON array of image objects:
+/// `[{"page_number":0,"image_index":0,"width":100,"height":100,"format":"jpeg","data":"<base64>"},...]`
+/// The string must be freed with `oxidize_free_string`.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` must be a valid pointer to a mutable pointer.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_extract_images_bytes(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_extract_images_bytes");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+    let result = with_temp_input(input_bytes, |input_path| {
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let tid = std::thread::current().id();
+        let out_dir = std::env::temp_dir().join(format!("oxidize_imgs_{ts}_{tid:?}"));
+
+        let options = oxidize_pdf::operations::ExtractImagesOptions {
+            output_dir: out_dir.clone(),
+            create_dir: true,
+            ..Default::default()
+        };
+
+        let images = oxidize_pdf::operations::extract_images_from_pdf(input_path, options)
+            .map_err(|e| format!("extract_images_from_pdf failed: {e}"))?;
+
+        let mut json_items: Vec<String> = Vec::with_capacity(images.len());
+        for img in &images {
+            let img_bytes = match fs::read(&img.file_path) {
+                Ok(b) => b,
+                Err(e) => {
+                    let _ = fs::remove_dir_all(&out_dir);
+                    return Err(format!("Failed to read extracted image: {e}"));
+                }
+            };
+            let data_b64 = base64::engine::general_purpose::STANDARD.encode(&img_bytes);
+            let format_str = match img.format {
+                oxidize_pdf::ImageFormat::Jpeg => "jpeg",
+                oxidize_pdf::ImageFormat::Png => "png",
+                oxidize_pdf::ImageFormat::Tiff => "tiff",
+                oxidize_pdf::ImageFormat::Raw => "raw",
+            };
+            json_items.push(format!(
+                r#"{{"page_number":{page},"image_index":{idx},"width":{w},"height":{h},"format":"{fmt}","data":"{b64}"}}"#,
+                page = img.page_number,
+                idx = img.image_index,
+                w = img.width,
+                h = img.height,
+                fmt = format_str,
+                b64 = data_b64,
+            ));
+        }
+
+        let _ = fs::remove_dir_all(&out_dir);
+
+        Ok(format!("[{}]", json_items.join(",")))
+    });
+
+    match result {
+        Ok(json) => match CString::new(json) {
+            Ok(cs) => {
+                *out_json = cs.into_raw();
+                ErrorCode::Success as c_int
+            }
+            Err(_) => {
+                set_last_error("JSON output contains null bytes");
+                ErrorCode::SerializationError as c_int
+            }
+        },
         Err(msg) => {
             set_last_error(msg);
             ErrorCode::IoError as c_int
