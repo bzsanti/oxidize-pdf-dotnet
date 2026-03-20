@@ -83,21 +83,201 @@ pub unsafe extern "C" fn oxidize_document_encrypt_with_permissions(
         }
     };
 
-    let mut perms = oxidize_pdf::encryption::Permissions::new();
-    perms.set_print((permissions_flags & 0x01) != 0);
-    perms.set_copy((permissions_flags & 0x02) != 0);
-    perms.set_modify_contents((permissions_flags & 0x04) != 0);
-    perms.set_modify_annotations((permissions_flags & 0x08) != 0);
-    perms.set_fill_forms((permissions_flags & 0x10) != 0);
-    perms.set_accessibility((permissions_flags & 0x20) != 0);
-    perms.set_assemble((permissions_flags & 0x40) != 0);
-    perms.set_print_high_quality((permissions_flags & 0x80) != 0);
-
+    let perms = permissions_from_flags(permissions_flags);
     let enc = oxidize_pdf::document::DocumentEncryption::new(
         user,
         owner,
         perms,
         oxidize_pdf::document::EncryptionStrength::Rc4_128bit,
+    );
+    (*handle).inner.set_encryption(enc);
+
+    ErrorCode::Success as c_int
+}
+
+fn permissions_from_flags(flags: u32) -> oxidize_pdf::encryption::Permissions {
+    let mut perms = oxidize_pdf::encryption::Permissions::new();
+    perms.set_print((flags & 0x01) != 0);
+    perms.set_copy((flags & 0x02) != 0);
+    perms.set_modify_contents((flags & 0x04) != 0);
+    perms.set_modify_annotations((flags & 0x08) != 0);
+    perms.set_fill_forms((flags & 0x10) != 0);
+    perms.set_accessibility((flags & 0x20) != 0);
+    perms.set_assemble((flags & 0x40) != 0);
+    perms.set_print_high_quality((flags & 0x80) != 0);
+    perms
+}
+
+/// Encrypt a document with AES-128 and default permissions.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - `user_pw` and `owner_pw` must be valid null-terminated UTF-8 strings.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_encrypt_aes128(
+    handle: *mut DocumentHandle,
+    user_pw: *const c_char,
+    owner_pw: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_encrypt_aes128");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    let user = match CStr::from_ptr(user_pw).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in user_pw");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let owner = match CStr::from_ptr(owner_pw).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in owner_pw");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let enc = oxidize_pdf::document::DocumentEncryption::new(
+        user,
+        owner,
+        oxidize_pdf::encryption::Permissions::new(),
+        oxidize_pdf::document::EncryptionStrength::Aes128,
+    );
+    (*handle).inner.set_encryption(enc);
+
+    ErrorCode::Success as c_int
+}
+
+/// Encrypt a document with AES-128 and explicit permission flags.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - `user_pw` and `owner_pw` must be valid null-terminated UTF-8 strings.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_encrypt_aes128_with_permissions(
+    handle: *mut DocumentHandle,
+    user_pw: *const c_char,
+    owner_pw: *const c_char,
+    permissions_flags: u32,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_encrypt_aes128_with_permissions");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    let user = match CStr::from_ptr(user_pw).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in user_pw");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let owner = match CStr::from_ptr(owner_pw).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in owner_pw");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let perms = permissions_from_flags(permissions_flags);
+    let enc = oxidize_pdf::document::DocumentEncryption::new(
+        user,
+        owner,
+        perms,
+        oxidize_pdf::document::EncryptionStrength::Aes128,
+    );
+    (*handle).inner.set_encryption(enc);
+
+    ErrorCode::Success as c_int
+}
+
+/// Encrypt a document with AES-256 and default permissions.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - `user_pw` and `owner_pw` must be valid null-terminated UTF-8 strings.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_encrypt_aes256(
+    handle: *mut DocumentHandle,
+    user_pw: *const c_char,
+    owner_pw: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_encrypt_aes256");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    let user = match CStr::from_ptr(user_pw).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in user_pw");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let owner = match CStr::from_ptr(owner_pw).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in owner_pw");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let enc = oxidize_pdf::document::DocumentEncryption::new(
+        user,
+        owner,
+        oxidize_pdf::encryption::Permissions::new(),
+        oxidize_pdf::document::EncryptionStrength::Aes256,
+    );
+    (*handle).inner.set_encryption(enc);
+
+    ErrorCode::Success as c_int
+}
+
+/// Encrypt a document with AES-256 and explicit permission flags.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - `user_pw` and `owner_pw` must be valid null-terminated UTF-8 strings.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_encrypt_aes256_with_permissions(
+    handle: *mut DocumentHandle,
+    user_pw: *const c_char,
+    owner_pw: *const c_char,
+    permissions_flags: u32,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_encrypt_aes256_with_permissions");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    let user = match CStr::from_ptr(user_pw).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in user_pw");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let owner = match CStr::from_ptr(owner_pw).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in owner_pw");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let perms = permissions_from_flags(permissions_flags);
+    let enc = oxidize_pdf::document::DocumentEncryption::new(
+        user,
+        owner,
+        perms,
+        oxidize_pdf::document::EncryptionStrength::Aes256,
     );
     (*handle).inner.set_encryption(enc);
 

@@ -200,6 +200,27 @@ public sealed class PdfDocument : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Registers a custom font from a file path (TTF/OTF) for use in pages.
+    /// After registration, use <see cref="PdfPage.SetCustomFont"/> with the same name.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="name">A unique name to identify the font.</param>
+    /// <param name="path">Absolute or relative path to the TTF/OTF font file.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="name"/> or <paramref name="path"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the file cannot be read or is not a valid font.</exception>
+    public PdfDocument AddFontFromFile(string name, string path)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(path);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_add_font_from_file(_handle, name, path),
+            "Failed to add font from file");
+        return this;
+    }
+
     // ── Pages ─────────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -325,6 +346,109 @@ public sealed class PdfDocument : IDisposable
             NativeMethods.oxidize_document_encrypt_with_permissions(
                 _handle, userPassword, ownerPassword, (uint)permissions),
             "Failed to encrypt document with permissions");
+        return this;
+    }
+
+    /// <summary>
+    /// Encrypts the document with AES-128 and user and owner passwords using default permissions.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="userPassword">Password required to open and read the document.</param>
+    /// <param name="ownerPassword">Password that grants full control over the document.</param>
+    /// <exception cref="ArgumentNullException">If either password is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument EncryptAes128(string userPassword, string ownerPassword)
+    {
+        ArgumentNullException.ThrowIfNull(userPassword);
+        ArgumentNullException.ThrowIfNull(ownerPassword);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_encrypt_aes128(_handle, userPassword, ownerPassword),
+            "Failed to encrypt document with AES-128");
+        return this;
+    }
+
+    /// <summary>
+    /// Encrypts the document with AES-128 and user and owner passwords and specific permissions.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="userPassword">Password required to open and read the document.</param>
+    /// <param name="ownerPassword">Password that grants full control over the document.</param>
+    /// <param name="permissions">Combination of <see cref="PdfPermissions"/> flags.</param>
+    /// <exception cref="ArgumentNullException">If either password is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument EncryptAes128(string userPassword, string ownerPassword, PdfPermissions permissions)
+    {
+        ArgumentNullException.ThrowIfNull(userPassword);
+        ArgumentNullException.ThrowIfNull(ownerPassword);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_encrypt_aes128_with_permissions(
+                _handle, userPassword, ownerPassword, (uint)permissions),
+            "Failed to encrypt document with AES-128 and permissions");
+        return this;
+    }
+
+    /// <summary>
+    /// Encrypts the document with AES-256 and user and owner passwords using default permissions.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="userPassword">Password required to open and read the document.</param>
+    /// <param name="ownerPassword">Password that grants full control over the document.</param>
+    /// <exception cref="ArgumentNullException">If either password is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument EncryptAes256(string userPassword, string ownerPassword)
+    {
+        ArgumentNullException.ThrowIfNull(userPassword);
+        ArgumentNullException.ThrowIfNull(ownerPassword);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_encrypt_aes256(_handle, userPassword, ownerPassword),
+            "Failed to encrypt document with AES-256");
+        return this;
+    }
+
+    /// <summary>
+    /// Encrypts the document with AES-256 and user and owner passwords and specific permissions.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="userPassword">Password required to open and read the document.</param>
+    /// <param name="ownerPassword">Password that grants full control over the document.</param>
+    /// <param name="permissions">Combination of <see cref="PdfPermissions"/> flags.</param>
+    /// <exception cref="ArgumentNullException">If either password is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument EncryptAes256(string userPassword, string ownerPassword, PdfPermissions permissions)
+    {
+        ArgumentNullException.ThrowIfNull(userPassword);
+        ArgumentNullException.ThrowIfNull(ownerPassword);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_encrypt_aes256_with_permissions(
+                _handle, userPassword, ownerPassword, (uint)permissions),
+            "Failed to encrypt document with AES-256 and permissions");
+        return this;
+    }
+
+    // ── Outline ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Sets the document outline (bookmarks / table of contents). Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="outline">The outline tree to apply.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="outline"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument SetOutline(PdfOutline outline)
+    {
+        ArgumentNullException.ThrowIfNull(outline);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_set_outline(_handle, outline.ToJson()),
+            "Failed to set document outline");
         return this;
     }
 

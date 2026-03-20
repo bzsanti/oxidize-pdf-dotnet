@@ -83,6 +83,23 @@ public class PdfImageTests
         Assert.Throws<ArgumentNullException>(() => page.AddImage("img", null!));
     }
 
+    // ── From file ──────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void FromFile_InvalidPath_ThrowsPdfExtractionException()
+    {
+        Assert.Throws<PdfExtractionException>(() =>
+            PdfImage.FromFile("/nonexistent/path/image.jpg"));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void FromFile_NullPath_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => PdfImage.FromFile(null!));
+    }
+
     /// <summary>
     /// Creates a minimal valid JPEG (1x1 pixel, white).
     /// This is the smallest valid JFIF JPEG possible.

@@ -159,6 +159,51 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Gets the page margins in PDF points as a tuple (top, right, bottom, left).
+    /// </summary>
+    /// <returns>A tuple with top, right, bottom, and left margin values.</returns>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public (double Top, double Right, double Bottom, double Left) GetMargins()
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_get_margins(
+                _handle, out var top, out var right, out var bottom, out var left),
+            "Failed to get page margins");
+        return (top, right, bottom, left);
+    }
+
+    /// <summary>
+    /// Gets the content width in PDF points (page width minus left and right margins).
+    /// </summary>
+    public double ContentWidth
+    {
+        get
+        {
+            var (_, right, _, left) = GetMargins();
+            return Width - left - right;
+        }
+    }
+
+    /// <summary>
+    /// Gets the content height in PDF points (page height minus top and bottom margins).
+    /// </summary>
+    public double ContentHeight
+    {
+        get
+        {
+            var (top, _, bottom, _) = GetMargins();
+            return Height - top - bottom;
+        }
+    }
+
+    /// <summary>
+    /// Gets the content area in PDF points squared (ContentWidth * ContentHeight).
+    /// </summary>
+    public double ContentArea => ContentWidth * ContentHeight;
+
     // ── Text operations ───────────────────────────────────────────────────────
 
     /// <summary>
@@ -219,6 +264,46 @@ public sealed class PdfPage : IDisposable
         ThrowIfError(
             NativeMethods.oxidize_page_set_text_color_cmyk(_handle, c, m, y, k),
             "Failed to set text color (CMYK)");
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the text stroke color using RGB components (each in range 0.0–1.0).
+    /// Use with <see cref="SetTextRenderingMode"/> set to Stroke or FillStroke to see the effect.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    public PdfPage SetTextStrokeColor(double r, double g, double b)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_set_text_stroke_color_rgb(_handle, r, g, b),
+            "Failed to set text stroke color (RGB)");
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the text stroke color using a gray value (0.0 = black, 1.0 = white).
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    public PdfPage SetTextStrokeColorGray(double value)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_set_text_stroke_color_gray(_handle, value),
+            "Failed to set text stroke color (gray)");
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the text stroke color using CMYK components (each in range 0.0–1.0).
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    public PdfPage SetTextStrokeColorCmyk(double c, double m, double y, double k)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_set_text_stroke_color_cmyk(_handle, c, m, y, k),
+            "Failed to set text stroke color (CMYK)");
         return this;
     }
 
@@ -778,6 +863,61 @@ public sealed class PdfPage : IDisposable
         ThrowIfError(
             NativeMethods.oxidize_page_restore_state(_handle),
             "Failed to restore graphics state");
+        return this;
+    }
+
+    // ── Coordinate transforms ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Translates the coordinate system by (tx, ty). Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    public PdfPage Translate(double tx, double ty)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_translate(_handle, tx, ty),
+            "Failed to translate coordinate system");
+        return this;
+    }
+
+    /// <summary>
+    /// Scales the coordinate system by (sx, sy). Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    public PdfPage Scale(double sx, double sy)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_scale(_handle, sx, sy),
+            "Failed to scale coordinate system");
+        return this;
+    }
+
+    /// <summary>
+    /// Rotates the coordinate system by the given angle in radians. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    public PdfPage RotateRadians(double angle)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_rotate_radians(_handle, angle),
+            "Failed to rotate coordinate system");
+        return this;
+    }
+
+    /// <summary>
+    /// Rotates the coordinate system by the given angle in degrees. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    public PdfPage RotateDegrees(double degrees) => RotateRadians(degrees * Math.PI / 180.0);
+
+    /// <summary>
+    /// Applies a 6-element CTM transformation matrix [a b c d e f]. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    public PdfPage Transform(double a, double b, double c, double d, double e, double f)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_transform(_handle, a, b, c, d, e, f),
+            "Failed to apply transformation matrix");
         return this;
     }
 

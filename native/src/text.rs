@@ -96,6 +96,77 @@ pub unsafe extern "C" fn oxidize_page_set_text_color_cmyk(
     ErrorCode::Success as c_int
 }
 
+/// Set the text stroke color using RGB components (each in 0.0–1.0).
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_text_stroke_color_rgb(
+    page: *mut PageHandle,
+    r: f64,
+    g: f64,
+    b: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_text_stroke_color_rgb");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page)
+        .inner
+        .text()
+        .set_stroke_color(oxidize_pdf::Color::rgb(r, g, b));
+    ErrorCode::Success as c_int
+}
+
+/// Set the text stroke color using a gray value (0.0 = black, 1.0 = white).
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_text_stroke_color_gray(
+    page: *mut PageHandle,
+    value: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_text_stroke_color_gray");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page)
+        .inner
+        .text()
+        .set_stroke_color(oxidize_pdf::Color::gray(value));
+    ErrorCode::Success as c_int
+}
+
+/// Set the text stroke color using CMYK components (each in 0.0–1.0).
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_text_stroke_color_cmyk(
+    page: *mut PageHandle,
+    c: f64,
+    m: f64,
+    y: f64,
+    k: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_text_stroke_color_cmyk");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page)
+        .inner
+        .text()
+        .set_stroke_color(oxidize_pdf::Color::cmyk(c, m, y, k));
+    ErrorCode::Success as c_int
+}
+
 /// Set character spacing for subsequent text operations.
 ///
 /// # Safety

@@ -83,10 +83,47 @@ pub unsafe extern "C" fn oxidize_image_from_png(
     }
 }
 
+/// Create an image from a file path (auto-detects JPEG/PNG/TIFF).
+///
+/// # Safety
+/// - `path` must be a valid null-terminated UTF-8 string.
+/// - `out_handle` must be a valid pointer to receive the new handle.
+/// - The returned handle must be freed with `oxidize_image_free`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_image_from_file(
+    path: *const c_char,
+    out_handle: *mut *mut ImageHandle,
+) -> c_int {
+    clear_last_error();
+    if path.is_null() || out_handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_image_from_file");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_handle = std::ptr::null_mut();
+
+    let p = match CStr::from_ptr(path).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in file path");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    match oxidize_pdf::Image::from_file(p) {
+        Ok(img) => {
+            *out_handle = Box::into_raw(Box::new(ImageHandle { inner: img }));
+            ErrorCode::Success as c_int
+        }
+        Err(e) => {
+            set_last_error(format!("Failed to load image from file: {e}"));
+            ErrorCode::IoError as c_int
+        }
+    }
+}
+
 /// Free an image handle.
 ///
 /// # Safety
-/// - `handle` must have been returned by `oxidize_image_from_jpeg` or `oxidize_image_from_png`.
+/// - `handle` must have been returned by `oxidize_image_from_jpeg`, `oxidize_image_from_png`, or `oxidize_image_from_file`.
 /// - `handle` must not have been freed previously.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_image_free(handle: *mut ImageHandle) {

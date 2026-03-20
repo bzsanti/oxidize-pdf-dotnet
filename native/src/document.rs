@@ -386,3 +386,126 @@ pub unsafe extern "C" fn oxidize_document_add_font_from_bytes(
     }
     ErrorCode::Success as c_int
 }
+
+/// Set the document outline (bookmarks/table of contents) from a JSON tree.
+///
+/// The JSON must conform to:
+/// `{ "items": [ { "title": string, "page": u32, "bold": bool, "italic": bool,
+///                 "open": bool, "children": [...] } ] }`
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - `outline_json` must be a valid null-terminated UTF-8 string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_set_outline(
+    handle: *mut DocumentHandle,
+    outline_json: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || outline_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_set_outline");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let json_str = match CStr::from_ptr(outline_json).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in outline JSON");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    #[derive(serde::Deserialize)]
+    struct ItemJson {
+        title: String,
+        page: u32,
+        #[serde(default)]
+        bold: bool,
+        #[serde(default)]
+        italic: bool,
+        #[serde(default = "default_true")]
+        open: bool,
+        #[serde(default)]
+        children: Vec<ItemJson>,
+    }
+
+    fn default_true() -> bool {
+        true
+    }
+
+    #[derive(serde::Deserialize)]
+    struct OutlineJson {
+        items: Vec<ItemJson>,
+    }
+
+    fn build_item(json: ItemJson) -> oxidize_pdf::OutlineItem {
+        let dest =
+            oxidize_pdf::Destination::fit(oxidize_pdf::PageDestination::PageNumber(json.page));
+        let mut item = oxidize_pdf::OutlineItem::new(json.title).with_destination(dest);
+        if json.bold {
+            item = item.bold();
+        }
+        if json.italic {
+            item = item.italic();
+        }
+        if !json.open {
+            item = item.closed();
+        }
+        for child in json.children {
+            item.add_child(build_item(child));
+        }
+        item
+    }
+
+    let parsed: OutlineJson = match serde_json::from_str(json_str) {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("Failed to parse outline JSON: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let mut tree = oxidize_pdf::OutlineTree::new();
+    for item_json in parsed.items {
+        tree.add_item(build_item(item_json));
+    }
+
+    (*handle).inner.set_outline(tree);
+    ErrorCode::Success as c_int
+}
+
+/// Register a custom font from a file path (TTF/OTF).
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - `name` and `path` must be valid null-terminated UTF-8 strings.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_add_font_from_file(
+    handle: *mut DocumentHandle,
+    name: *const c_char,
+    path: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || name.is_null() || path.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_add_font_from_file");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let font_name = match CStr::from_ptr(name).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in font name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let font_path = match CStr::from_ptr(path).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in font path");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    if let Err(e) = (*handle).inner.add_font(font_name, font_path) {
+        set_last_error(format!("Failed to add font from file: {e}"));
+        return ErrorCode::IoError as c_int;
+    }
+    ErrorCode::Success as c_int
+}

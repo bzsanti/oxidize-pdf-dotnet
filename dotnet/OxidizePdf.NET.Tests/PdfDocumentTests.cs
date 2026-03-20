@@ -124,6 +124,54 @@ public class PdfDocumentTests
         Assert.Same(doc, result);
     }
 
+    // ── AES encryption ──────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void EncryptAes128_ReturnsSameInstance()
+    {
+        using var doc = new PdfDocument();
+        using var page = PdfPage.A4();
+        doc.AddPage(page);
+        var result = doc.EncryptAes128("user", "owner");
+        Assert.Same(doc, result);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void EncryptAes256_ReturnsSameInstance()
+    {
+        using var doc = new PdfDocument();
+        using var page = PdfPage.A4();
+        doc.AddPage(page);
+        var result = doc.EncryptAes256("user", "owner");
+        Assert.Same(doc, result);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void EncryptAes128_WithPermissions_ProducesBytes()
+    {
+        using var doc = new PdfDocument();
+        using var page = PdfPage.A4();
+        doc.AddPage(page);
+        doc.EncryptAes128("user", "owner", PdfPermissions.Print | PdfPermissions.Copy);
+        var bytes = doc.SaveToBytes();
+        Assert.True(bytes.Length > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void EncryptAes256_WithPermissions_ProducesBytes()
+    {
+        using var doc = new PdfDocument();
+        using var page = PdfPage.A4();
+        doc.AddPage(page);
+        doc.EncryptAes256("user", "owner", PdfPermissions.Print);
+        var bytes = doc.SaveToBytes();
+        Assert.True(bytes.Length > 0);
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     public void Dispose_ThenAccess_ThrowsObjectDisposedException()
@@ -186,6 +234,35 @@ public class PdfDocumentTests
     {
         using var doc = new PdfDocument();
         Assert.Throws<ArgumentNullException>(() => doc.AddFont("TestFont", null!));
+    }
+
+    // ── Font from file ──────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void AddFontFromFile_InvalidPath_ThrowsPdfExtractionException()
+    {
+        using var doc = new PdfDocument();
+        Assert.Throws<PdfExtractionException>(() =>
+            doc.AddFontFromFile("BadFont", "/nonexistent/path/font.ttf"));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void AddFontFromFile_NullName_ThrowsArgumentNullException()
+    {
+        using var doc = new PdfDocument();
+        Assert.Throws<ArgumentNullException>(() =>
+            doc.AddFontFromFile(null!, "/some/path.ttf"));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void AddFontFromFile_NullPath_ThrowsArgumentNullException()
+    {
+        using var doc = new PdfDocument();
+        Assert.Throws<ArgumentNullException>(() =>
+            doc.AddFontFromFile("SomeName", null!));
     }
 
     [Fact]

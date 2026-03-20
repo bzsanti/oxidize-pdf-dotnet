@@ -95,6 +95,23 @@ public sealed class PdfImage : IDisposable
         }
     }
 
+    /// <summary>
+    /// Creates an image by loading it from a file path.
+    /// Supports JPEG, PNG, and TIFF formats (auto-detected).
+    /// </summary>
+    /// <param name="path">Path to the image file.</param>
+    /// <returns>A new <see cref="PdfImage"/> instance.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="path"/> is null.</exception>
+    /// <exception cref="PdfExtractionException">If the file cannot be read or is not a supported image.</exception>
+    public static PdfImage FromFile(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        ThrowIfError(
+            NativeMethods.oxidize_image_from_file(path, out var handle),
+            "Failed to load image from file");
+        return new PdfImage(handle);
+    }
+
     /// <summary>Gets the image width in pixels.</summary>
     /// <exception cref="ObjectDisposedException">If this image has been disposed.</exception>
     public uint Width

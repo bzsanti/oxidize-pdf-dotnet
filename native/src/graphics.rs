@@ -589,3 +589,77 @@ pub unsafe extern "C" fn oxidize_page_set_blend_mode(
     }
     ErrorCode::Success as c_int
 }
+
+// ── Coordinate transforms ─────────────────────────────────────────────────────
+
+/// Translate the current coordinate system.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_translate(page: *mut PageHandle, tx: f64, ty: f64) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_translate");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().translate(tx, ty);
+    ErrorCode::Success as c_int
+}
+
+/// Scale the current coordinate system.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_scale(page: *mut PageHandle, sx: f64, sy: f64) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_scale");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().scale(sx, sy);
+    ErrorCode::Success as c_int
+}
+
+/// Rotate the coordinate system by the given angle in radians.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_rotate_radians(page: *mut PageHandle, angle: f64) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_rotate_radians");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().rotate(angle);
+    ErrorCode::Success as c_int
+}
+
+/// Apply a full 6-element transformation matrix [a b c d e f].
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_transform(
+    page: *mut PageHandle,
+    a: f64,
+    b: f64,
+    c: f64,
+    d: f64,
+    e: f64,
+    f: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_transform");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().transform(a, b, c, d, e, f);
+    ErrorCode::Success as c_int
+}

@@ -11,6 +11,7 @@ pub mod graphics;
 pub mod header_footer;
 pub mod image;
 pub mod lists;
+pub mod measure;
 pub mod operations;
 pub mod page;
 pub mod parser;

@@ -347,4 +347,122 @@ public class PdfPageTests
         var bytes = doc.SaveToBytes();
         Assert.True(bytes.Length > 100);
     }
+
+    // ── Text stroke color ──────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetTextStrokeColor_Rgb_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetTextStrokeColor(1.0, 0.0, 0.0));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetTextStrokeColorGray_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetTextStrokeColorGray(0.5));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetTextStrokeColorCmyk_ReturnsSameInstance()
+    {
+        using var page = PdfPage.A4();
+        Assert.Same(page, page.SetTextStrokeColorCmyk(0.0, 1.0, 0.0, 0.0));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void SetTextStrokeColor_ThenGeneratePdf_Succeeds()
+    {
+        using var doc = new PdfDocument();
+        using var page = PdfPage.A4();
+        page.SetFont(StandardFont.Helvetica, 24)
+            .SetTextRenderingMode(TextRenderingMode.FillStroke)
+            .SetTextStrokeColor(1.0, 0.0, 0.0)
+            .TextAt(50, 750, "Stroked Text");
+        doc.AddPage(page);
+        var bytes = doc.SaveToBytes();
+        Assert.True(bytes.Length > 0);
+    }
+
+    // ── Margins getter ──────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void GetMargins_AfterClearMargins_ReturnsZeroMargins()
+    {
+        using var page = new PdfPage(600, 800);
+        page.SetMargins(0.0, 0.0, 0.0, 0.0);
+        var (top, right, bottom, left) = page.GetMargins();
+        Assert.Equal(0.0, top);
+        Assert.Equal(0.0, right);
+        Assert.Equal(0.0, bottom);
+        Assert.Equal(0.0, left);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void GetMargins_AfterSetMargins_ReturnsSetValues()
+    {
+        using var page = PdfPage.A4();
+        page.SetMargins(10.0, 20.0, 30.0, 40.0);
+        var (top, right, bottom, left) = page.GetMargins();
+        Assert.Equal(10.0, top);
+        Assert.Equal(20.0, right);
+        Assert.Equal(30.0, bottom);
+        Assert.Equal(40.0, left);
+    }
+
+    // ── Content dimensions ──────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void ContentWidth_ZeroMargins_EqualsPageWidth()
+    {
+        using var page = new PdfPage(600, 800);
+        page.SetMargins(0, 0, 0, 0);
+        Assert.Equal(page.Width, page.ContentWidth);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void ContentHeight_ZeroMargins_EqualsPageHeight()
+    {
+        using var page = new PdfPage(600, 800);
+        page.SetMargins(0, 0, 0, 0);
+        Assert.Equal(page.Height, page.ContentHeight);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void ContentWidth_WithMargins_IsReduced()
+    {
+        using var page = new PdfPage(600, 800);
+        page.SetMargins(10, 20, 30, 40); // top, right, bottom, left
+        // ContentWidth = 600 - left(40) - right(20) = 540
+        Assert.Equal(540.0, page.ContentWidth);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void ContentHeight_WithMargins_IsReduced()
+    {
+        using var page = new PdfPage(600, 800);
+        page.SetMargins(10, 20, 30, 40); // top, right, bottom, left
+        // ContentHeight = 800 - top(10) - bottom(30) = 760
+        Assert.Equal(760.0, page.ContentHeight);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void ContentArea_WithMargins_IsCorrect()
+    {
+        using var page = new PdfPage(600, 800);
+        page.SetMargins(10, 20, 30, 40);
+        Assert.Equal(540.0 * 760.0, page.ContentArea, precision: 1);
+    }
 }

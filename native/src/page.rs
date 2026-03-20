@@ -155,3 +155,35 @@ pub unsafe extern "C" fn oxidize_page_get_height(
     *out_value = (*handle).inner.height();
     ErrorCode::Success as c_int
 }
+
+/// Get all four page margins in PDF points.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - All out pointers must be valid non-null `f64` pointers.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_get_margins(
+    handle: *const PageHandle,
+    out_top: *mut f64,
+    out_right: *mut f64,
+    out_bottom: *mut f64,
+    out_left: *mut f64,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null()
+        || out_top.is_null()
+        || out_right.is_null()
+        || out_bottom.is_null()
+        || out_left.is_null()
+    {
+        set_last_error("Null pointer provided to oxidize_page_get_margins");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let m = (*handle).inner.margins();
+    *out_top = m.top;
+    *out_right = m.right;
+    *out_bottom = m.bottom;
+    *out_left = m.left;
+    ErrorCode::Success as c_int
+}
