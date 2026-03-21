@@ -1,0 +1,12 @@
+# Cargo audit configuration
+# https://docs.rs/cargo-audit/latest/cargo_audit/
+
+[advisories]
+ignore = [
+    # RUSTSEC-2023-0071: rsa crate Marvin Attack (timing sidechannel)
+    # - Transitive dependency: oxidize-pdf 2.3.2 → rsa 0.9.10
+    # - No stable fix available (rsa 0.10.0 is still RC as of 2026-03-21)
+    # - Our usage (PDF signature verification) does not expose timing to network attackers
+    # - Review when rsa 0.10.0 stable is released
+    "RUSTSEC-2023-0071",
+]
