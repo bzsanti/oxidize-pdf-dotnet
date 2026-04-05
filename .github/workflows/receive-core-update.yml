@@ -56,7 +56,8 @@ jobs:
       - name: Read current pinned version
         id: current
         run: |
-          CURRENT=$(grep -oP '(?<=oxidize-pdf = ")[^"]+' native/Cargo.toml \
+          CURRENT=$(grep -oP 'oxidize-pdf\s*=\s*\{[^}]*version\s*=\s*"\K[^"]+' native/Cargo.toml \
+                    || grep -oP '(?<=oxidize-pdf = ")[^"]+' native/Cargo.toml \
                     || echo "unknown")
           echo "current_version=${CURRENT}" >> "$GITHUB_OUTPUT"
 
@@ -77,6 +78,10 @@ jobs:
         if: steps.check.outputs.skip == 'false'
         run: |
           NEW="${{ steps.resolve.outputs.new_version }}"
+          # Supports both table format { version = "X" } and simple format "X"
+          sed -i -E \
+            's/(oxidize-pdf\s*=\s*\{[^}]*version\s*=\s*")[^"]+(")/\1'"${NEW}"'\2/' \
+            native/Cargo.toml
           sed -i -E \
             's/(oxidize-pdf = ")[^"]+(")/\1'"${NEW}"'\2/' \
             native/Cargo.toml

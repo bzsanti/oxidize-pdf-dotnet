@@ -38,7 +38,8 @@ jobs:
       - name: Read current pinned version
         id: current
         run: |
-          CURRENT=$(grep -oP '(?<=oxidize-pdf = ")[^"]+' native/Cargo.toml \
+          CURRENT=$(grep -oP 'oxidize-pdf\s*=\s*\{[^}]*version\s*=\s*"\K[^"]+' native/Cargo.toml \
+                    || grep -oP '(?<=oxidize-pdf = ")[^"]+' native/Cargo.toml \
                     || echo "unknown")
           echo "current_version=${CURRENT}" >> "$GITHUB_OUTPUT"
           echo "Current pinned: ${CURRENT}"
@@ -61,11 +62,17 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         if: steps.decide.outputs.trigger == 'true'
+        with:
+          workspaces: native -> target
 
       - name: Update native/Cargo.toml
         if: steps.decide.outputs.trigger == 'true'
         run: |
           NEW="${{ steps.latest.outputs.version }}"
+          # Supports both table format { version = "X" } and simple format "X"
+          sed -i -E \
+            's/(oxidize-pdf\s*=\s*\{[^}]*version\s*=\s*")[^"]+(")/\1'"${NEW}"'\2/' \
+            native/Cargo.toml
           sed -i -E \
             's/(oxidize-pdf = ")[^"]+(")/\1'"${NEW}"'\2/' \
             native/Cargo.toml
@@ -88,8 +95,10 @@ jobs:
           BRANCH="chore/update-oxidize-pdf-${{ steps.latest.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Delete remote branch if it already exists from a prior failed run
+          git push origin --delete "${BRANCH}" 2>/dev/null || true
           git checkout -b "${BRANCH}"
-          git add native/Cargo.toml native/Cargo.lock
+          git add native/Cargo.toml
           git commit -m "chore: update oxidize-pdf to v${{ steps.latest.outputs.version }}"
           git push origin "${BRANCH}"
           echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
