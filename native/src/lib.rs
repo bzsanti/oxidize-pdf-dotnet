@@ -10,6 +10,7 @@ pub mod document;
 pub mod graphics;
 pub mod header_footer;
 pub mod image;
+pub mod layout;
 pub mod lists;
 pub mod measure;
 pub mod operations;
