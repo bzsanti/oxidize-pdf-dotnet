@@ -34,6 +34,28 @@ public sealed class PdfDocument : IDisposable
             throw new PdfExtractionException("Failed to create document");
     }
 
+    private PdfDocument(IntPtr handle)
+    {
+        _handle = handle;
+    }
+
+    /// <summary>
+    /// Wraps an existing native document handle. Used by <see cref="PdfDocumentBuilder"/>.
+    /// </summary>
+    internal static PdfDocument FromNativeHandle(IntPtr handle) => new(handle);
+
+    /// <summary>
+    /// Exposes the native document handle for internal use by layout builders.
+    /// </summary>
+    internal IntPtr Handle
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _handle;
+        }
+    }
+
     // ── Metadata ──────────────────────────────────────────────────────────────
 
     /// <summary>

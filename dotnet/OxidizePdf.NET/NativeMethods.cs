@@ -1146,6 +1146,160 @@ internal static class NativeMethods
         out float outWidth,
         out float outHeight);
 
+    // ── Layout / FlowLayout ────────────────────────────────────────────────
+
+    /// <summary>Create a FlowLayout with A4 page size and 72pt margins</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_create_a4(out IntPtr outHandle);
+
+    /// <summary>Create a FlowLayout with custom dimensions and margins</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_create(
+        double width, double height,
+        double marginLeft, double marginRight,
+        double marginTop, double marginBottom,
+        out IntPtr outHandle);
+
+    /// <summary>Free a FlowLayout handle</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void oxidize_flow_layout_free(IntPtr handle);
+
+    /// <summary>Add a text block with default line height (1.2)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_add_text(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        StandardFont font,
+        double fontSize);
+
+    /// <summary>Add a text block with custom line height</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_add_text_with_line_height(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        StandardFont font,
+        double fontSize,
+        double lineHeight);
+
+    /// <summary>Add vertical spacing in points</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_add_spacer(IntPtr handle, double points);
+
+    /// <summary>Add a simple table from JSON</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_add_table(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string tableJson);
+
+    /// <summary>Add rich text from a JSON array of spans</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_add_rich_text(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string spansJson);
+
+    /// <summary>Add an image, left-aligned</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_add_image(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr imageHandle,
+        double maxWidth,
+        double maxHeight);
+
+    /// <summary>Add an image, centered horizontally</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_add_image_centered(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr imageHandle,
+        double maxWidth,
+        double maxHeight);
+
+    /// <summary>Build the layout into a document, creating pages as needed</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_build_into(IntPtr handle, IntPtr doc);
+
+    /// <summary>Get the content width (page width minus margins)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_content_width(IntPtr handle, out double outWidth);
+
+    /// <summary>Get the usable height (page height minus margins)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_flow_layout_usable_height(IntPtr handle, out double outHeight);
+
+    // ── Layout / DocumentBuilder ─────────────────────────────────────────
+
+    /// <summary>Create a DocumentBuilder with A4 page size and 72pt margins</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_create_a4(out IntPtr outHandle);
+
+    /// <summary>Create a DocumentBuilder with custom dimensions and margins</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_create(
+        double width, double height,
+        double marginLeft, double marginRight,
+        double marginTop, double marginBottom,
+        out IntPtr outHandle);
+
+    /// <summary>Free a DocumentBuilder handle</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void oxidize_document_builder_free(IntPtr handle);
+
+    /// <summary>Add a text block with default line height (1.2)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_add_text(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        StandardFont font,
+        double fontSize);
+
+    /// <summary>Add a text block with custom line height</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_add_text_with_line_height(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        StandardFont font,
+        double fontSize,
+        double lineHeight);
+
+    /// <summary>Add vertical spacing in points</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_add_spacer(IntPtr handle, double points);
+
+    /// <summary>Add a simple table from JSON</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_add_table(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string tableJson);
+
+    /// <summary>Add rich text from a JSON array of spans</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_add_rich_text(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string spansJson);
+
+    /// <summary>Add an image, left-aligned</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_add_image(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr imageHandle,
+        double maxWidth,
+        double maxHeight);
+
+    /// <summary>Add an image, centered horizontally</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_add_image_centered(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr imageHandle,
+        double maxWidth,
+        double maxHeight);
+
+    /// <summary>Build the document, creating pages as needed (consumes the builder)</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_builder_build(IntPtr handle, out IntPtr outDoc);
+
     /// <summary>
     /// Gets the last error message from the native library and clears it
     /// </summary>
