@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-04-20
+
+### Changed
+- Updated oxidize-pdf dependency from 2.5.1 to 2.5.3
+
+### Dependencies
+- oxidize-pdf 2.5.1 → 2.5.3
+
+### Upstream fixes inherited (oxidize-pdf 2.5.2 + 2.5.3)
+- **Font subsetting size reductions** (~3× smaller PDFs with embedded fonts)
+  - TTF glyph hinting instructions stripped from subset output
+  - FontFile2 / FontFile3 streams now FlateDecode-compressed (TTF glyf ~60-70% smaller)
+  - ToUnicode CMap filtered to used characters only + FlateDecode-compressed
+  - CFF String INDEX emitted empty in subset output (saves ~22 KB on Latin fonts)
+- **CJK punctuation ToUnicode CMap offset math fix** — correct code-point mapping during CID CFF text extraction
+- Full CFF Type 2 charstring desubroutinizer; SID-keyed CFF → CID-keyed conversion
+- TTF `cmap`, `OS/2`, `name` tables stripped from subset output (not required for PDF embedding)
+
 ## [0.3.0] - 2026-03-04
 
 ### Changed
