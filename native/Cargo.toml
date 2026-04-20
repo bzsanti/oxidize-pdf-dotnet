@@ -15,7 +15,7 @@ crate-type = ["cdylib"]  # C-compatible dynamic library
 name = "oxidize_pdf_ffi"
 
 [dependencies]
-oxidize-pdf = { version = "2.5.1", features = ["semantic", "signatures"] }  # Core PDF library
+oxidize-pdf = { version = "2.5.2", features = ["semantic", "signatures"] }  # Core PDF library
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
