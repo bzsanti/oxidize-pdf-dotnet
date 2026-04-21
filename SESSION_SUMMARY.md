@@ -1,5 +1,46 @@
 # Sesión de Desarrollo - OxidizePdf.NET
-**Fecha:** 2025-11-04
+
+---
+
+## Sesión 2026-04-21
+
+**Rama actual:** `feature/m1-document-metadata` (no pusheada)
+**Último commit local:** `66f9a28` (hack de incremental-update — pendiente revertir)
+**Tests:** 499/499 verdes (net10.0)
+**Build Rust:** verde con 1 warning conocido (unused var en el hack)
+
+### Lo que se hizo
+
+1. **Bump oxidize-pdf 2.5.3 → 2.5.4** + wrapper 0.7.1 → 0.7.2 (PR #19 merged to develop; NO publicado en NuGet)
+2. **Roadmap de paridad** (PR #26 merged a develop): 26 features pendientes → 6 milestones (v0.8.0 → v0.13.0 → v1.0.0)
+3. **Issue housekeeping**: #13 cerrado, #20–#25 abiertos (uno por milestone)
+4. **Plan TDD detallado de M1** en `docs/superpowers/plans/2026-04-21-m1-document-metadata.md`
+5. **Task 0 M1**: bump 0.7.2 → 0.8.0 + scaffold de `native/src/document_metadata.rs` (commit `4963057`)
+6. **Task 1 M1 (BLOQUEADA)**: DOC-014 implementado por subagent con hack de 220 líneas (inyección PDF incremental) porque `oxidize-pdf 2.5.4::write_catalog` ignora `open_action` / `viewer_preferences` / `named_destinations` / `page_labels`. Tests verdes pero arquitectura rota.
+
+### Bloqueador actual
+
+Upstream `oxidize-pdf 2.5.4` no emite cuatro entradas del `/Catalog` (`/OpenAction`, `/ViewerPreferences`, `/Names`, `/PageLabels`) aunque `Document` tenga los setters. M1 no puede avanzar limpiamente sin `oxidize-pdf 2.5.5` con el fix en `writer/pdf_writer/mod.rs::write_catalog`.
+
+### Próximo paso
+
+Usuario arreglará `oxidize-pdf` upstream en otra sesión usando el prompt entregado. Al publicar 2.5.5:
+- Revertir commit `66f9a28` (hack)
+- Bumpear `native/Cargo.toml` → `oxidize-pdf = "2.5.5"`
+- Rehacer Task 1 limpio (3 líneas en vez de 220)
+- Continuar Tasks 2–5 con el patrón limpio
+
+### Estado versiones
+
+| Componente | main | develop | branch local |
+|---|---|---|---|
+| NuGet `OxidizePdf.NET` | 0.7.1 (publicada) | 0.7.2 (sin publicar) | 0.8.0 (WIP) |
+| Crate `oxidize-pdf-ffi` | 0.7.1 | 0.7.2 | 0.8.0 (WIP) |
+| Dep `oxidize-pdf` | 2.5.3 | 2.5.4 | 2.5.4 (necesita 2.5.5) |
+
+---
+
+## Sesión 2025-11-04
 **Rama inicial:** main → develop
 **Contexto:** Publicación NuGet y configuración GitFlow
 
