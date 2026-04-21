@@ -455,6 +455,28 @@ public sealed class PdfDocument : IDisposable
         return this;
     }
 
+    // ── Open Action ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Sets the action to execute when the document is opened
+    /// (navigate to a page, open a URI, etc.).
+    /// </summary>
+    /// <param name="action">Action produced by one of the static factories on <see cref="PdfOpenAction"/>.</param>
+    /// <returns>This <see cref="PdfDocument"/> for fluent chaining.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="action"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument SetOpenAction(PdfOpenAction action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        ThrowIfDisposed();
+        string json = System.Text.Json.JsonSerializer.Serialize(action);
+        ThrowIfError(
+            NativeMethods.oxidize_document_set_open_action_json(_handle, json),
+            "Failed to set document open action");
+        return this;
+    }
+
     // ── Outline ───────────────────────────────────────────────────────────────
 
     /// <summary>

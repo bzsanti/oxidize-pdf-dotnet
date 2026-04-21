@@ -251,6 +251,12 @@ internal static class NativeMethods
         IntPtr handle,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string outlineJson);
 
+    /// <summary>Set the document open action from a JSON payload</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    internal static extern int oxidize_document_set_open_action_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
     // ── Page ──────────────────────────────────────────────────────────────────
 
     /// <summary>Create a new page with explicit dimensions in PDF points</summary>

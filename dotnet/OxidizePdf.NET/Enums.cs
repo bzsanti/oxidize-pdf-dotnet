@@ -254,3 +254,22 @@ public enum StampType
     /// <summary>For Public Release</summary>
     ForPublicRelease = 13,
 }
+
+/// <summary>
+/// PDF destination fit mode for open actions and named destinations.
+/// </summary>
+public enum PdfDestinationFit
+{
+    /// <summary>Position at specific coordinates with optional zoom (XYZ).</summary>
+    Xyz = 0,
+    /// <summary>Fit entire page in window.</summary>
+    Fit = 1,
+    /// <summary>Fit page width, optional top coordinate.</summary>
+    FitH = 2,
+    /// <summary>Fit page height, optional left coordinate.</summary>
+    FitV = 3,
+    /// <summary>Fit rectangle.</summary>
+    FitR = 4,
+    /// <summary>Fit bounding box of page contents.</summary>
+    FitB = 5,
+}

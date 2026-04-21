@@ -7,6 +7,9 @@ use crate::{clear_last_error, set_last_error, ErrorCode};
 /// Opaque handle wrapping an `oxidize_pdf::Document`.
 pub struct DocumentHandle {
     pub(crate) inner: oxidize_pdf::Document,
+    /// Pre-formatted PDF action dictionary string to inject as /OpenAction.
+    /// Set by `oxidize_document_set_open_action_json`; applied during save.
+    pub(crate) pending_open_action_pdf: Option<String>,
 }
 
 /// Create a new empty document.
@@ -20,6 +23,7 @@ pub unsafe extern "C" fn oxidize_document_create() -> *mut DocumentHandle {
     clear_last_error();
     let handle = Box::new(DocumentHandle {
         inner: oxidize_pdf::Document::new(),
+        pending_open_action_pdf: None,
     });
     Box::into_raw(handle)
 }
@@ -266,7 +270,29 @@ pub unsafe extern "C" fn oxidize_document_save_to_file(
             return ErrorCode::InvalidUtf8 as c_int;
         }
     };
-    if let Err(e) = (*handle).inner.save(p) {
+    if (*handle).pending_open_action_pdf.is_some() {
+        // Generate bytes, apply open action patch, then write to file.
+        let bytes = match (*handle).inner.to_bytes() {
+            Ok(b) => b,
+            Err(e) => {
+                set_last_error(format!("Failed to serialize document: {e}"));
+                return ErrorCode::IoError as c_int;
+            }
+        };
+        let action_pdf = (*handle).pending_open_action_pdf.as_deref().unwrap();
+        let patched =
+            match crate::document_metadata::inject_open_action_incremental(bytes, action_pdf) {
+                Ok(b) => b,
+                Err(e) => {
+                    set_last_error(format!("Failed to inject open action: {e}"));
+                    return ErrorCode::IoError as c_int;
+                }
+            };
+        if let Err(e) = std::fs::write(p, &patched) {
+            set_last_error(format!("Failed to write document to file: {e}"));
+            return ErrorCode::IoError as c_int;
+        }
+    } else if let Err(e) = (*handle).inner.save(p) {
         set_last_error(format!("Failed to save document to file: {e}"));
         return ErrorCode::IoError as c_int;
     }
@@ -314,13 +340,24 @@ pub unsafe extern "C" fn oxidize_document_save_to_bytes(
     *out_bytes = ptr::null_mut();
     *out_len = 0;
 
-    let bytes = match (*handle).inner.to_bytes() {
+    let mut bytes = match (*handle).inner.to_bytes() {
         Ok(b) => b,
         Err(e) => {
             set_last_error(format!("Failed to serialize document: {e}"));
             return ErrorCode::IoError as c_int;
         }
     };
+
+    // Apply pending open action as a PDF incremental update if one was set.
+    if let Some(action_pdf) = &(*handle).pending_open_action_pdf {
+        match crate::document_metadata::inject_open_action_incremental(bytes, action_pdf) {
+            Ok(patched) => bytes = patched,
+            Err(e) => {
+                set_last_error(format!("Failed to inject open action: {e}"));
+                return ErrorCode::IoError as c_int;
+            }
+        }
+    }
 
     let len = bytes.len();
     let mut boxed = bytes.into_boxed_slice();

@@ -691,7 +691,10 @@ pub unsafe extern "C" fn oxidize_document_builder_build(
         }
     };
 
-    *out_doc = Box::into_raw(Box::new(DocumentHandle { inner: doc }));
+    *out_doc = Box::into_raw(Box::new(DocumentHandle {
+        inner: doc,
+        pending_open_action_pdf: None,
+    }));
     ErrorCode::Success as c_int
 }
 
