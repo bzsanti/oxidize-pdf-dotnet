@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-04-21
+
+### Changed
+- Updated oxidize-pdf dependency from 2.5.3 to 2.5.4 (upstream bug fixes)
+
+### Dependencies
+- oxidize-pdf 2.5.3 → 2.5.4
+
 ## [0.7.1] - 2026-04-20
 
 ### Changed
