@@ -7,6 +7,7 @@ use std::ptr;
 
 pub mod annotations;
 pub mod document;
+pub mod document_metadata;
 pub mod graphics;
 pub mod header_footer;
 pub mod image;
