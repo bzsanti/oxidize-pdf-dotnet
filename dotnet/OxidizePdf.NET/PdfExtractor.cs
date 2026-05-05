@@ -231,6 +231,43 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Extract structure-aware RAG chunks with optional partition and hybrid
+    /// chunk configs. Pass <c>null</c> for either to use the corresponding
+    /// upstream default (lets callers tune just the chunk size, just the
+    /// partitioner, both, or neither).
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="partitionConfig">Optional partition configuration. <c>null</c> uses <c>PartitionConfig::default()</c>.</param>
+    /// <param name="hybridConfig">Optional hybrid-chunker configuration. <c>null</c> uses <c>HybridChunkConfig::default()</c>.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of RAG-ready chunks.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty/oversize, or either non-null config fails validation.</exception>
+    /// <exception cref="PdfExtractionException">If chunking fails inside the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<RagChunk>> RagChunksAsync(
+        byte[] pdfBytes,
+        PartitionConfig? partitionConfig,
+        HybridChunkConfig? hybridConfig,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+        partitionConfig?.Validate();
+        hybridConfig?.Validate();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var partitionJson = partitionConfig?.ToJson();
+        var hybridJson = hybridConfig?.ToJson();
+        return Task.Run(() => RagChunksWithConfigs(pdfBytes, partitionJson, hybridJson), cancellationToken);
+    }
+
+    /// <summary>
     /// Export PDF content as Markdown.
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
@@ -1074,6 +1111,25 @@ public class PdfExtractor
             (byte)profile,
             NativeMethods.oxidize_rag_chunks_with_profile,
             $"Failed to extract RAG chunks with profile {profile}");
+
+    private List<RagChunk> RagChunksWithConfigs(byte[] pdfBytes, string? partitionJson, string? hybridJson) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var rc = NativeMethods.oxidize_rag_chunks_with_config(
+                    ptr, len, partitionJson, hybridJson, out jsonPtr);
+                ThrowIfError(rc, "Failed to extract RAG chunks with explicit configs");
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+                return JsonSerializer.Deserialize<List<RagChunk>>(json) ?? new();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
 
     private string StructuredExport(byte[] pdfBytes, NativeStringCall nativeFunc, string formatName) =>
         CallNativeString(pdfBytes, nativeFunc, $"Failed to export PDF as {formatName}");
