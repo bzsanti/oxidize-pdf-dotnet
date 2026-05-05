@@ -1,7 +1,7 @@
 # Bridge Parity Spec — oxidize-pdf (Python + .NET)
 
 **Last updated:** 2026-05-05
-**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.9.0-rag.1 (=core 2.6.0)
+**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.8.0 (=core 2.6.0)
 
 This document is the **canonical contract** that both bridges must satisfy. The same matrix exists in [`oxidize-pdf-dotnet/docs/PARITY_SPEC.md`](https://github.com/bzsanti/oxidize-pdf-dotnet/blob/main/docs/PARITY_SPEC.md). Any divergence between the two copies is a bug — the IDs, capability descriptions, and "Action for parity" cells must stay synchronized.
 
@@ -50,7 +50,7 @@ The reason we maintain bridges in lockstep. A consumer building a RAG pipeline m
 
 ### Tier 0 priority within itself
 
-1. **Immediate (zero risk, high impact):** RAG-003, RAG-004, RAG-005, RAG-006, RAG-007, RAG-008, RAG-009, RAG-012, RAG-020. **All closed for .NET in 0.9.0-rag.1.**
+1. **Immediate (zero risk, high impact):** RAG-003, RAG-004, RAG-005, RAG-006, RAG-007, RAG-008, RAG-009, RAG-012, RAG-020. **All closed for .NET in 0.8.0.**
 2. **After (philosophy decisions required):** RAG-014, RAG-019, RAG-021.
 
 ---
@@ -207,7 +207,7 @@ Tesseract-based OCR exists in the core but is absent from both bridges. This tie
 
 ### .NET — bridge-specific actions (priority RAG first)
 
-**RAG/AI (Tier 0):** ~~RAG-003~~, ~~RAG-004~~, ~~RAG-005~~, ~~RAG-006~~, ~~RAG-007~~, ~~RAG-008~~, ~~RAG-009~~, ~~RAG-012~~, ~~RAG-020 (tests)~~ — **all closed in 0.9.0-rag.1**. Decisions still pending: RAG-014 (JSON export philosophy), RAG-019 (OCR), RAG-021 (NuGet KernelMemory package).
+**RAG/AI (Tier 0):** ~~RAG-003~~, ~~RAG-004~~, ~~RAG-005~~, ~~RAG-006~~, ~~RAG-007~~, ~~RAG-008~~, ~~RAG-009~~, ~~RAG-012~~, ~~RAG-020 (tests)~~ — **all closed in 0.8.0**. Decisions still pending: RAG-014 (JSON export philosophy), RAG-019 (OCR), RAG-021 (NuGet KernelMemory package).
 
 **Reading:** READ-001 (path overload), READ-007 (per-page list), READ-010 (rotation).
 **Writing:** WRITE-013 (open action), WRITE-015 (outline read), WRITE-017 (page labels), WRITE-019 (semantic entities).
