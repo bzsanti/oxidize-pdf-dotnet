@@ -268,6 +268,53 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Extract semantic (element-boundary-aware) chunks from a PDF. The
+    /// <see cref="SemanticChunkConfig"/> chunker preserves structural unity:
+    /// titles, tables, and code blocks are kept whole when
+    /// <see cref="SemanticChunkConfig.RespectElementBoundaries"/> is true.
+    /// Use this when downstream consumers care about structure over merging
+    /// adjacent prose.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="config">Semantic-chunker configuration. <c>null</c> uses
+    /// <c>SemanticChunkConfig::default()</c> (max_tokens=512, overlap=50,
+    /// respect_element_boundaries=true).</param>
+    /// <param name="partitionConfig">Optional partition configuration for the
+    /// pre-chunking element extraction. <c>null</c> uses
+    /// <c>PartitionConfig::default()</c>.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of semantic chunks.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty/oversize, or either non-null config fails validation.</exception>
+    /// <exception cref="PdfExtractionException">If chunking fails inside the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<SemanticChunk>> SemanticChunksAsync(
+        byte[] pdfBytes,
+        SemanticChunkConfig? config = null,
+        PartitionConfig? partitionConfig = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        config ??= new SemanticChunkConfig();
+        config.Validate();
+        partitionConfig?.Validate();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var partitionJson = partitionConfig?.ToJson();
+        var semanticJson = config.ToJson();
+        return Task.Run(
+            () => SemanticChunksImpl(pdfBytes, partitionJson, semanticJson),
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Export PDF content as Markdown.
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
@@ -1123,6 +1170,25 @@ public class PdfExtractor
                 ThrowIfError(rc, "Failed to extract RAG chunks with explicit configs");
                 var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
                 return JsonSerializer.Deserialize<List<RagChunk>>(json) ?? new();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+
+    private List<SemanticChunk> SemanticChunksImpl(byte[] pdfBytes, string? partitionJson, string semanticJson) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var rc = NativeMethods.oxidize_semantic_chunks(
+                    ptr, len, partitionJson, semanticJson, out jsonPtr);
+                ThrowIfError(rc, "Failed to extract semantic chunks");
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+                return JsonSerializer.Deserialize<List<SemanticChunk>>(json) ?? new();
             }
             finally
             {
