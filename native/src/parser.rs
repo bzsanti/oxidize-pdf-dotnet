@@ -3275,8 +3275,7 @@ mod profile_ffi_tests {
     fn oxidize_partition_with_profile_rejects_bad_discriminant() {
         let pdf = sample_pdf();
         let mut out: *mut c_char = std::ptr::null_mut();
-        let code =
-            unsafe { oxidize_partition_with_profile(pdf.as_ptr(), pdf.len(), 99, &mut out) };
+        let code = unsafe { oxidize_partition_with_profile(pdf.as_ptr(), pdf.len(), 99, &mut out) };
         assert_eq!(code, ErrorCode::InvalidArgument as c_int);
         assert!(out.is_null());
     }
@@ -3284,8 +3283,7 @@ mod profile_ffi_tests {
     #[test]
     fn oxidize_partition_with_profile_null_pdf_returns_null_pointer() {
         let mut out: *mut c_char = std::ptr::null_mut();
-        let code =
-            unsafe { oxidize_partition_with_profile(std::ptr::null(), 0, 0, &mut out) };
+        let code = unsafe { oxidize_partition_with_profile(std::ptr::null(), 0, 0, &mut out) };
         assert_eq!(code, ErrorCode::NullPointer as c_int);
         assert!(out.is_null());
     }
@@ -3296,8 +3294,7 @@ mod profile_ffi_tests {
         let mut out: *mut c_char = std::ptr::null_mut();
         // Use a non-null pointer with len=0 so the null-check passes.
         let dummy: u8 = 0;
-        let code =
-            unsafe { oxidize_partition_with_profile(&dummy, pdf.len(), 0, &mut out) };
+        let code = unsafe { oxidize_partition_with_profile(&dummy, pdf.len(), 0, &mut out) };
         assert_eq!(code, ErrorCode::PdfParseError as c_int);
         assert!(out.is_null());
     }
@@ -3377,7 +3374,10 @@ mod profile_ffi_tests {
         let has_table = elements
             .iter()
             .any(|el| el.get("element_type").and_then(|v| v.as_str()) == Some("Table"));
-        assert!(!has_table, "no Table element expected with detect_tables=false on table-free fixture");
+        assert!(
+            !has_table,
+            "no Table element expected with detect_tables=false on table-free fixture"
+        );
 
         // Introduction text must be present somewhere.
         let has_intro = elements.iter().any(|el| {
@@ -3483,7 +3483,10 @@ mod profile_ffi_tests {
     fn oxidize_rag_chunks_with_profile_returns_well_formed_chunks() {
         let pdf = sample_pdf();
         let chunks = call_rag_chunks_with_profile(&pdf, 6 /* Rag */);
-        assert!(!chunks.is_empty(), "fixture should produce at least one chunk");
+        assert!(
+            !chunks.is_empty(),
+            "fixture should produce at least one chunk"
+        );
 
         // Every chunk must carry the documented RagChunkResult schema (no smoke test).
         for (i, c) in chunks.iter().enumerate() {
@@ -3546,8 +3549,7 @@ mod profile_ffi_tests {
     #[test]
     fn oxidize_rag_chunks_with_profile_null_pdf_returns_null_pointer() {
         let mut out: *mut c_char = std::ptr::null_mut();
-        let code =
-            unsafe { oxidize_rag_chunks_with_profile(std::ptr::null(), 0, 0, &mut out) };
+        let code = unsafe { oxidize_rag_chunks_with_profile(std::ptr::null(), 0, 0, &mut out) };
         assert_eq!(code, ErrorCode::NullPointer as c_int);
         assert!(out.is_null());
     }
@@ -3609,7 +3611,10 @@ mod profile_ffi_tests {
         assert!(!chunks.is_empty());
         for chunk in &chunks {
             assert!(chunk.get("chunk_index").is_some());
-            assert!(chunk.get("token_estimate").and_then(|v| v.as_u64()).is_some());
+            assert!(chunk
+                .get("token_estimate")
+                .and_then(|v| v.as_u64())
+                .is_some());
         }
     }
 
@@ -3716,13 +3721,7 @@ mod profile_ffi_tests {
         let dummy: u8 = 0;
         let mut out: *mut c_char = std::ptr::null_mut();
         let code = unsafe {
-            oxidize_rag_chunks_with_config(
-                &dummy,
-                0,
-                std::ptr::null(),
-                std::ptr::null(),
-                &mut out,
-            )
+            oxidize_rag_chunks_with_config(&dummy, 0, std::ptr::null(), std::ptr::null(), &mut out)
         };
         assert_eq!(code, ErrorCode::PdfParseError as c_int);
         assert!(out.is_null());
@@ -3883,9 +3882,8 @@ mod profile_ffi_tests {
         )
         .unwrap();
         let mut out: *mut c_char = std::ptr::null_mut();
-        let code = unsafe {
-            oxidize_semantic_chunks(&dummy, 0, std::ptr::null(), sem.as_ptr(), &mut out)
-        };
+        let code =
+            unsafe { oxidize_semantic_chunks(&dummy, 0, std::ptr::null(), sem.as_ptr(), &mut out) };
         assert_eq!(code, ErrorCode::PdfParseError as c_int);
         assert!(out.is_null());
     }
@@ -3916,12 +3914,21 @@ mod profile_ffi_tests {
             r#"{"include_metadata":true,"include_page_numbers":false}"#,
         );
         // YAML frontmatter contract from MarkdownExporter::export_with_metadata.
-        assert!(md.starts_with("---\n"), "metadata=true must start with YAML frontmatter");
+        assert!(
+            md.starts_with("---\n"),
+            "metadata=true must start with YAML frontmatter"
+        );
         assert!(md.contains("title:"));
         assert!(md.contains("pages:"));
-        assert!(md.contains("---\n\n# "), "must close frontmatter and emit title heading");
+        assert!(
+            md.contains("---\n\n# "),
+            "must close frontmatter and emit title heading"
+        );
         // No per-page markers when include_page_numbers=false.
-        assert!(!md.contains("**Page "), "page markers must NOT appear when include_page_numbers=false");
+        assert!(
+            !md.contains("**Page "),
+            "page markers must NOT appear when include_page_numbers=false"
+        );
     }
 
     #[test]
@@ -3931,7 +3938,10 @@ mod profile_ffi_tests {
             &pdf,
             r#"{"include_metadata":false,"include_page_numbers":false}"#,
         );
-        assert!(!md.starts_with("---\n"), "metadata=false must NOT emit YAML frontmatter");
+        assert!(
+            !md.starts_with("---\n"),
+            "metadata=false must NOT emit YAML frontmatter"
+        );
         assert!(!md.contains("title:"));
         assert!(!md.contains("**Page "));
     }
@@ -3944,7 +3954,10 @@ mod profile_ffi_tests {
             r#"{"include_metadata":false,"include_page_numbers":true}"#,
         );
         assert!(!md.starts_with("---\n"), "no YAML when metadata=false");
-        assert!(md.contains("**Page 1**"), "must emit per-page marker for page 1");
+        assert!(
+            md.contains("**Page 1**"),
+            "must emit per-page marker for page 1"
+        );
     }
 
     #[test]
@@ -3954,29 +3967,28 @@ mod profile_ffi_tests {
             &pdf,
             r#"{"include_metadata":true,"include_page_numbers":true}"#,
         );
-        assert!(md.starts_with("---\n"), "YAML frontmatter when metadata=true");
+        assert!(
+            md.starts_with("---\n"),
+            "YAML frontmatter when metadata=true"
+        );
         assert!(md.contains("title:"));
-        assert!(md.contains("**Page 1**"), "page marker when include_page_numbers=true");
+        assert!(
+            md.contains("**Page 1**"),
+            "page marker when include_page_numbers=true"
+        );
     }
 
     #[test]
     fn oxidize_to_markdown_with_options_distinct_flag_combinations_produce_distinct_output() {
         // The four flag combinations must produce four distinct outputs.
         let pdf = sample_pdf();
-        let combos = [
-            (false, false),
-            (true, false),
-            (false, true),
-            (true, true),
-        ];
+        let combos = [(false, false), (true, false), (false, true), (true, true)];
         let outputs: Vec<String> = combos
             .iter()
             .map(|(meta, pages)| {
                 call_to_markdown(
                     &pdf,
-                    &format!(
-                        r#"{{"include_metadata":{meta},"include_page_numbers":{pages}}}"#
-                    ),
+                    &format!(r#"{{"include_metadata":{meta},"include_page_numbers":{pages}}}"#),
                 )
             })
             .collect();
@@ -4017,11 +4029,11 @@ mod profile_ffi_tests {
     #[test]
     fn oxidize_to_markdown_with_options_empty_pdf_returns_parse_error() {
         let dummy: u8 = 0;
-        let opts = std::ffi::CString::new(r#"{"include_metadata":true,"include_page_numbers":true}"#).unwrap();
+        let opts =
+            std::ffi::CString::new(r#"{"include_metadata":true,"include_page_numbers":true}"#)
+                .unwrap();
         let mut out: *mut c_char = std::ptr::null_mut();
-        let code = unsafe {
-            oxidize_to_markdown_with_options(&dummy, 0, opts.as_ptr(), &mut out)
-        };
+        let code = unsafe { oxidize_to_markdown_with_options(&dummy, 0, opts.as_ptr(), &mut out) };
         assert_eq!(code, ErrorCode::PdfParseError as c_int);
         assert!(out.is_null());
     }
@@ -4036,7 +4048,11 @@ mod profile_ffi_tests {
         // upstream change to the formula breaks this test rather than
         // silently shifting downstream chunk-count assumptions.
         let cases = [
-            ("hello world from oxidize", 4 /*words*/, 5 /*tokens, floor(4*1.33)=5*/),
+            (
+                "hello world from oxidize",
+                4, /*words*/
+                5, /*tokens, floor(4*1.33)=5*/
+            ),
             ("one", 1, 1 /*floor(1.33)=1*/),
             ("a b c d e f g h", 8, 10 /*floor(10.64)=10*/),
             ("", 0, 0),
@@ -4071,8 +4087,7 @@ mod profile_ffi_tests {
     fn call_chunk_text(text: &str, chunk_size: usize, overlap: usize) -> Vec<serde_json::Value> {
         let cs = std::ffi::CString::new(text).unwrap();
         let mut out: *mut c_char = std::ptr::null_mut();
-        let code =
-            unsafe { oxidize_chunk_text(cs.as_ptr(), chunk_size, overlap, &mut out) };
+        let code = unsafe { oxidize_chunk_text(cs.as_ptr(), chunk_size, overlap, &mut out) };
         assert_eq!(code, ErrorCode::Success as c_int);
         assert!(!out.is_null());
         json_to_array(out)
@@ -4084,12 +4099,18 @@ mod profile_ffi_tests {
         let chunks = call_chunk_text(&long, 50, 5);
 
         // chunk_size=50, overlap=5 → step=45 → 200 tokens / 45 ≈ 5 chunks.
-        assert!(chunks.len() >= 2, "expected multiple chunks for 200-word/size=50 input");
+        assert!(
+            chunks.len() >= 2,
+            "expected multiple chunks for 200-word/size=50 input"
+        );
 
         // Schema validation: every documented field present, correctly typed.
         for (i, c) in chunks.iter().enumerate() {
             let id = c.get("id").and_then(|v| v.as_str()).expect("id missing");
-            assert!(id.starts_with("chunk_"), "id must follow `chunk_N` format, got {id}");
+            assert!(
+                id.starts_with("chunk_"),
+                "id must follow `chunk_N` format, got {id}"
+            );
             assert!(c.get("content").and_then(|v| v.as_str()).is_some());
             assert!(c.get("tokens").and_then(|v| v.as_u64()).is_some());
             assert!(c.get("page_numbers").and_then(|v| v.as_array()).is_some());
@@ -4129,7 +4150,11 @@ mod profile_ffi_tests {
     fn oxidize_chunk_text_short_input_single_chunk() {
         // 5-word input with chunk_size=100 must produce exactly one chunk.
         let chunks = call_chunk_text("one two three four five", 100, 10);
-        assert_eq!(chunks.len(), 1, "short input must produce exactly one chunk");
+        assert_eq!(
+            chunks.len(),
+            1,
+            "short input must produce exactly one chunk"
+        );
         assert_eq!(chunks[0].get("chunk_index").unwrap(), 0);
     }
 

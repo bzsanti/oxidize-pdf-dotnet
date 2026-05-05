@@ -244,7 +244,10 @@ mod tests {
         assert!(matches!(profile_from_u8(0).unwrap(), RustProfile::Standard));
         assert!(matches!(profile_from_u8(1).unwrap(), RustProfile::Academic));
         assert!(matches!(profile_from_u8(2).unwrap(), RustProfile::Form));
-        assert!(matches!(profile_from_u8(3).unwrap(), RustProfile::Government));
+        assert!(matches!(
+            profile_from_u8(3).unwrap(),
+            RustProfile::Government
+        ));
         assert!(matches!(profile_from_u8(4).unwrap(), RustProfile::Dense));
         assert!(matches!(
             profile_from_u8(5).unwrap(),
