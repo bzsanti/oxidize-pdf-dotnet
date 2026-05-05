@@ -1538,6 +1538,161 @@ pub unsafe extern "C" fn oxidize_rag_chunks_with_profile(
     ErrorCode::Success as c_int
 }
 
+/// Extract RAG chunks using explicit partition and/or hybrid configs.
+///
+/// Both config pointers are independently optional: passing `NULL` for either
+/// uses the upstream default (`PartitionConfig::default()` /
+/// `HybridChunkConfig::default()`). This lets callers tune just the chunk
+/// size while keeping default partitioning, or vice versa.
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `partition_config_json` — optional `PartitionConfigDto` UTF-8 JSON string,
+///   or `NULL` for defaults.
+/// * `hybrid_config_json` — optional `HybridChunkConfigDto` UTF-8 JSON string,
+///   or `NULL` for defaults.
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of
+///   `RagChunkResult` records (1-based page numbers). Free with
+///   `oxidize_free_string`.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. Error codes:
+/// - `NullPointer`: `pdf_bytes` or `out_json` is null.
+/// - `InvalidUtf8`: a non-null config pointer is not valid UTF-8.
+/// - `InvalidArgument`: a non-null config does not deserialize as the
+///   matching DTO (malformed JSON or missing fields).
+/// - `PdfParseError`: `pdf_len == 0`, parser fails, or partition fails.
+/// - `SerializationError` / `InvalidUtf8`: response build failure.
+///
+/// On any non-Success return, `*out_json` is set to null.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `partition_config_json` and `hybrid_config_json`, if non-null, must
+///   each be NUL-terminated UTF-8 C strings.
+/// - `out_json` must be a writeable `*mut *mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_rag_chunks_with_config(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    partition_config_json: *const c_char,
+    hybrid_config_json: *const c_char,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_rag_chunks_with_config");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let partition_cfg: oxidize_pdf::pipeline::PartitionConfig = if partition_config_json.is_null() {
+        oxidize_pdf::pipeline::PartitionConfig::default()
+    } else {
+        let s = match CStr::from_ptr(partition_config_json).to_str() {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("invalid UTF-8 in partition_config_json: {e}"));
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        match serde_json::from_str::<crate::pipeline_config::PartitionConfigDto>(s) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid PartitionConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        }
+    };
+
+    let hybrid_cfg: oxidize_pdf::pipeline::HybridChunkConfig = if hybrid_config_json.is_null() {
+        oxidize_pdf::pipeline::HybridChunkConfig::default()
+    } else {
+        let s = match CStr::from_ptr(hybrid_config_json).to_str() {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("invalid UTF-8 in hybrid_config_json: {e}"));
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        match serde_json::from_str::<crate::pipeline_config::HybridChunkConfigDto>(s) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid HybridChunkConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        }
+    };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with(partition_cfg) {
+        Ok(e) => e,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let chunker = oxidize_pdf::pipeline::HybridChunker::new(hybrid_cfg);
+    let hybrid_chunks = chunker.chunk(&elements);
+    let chunks: Vec<oxidize_pdf::pipeline::RagChunk> = hybrid_chunks
+        .iter()
+        .enumerate()
+        .map(|(i, hc)| oxidize_pdf::pipeline::RagChunk::from_hybrid_chunk(i, hc))
+        .collect();
+
+    let results: Vec<RagChunkResult> = chunks
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| RagChunkResult {
+            chunk_index: i,
+            text: chunk.text.clone(),
+            full_text: chunk.full_text.clone(),
+            page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(),
+            element_types: chunk.element_types.clone(),
+            heading_context: chunk.heading_context.clone(),
+            token_estimate: chunk.token_estimate,
+            is_oversized: chunk.is_oversized,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize RAG chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
 /// Extract structure-aware RAG chunks from a PDF.
 ///
 /// # Safety
@@ -2923,6 +3078,173 @@ mod profile_ffi_tests {
         let dummy: u8 = 0;
         let mut out: *mut c_char = std::ptr::null_mut();
         let code = unsafe { oxidize_rag_chunks_with_profile(&dummy, 0, 0, &mut out) };
+        assert_eq!(code, ErrorCode::PdfParseError as c_int);
+        assert!(out.is_null());
+    }
+
+    // ─── oxidize_rag_chunks_with_config (Task 9) ─────────────────────────────
+
+    /// Calls `oxidize_rag_chunks_with_config` with the supplied optional configs
+    /// (pass `None` to use the upstream default for that parameter), asserts a
+    /// successful response, and returns the parsed JSON array.
+    fn call_rag_chunks_with_config(
+        pdf: &[u8],
+        partition_cfg: Option<&str>,
+        hybrid_cfg: Option<&str>,
+    ) -> Vec<serde_json::Value> {
+        let p_owned = partition_cfg.map(|s| std::ffi::CString::new(s).unwrap());
+        let h_owned = hybrid_cfg.map(|s| std::ffi::CString::new(s).unwrap());
+        let p_ptr = p_owned.as_ref().map_or(std::ptr::null(), |c| c.as_ptr());
+        let h_ptr = h_owned.as_ref().map_or(std::ptr::null(), |c| c.as_ptr());
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(pdf.as_ptr(), pdf.len(), p_ptr, h_ptr, &mut out)
+        };
+        assert_eq!(code, ErrorCode::Success as c_int);
+        assert!(!out.is_null());
+        json_to_array(out)
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_both_null_uses_defaults() {
+        let pdf = sample_pdf();
+        let chunks = call_rag_chunks_with_config(&pdf, None, None);
+        assert!(!chunks.is_empty());
+        // Default chunk schema must be present.
+        assert!(chunks[0].get("chunk_index").is_some());
+        assert!(chunks[0].get("full_text").is_some());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_only_hybrid_supplied() {
+        // Default partition, custom hybrid — the common case for size tuning.
+        let pdf = sample_pdf();
+        let hybrid = r#"{
+            "max_tokens": 16,
+            "overlap_tokens": 0,
+            "merge_adjacent": false,
+            "propagate_headings": true,
+            "merge_policy": "SameTypeOnly"
+        }"#;
+        let chunks = call_rag_chunks_with_config(&pdf, None, Some(hybrid));
+        assert!(!chunks.is_empty());
+        for chunk in &chunks {
+            assert!(chunk.get("chunk_index").is_some());
+            assert!(chunk.get("token_estimate").and_then(|v| v.as_u64()).is_some());
+        }
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_only_partition_supplied() {
+        // Custom partition, default hybrid.
+        let pdf = sample_pdf();
+        let partition = r#"{
+            "detect_tables": false,
+            "detect_headers_footers": false,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": "Simple",
+            "min_table_confidence": 0.5
+        }"#;
+        let chunks = call_rag_chunks_with_config(&pdf, Some(partition), None);
+        assert!(!chunks.is_empty());
+        // 1-based page numbers contract.
+        for c in &chunks {
+            for p in c.get("page_numbers").unwrap().as_array().unwrap() {
+                assert!(p.as_u64().unwrap() >= 1);
+            }
+        }
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_both_supplied() {
+        let pdf = sample_pdf();
+        let partition = r#"{
+            "detect_tables": true,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": {"XYCut":{"min_gap":15.0}},
+            "min_table_confidence": 0.5
+        }"#;
+        let hybrid = r#"{
+            "max_tokens": 64,
+            "overlap_tokens": 0,
+            "merge_adjacent": true,
+            "propagate_headings": true,
+            "merge_policy": "AnyInlineContent"
+        }"#;
+        let chunks = call_rag_chunks_with_config(&pdf, Some(partition), Some(hybrid));
+        assert!(!chunks.is_empty());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_rejects_bad_partition_json() {
+        let pdf = sample_pdf();
+        let bad = std::ffi::CString::new("{not json").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(
+                pdf.as_ptr(),
+                pdf.len(),
+                bad.as_ptr(),
+                std::ptr::null(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_rejects_bad_hybrid_json() {
+        let pdf = sample_pdf();
+        let bad = std::ffi::CString::new("{not json").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(
+                pdf.as_ptr(),
+                pdf.len(),
+                std::ptr::null(),
+                bad.as_ptr(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer() {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+                std::ptr::null(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error() {
+        let dummy: u8 = 0;
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(
+                &dummy,
+                0,
+                std::ptr::null(),
+                std::ptr::null(),
+                &mut out,
+            )
+        };
         assert_eq!(code, ErrorCode::PdfParseError as c_int);
         assert!(out.is_null());
     }
