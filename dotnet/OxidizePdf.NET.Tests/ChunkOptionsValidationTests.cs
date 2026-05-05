@@ -1,3 +1,9 @@
+// ChunkOptions is intentionally [Obsolete] since 0.9.0-rag.1 — the validation
+// it performs is still load-bearing for the legacy ExtractChunksAsync overload
+// kept callable for one minor release. File-level CS0618 disable so these
+// regression tests keep compiling under TreatWarningsAsErrors=true.
+#pragma warning disable CS0618 // Type or member is obsolete
+
 using OxidizePdf.NET.Models;
 using OxidizePdf.NET.Tests.TestHelpers;
 

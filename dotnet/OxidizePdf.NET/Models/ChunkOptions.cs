@@ -1,8 +1,21 @@
 namespace OxidizePdf.NET.Models;
 
 /// <summary>
-/// Options for text chunking optimized for RAG/LLM pipelines
+/// Options for text chunking optimized for RAG/LLM pipelines.
 /// </summary>
+/// <remarks>
+/// <b>Deprecated.</b> Character-based chunking is superseded by token-aware
+/// <see cref="OxidizePdf.NET.Pipeline.HybridChunkConfig"/> (for RAG chunks via
+/// <see cref="OxidizePdf.NET.PdfExtractor.RagChunksAsync(byte[], OxidizePdf.NET.Pipeline.PartitionConfig?, OxidizePdf.NET.Pipeline.HybridChunkConfig?, System.Threading.CancellationToken)"/>)
+/// and <see cref="OxidizePdf.NET.Pipeline.SemanticChunkConfig"/> (for
+/// element-aware chunks via
+/// <see cref="OxidizePdf.NET.PdfExtractor.SemanticChunksAsync(byte[], OxidizePdf.NET.Pipeline.SemanticChunkConfig?, OxidizePdf.NET.Pipeline.PartitionConfig?, System.Threading.CancellationToken)"/>).
+/// </remarks>
+[Obsolete(
+    "Character-based chunking via ChunkOptions is superseded by token-aware HybridChunkConfig " +
+    "(for RAG chunks) or SemanticChunkConfig (for element-aware chunks). " +
+    "ChunkOptions will remain callable for one minor release before removal."
+)]
 public class ChunkOptions
 {
     /// <summary>

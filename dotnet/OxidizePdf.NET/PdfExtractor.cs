@@ -462,6 +462,7 @@ public class PdfExtractor
     /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size</exception>
     /// <exception cref="OperationCanceledException">If the operation is cancelled</exception>
     /// <exception cref="PdfExtractionException">If extraction fails</exception>
+#pragma warning disable CS0618 // Legacy ChunkOptions kept callable for one minor release.
     public Task<List<DocumentChunk>> ExtractChunksAsync(
         byte[] pdfBytes,
         ChunkOptions? options = null,
@@ -483,6 +484,7 @@ public class PdfExtractor
 
         return Task.Run(() => ExtractChunks(pdfBytes, options), cancellationToken);
     }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Get the number of pages in a PDF
@@ -549,6 +551,7 @@ public class PdfExtractor
     /// <exception cref="ArgumentOutOfRangeException">If pageNumber is less than 1 or exceeds page count</exception>
     /// <exception cref="OperationCanceledException">If the operation is cancelled</exception>
     /// <exception cref="PdfExtractionException">If extraction fails</exception>
+#pragma warning disable CS0618 // Legacy ChunkOptions kept callable for one minor release.
     public Task<List<DocumentChunk>> ExtractChunksFromPageAsync(
         byte[] pdfBytes,
         int pageNumber,
@@ -571,6 +574,7 @@ public class PdfExtractor
 
         return Task.Run(() => ExtractChunksFromPage(pdfBytes, pageNumber, options), cancellationToken);
     }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Checks if a PDF is encrypted.
@@ -1042,6 +1046,7 @@ public class PdfExtractor
     private string ExtractText(byte[] pdfBytes) =>
         CallNativeString(pdfBytes, NativeMethods.oxidize_extract_text, "Failed to extract text from PDF");
 
+#pragma warning disable CS0618 // Legacy ChunkOptions kept callable for one minor release.
     private List<DocumentChunk> ExtractChunks(byte[] pdfBytes, ChunkOptions options)
     {
         IntPtr pdfPtr = IntPtr.Zero;
@@ -1086,6 +1091,7 @@ public class PdfExtractor
                 NativeMethods.oxidize_free_string(jsonPtr);
         }
     }
+#pragma warning restore CS0618
 
     private int GetPageCount(byte[] pdfBytes) =>
         WithPinnedPdf(pdfBytes, (ptr, len) =>
@@ -1112,6 +1118,7 @@ public class PdfExtractor
             }
         });
 
+#pragma warning disable CS0618 // Legacy ChunkOptions kept callable for one minor release.
     private List<DocumentChunk> ExtractChunksFromPage(byte[] pdfBytes, int pageNumber, ChunkOptions options)
     {
         IntPtr pdfPtr = IntPtr.Zero;
@@ -1153,6 +1160,7 @@ public class PdfExtractor
                 NativeMethods.oxidize_free_string(jsonPtr);
         }
     }
+#pragma warning restore CS0618
 
     private bool IsEncrypted(byte[] pdfBytes) =>
         WithPinnedPdf(pdfBytes, (ptr, len) =>
