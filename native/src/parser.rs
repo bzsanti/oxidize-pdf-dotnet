@@ -1432,6 +1432,112 @@ pub unsafe extern "C" fn oxidize_partition_with_config(
     ErrorCode::Success as c_int
 }
 
+/// Extract RAG chunks using a pre-configured extraction profile.
+///
+/// Combines [`oxidize_partition_with_profile`] with the default
+/// `HybridChunker` settings (max_tokens 512, overlap_tokens 50,
+/// `MergePolicy::AnyInlineContent`). Use [`oxidize_rag_chunks_with_config`]
+/// when you need to tune the chunk size or merge policy.
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `profile` — `u8` discriminant; same mapping as
+///   [`oxidize_partition_with_profile`].
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of
+///   `RagChunkResult` records (`chunk_index`, `text`, `full_text`,
+///   `page_numbers` (1-based), `element_types`, `heading_context`,
+///   `token_estimate`, `is_oversized`). Free with `oxidize_free_string`.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. Error codes match
+/// [`oxidize_partition_with_profile`].
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` must be a writeable `*mut *mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_rag_chunks_with_profile(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    profile: u8,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_rag_chunks_with_profile");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let prof = match crate::pipeline_config::profile_from_u8(profile) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let chunks = match document.rag_chunks_with_profile(prof) {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(format!("Failed to extract RAG chunks: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<RagChunkResult> = chunks
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| RagChunkResult {
+            chunk_index: i,
+            text: chunk.text.clone(),
+            full_text: chunk.full_text.clone(),
+            page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(), // 0-based to 1-based
+            element_types: chunk.element_types.clone(),
+            heading_context: chunk.heading_context.clone(),
+            token_estimate: chunk.token_estimate,
+            is_oversized: chunk.is_oversized,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize RAG chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
 /// Extract structure-aware RAG chunks from a PDF.
 ///
 /// # Safety
@@ -2725,6 +2831,99 @@ mod profile_ffi_tests {
             oxidize_partition_with_config(pdf.as_ptr(), pdf.len(), std::ptr::null(), &mut out)
         };
         assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    // ─── oxidize_rag_chunks_with_profile (Task 8) ───────────────────────────
+
+    fn call_rag_chunks_with_profile(pdf: &[u8], profile: u8) -> Vec<serde_json::Value> {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { oxidize_rag_chunks_with_profile(pdf.as_ptr(), pdf.len(), profile, &mut out) };
+        assert_eq!(code, ErrorCode::Success as c_int);
+        assert!(!out.is_null());
+        json_to_array(out)
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_returns_well_formed_chunks() {
+        let pdf = sample_pdf();
+        let chunks = call_rag_chunks_with_profile(&pdf, 6 /* Rag */);
+        assert!(!chunks.is_empty(), "fixture should produce at least one chunk");
+
+        // Every chunk must carry the documented RagChunkResult schema (no smoke test).
+        for (i, c) in chunks.iter().enumerate() {
+            let idx = c
+                .get("chunk_index")
+                .and_then(|v| v.as_u64())
+                .expect("chunk_index missing");
+            assert_eq!(idx as usize, i, "chunk_index must be sequential 0..n");
+            assert!(c.get("text").and_then(|v| v.as_str()).is_some());
+            assert!(c.get("full_text").and_then(|v| v.as_str()).is_some());
+            assert!(c.get("page_numbers").and_then(|v| v.as_array()).is_some());
+            assert!(c.get("element_types").and_then(|v| v.as_array()).is_some());
+            assert!(c.get("token_estimate").and_then(|v| v.as_u64()).is_some());
+            assert!(c.get("is_oversized").and_then(|v| v.as_bool()).is_some());
+            // heading_context may be null — just check key presence.
+            assert!(c.get("heading_context").is_some());
+        }
+
+        // Page numbers must be 1-based (FFI converts the 0-based core values).
+        for c in &chunks {
+            for p in c.get("page_numbers").unwrap().as_array().unwrap() {
+                assert!(
+                    p.as_u64().unwrap() >= 1,
+                    "page_numbers must be 1-based (FFI contract)"
+                );
+            }
+        }
+
+        // The fixture's title text must surface in at least one chunk's text.
+        let has_intro = chunks.iter().any(|c| {
+            c.get("text")
+                .and_then(|v| v.as_str())
+                .is_some_and(|t| t.contains("Introduction"))
+        });
+        assert!(has_intro);
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_accepts_all_valid_profiles() {
+        let pdf = sample_pdf();
+        for profile in 0u8..=6u8 {
+            let chunks = call_rag_chunks_with_profile(&pdf, profile);
+            assert!(
+                !chunks.is_empty(),
+                "profile {profile} must produce chunks for the fixture"
+            );
+        }
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_rejects_bad_discriminant() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { oxidize_rag_chunks_with_profile(pdf.as_ptr(), pdf.len(), 99, &mut out) };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_null_pdf_returns_null_pointer() {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { oxidize_rag_chunks_with_profile(std::ptr::null(), 0, 0, &mut out) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_empty_pdf_returns_parse_error() {
+        let dummy: u8 = 0;
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_rag_chunks_with_profile(&dummy, 0, 0, &mut out) };
+        assert_eq!(code, ErrorCode::PdfParseError as c_int);
         assert!(out.is_null());
     }
 }
