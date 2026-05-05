@@ -201,6 +201,36 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Extract structure-aware RAG chunks using a pre-configured
+    /// <see cref="ExtractionProfile"/>. Combines the profile's partitioner
+    /// defaults with the upstream <c>HybridChunker::default()</c> chunking.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="profile">Extraction profile selecting partitioner defaults.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of RAG-ready chunks for the chosen profile.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty or exceeds the configured maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If chunking fails or the profile discriminant is rejected by the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<RagChunk>> RagChunksAsync(
+        byte[] pdfBytes,
+        ExtractionProfile profile,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => RagChunksWithProfile(pdfBytes, profile), cancellationToken);
+    }
+
+    /// <summary>
     /// Export PDF content as Markdown.
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
@@ -1037,6 +1067,13 @@ public class PdfExtractor
 
     private List<RagChunk> ExtractRagChunks(byte[] pdfBytes) =>
         CallNativeJson<List<RagChunk>>(pdfBytes, NativeMethods.oxidize_rag_chunks, "Failed to extract RAG chunks");
+
+    private List<RagChunk> RagChunksWithProfile(byte[] pdfBytes, ExtractionProfile profile) =>
+        CallNativeJsonWithProfile<List<RagChunk>>(
+            pdfBytes,
+            (byte)profile,
+            NativeMethods.oxidize_rag_chunks_with_profile,
+            $"Failed to extract RAG chunks with profile {profile}");
 
     private string StructuredExport(byte[] pdfBytes, NativeStringCall nativeFunc, string formatName) =>
         CallNativeString(pdfBytes, nativeFunc, $"Failed to export PDF as {formatName}");
