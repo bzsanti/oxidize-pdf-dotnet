@@ -211,6 +211,21 @@ struct SemanticChunkResult {
     is_oversized: bool,
 }
 
+/// Serialization-friendly text-chunk struct for the standalone
+/// `DocumentChunker` FFI (`oxidize_chunk_text`). Mirrors
+/// `oxidize_pdf::ai::DocumentChunk`'s public scalar fields, intentionally
+/// dropping the nested `metadata` (position + sentence-boundary flags) —
+/// the .NET `TextChunk` POCO doesn't expose them and adding them would
+/// change the wire format unnecessarily.
+#[derive(Debug, Serialize)]
+struct TextChunkResult {
+    id: String,
+    content: String,
+    tokens: usize,
+    page_numbers: Vec<usize>,
+    chunk_index: usize,
+}
+
 // ── Signature result types ────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
@@ -2088,6 +2103,153 @@ pub unsafe extern "C" fn oxidize_rag_chunks(
     ErrorCode::Success as c_int
 }
 
+/// Estimate the number of tokens in a text string using the upstream
+/// `DocumentChunker::estimate_tokens` heuristic — currently
+/// `(words * 1.33) as usize` where `words` is `text.split_whitespace().count()`.
+///
+/// # Arguments
+/// * `text` — NUL-terminated UTF-8 C string.
+/// * `out_count` — receives the estimated token count.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. `NullPointer` if either argument is
+/// null. `InvalidUtf8` if `text` is not valid UTF-8.
+///
+/// # Safety
+/// `text` must be a valid NUL-terminated UTF-8 C string. `out_count` must
+/// point to a writeable `usize`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_estimate_tokens(
+    text: *const c_char,
+    out_count: *mut usize,
+) -> c_int {
+    clear_last_error();
+
+    if text.is_null() || out_count.is_null() {
+        set_last_error("Null pointer provided to oxidize_estimate_tokens");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    let s = match CStr::from_ptr(text).to_str() {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in text: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_count = oxidize_pdf::ai::DocumentChunker::estimate_tokens(s);
+    ErrorCode::Success as c_int
+}
+
+/// Chunk arbitrary text using a fixed-size + overlap strategy. No PDF
+/// parsing involved — this is the standalone path for callers who already
+/// have raw text in hand.
+///
+/// `chunk_size` and `overlap` are interpreted in **whitespace-separated
+/// tokens** (matching the upstream chunker's tokenisation). The chunker
+/// also tries to respect sentence boundaries inside the last 10 tokens of
+/// each chunk.
+///
+/// # Arguments
+/// * `text` — NUL-terminated UTF-8 C string to chunk.
+/// * `chunk_size` — target tokens per chunk; must be positive.
+/// * `overlap` — overlap between consecutive chunks; must be strictly
+///   less than `chunk_size`.
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of
+///   `TextChunkResult` records (`id`, `content`, `tokens`,
+///   `page_numbers`, `chunk_index`). `page_numbers` is empty for
+///   text-only input — there's no page concept here.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. Error codes:
+/// - `NullPointer`: `text` or `out_json` is null.
+/// - `InvalidUtf8`: `text` is not valid UTF-8.
+/// - `InvalidArgument`: `chunk_size == 0` or `overlap >= chunk_size`.
+/// - `PdfParseError`: the upstream chunker failed (rare for valid input).
+/// - `SerializationError` / `InvalidUtf8`: response build failure.
+///
+/// On any non-Success return, `*out_json` is set to null.
+///
+/// # Safety
+/// - `text` must be a valid NUL-terminated UTF-8 C string.
+/// - `out_json` must be a writeable `*mut *mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_chunk_text(
+    text: *const c_char,
+    chunk_size: usize,
+    overlap: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if text.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_chunk_text");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if chunk_size == 0 {
+        set_last_error("chunk_size must be > 0");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+
+    if overlap >= chunk_size {
+        set_last_error(format!(
+            "overlap ({overlap}) must be strictly less than chunk_size ({chunk_size})"
+        ));
+        return ErrorCode::InvalidArgument as c_int;
+    }
+
+    let s = match CStr::from_ptr(text).to_str() {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in text: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let chunker = oxidize_pdf::ai::DocumentChunker::new(chunk_size, overlap);
+    let chunks = match chunker.chunk_text(s) {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(format!("chunk_text failed: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<TextChunkResult> = chunks
+        .into_iter()
+        .map(|c| TextChunkResult {
+            id: c.id,
+            content: c.content,
+            tokens: c.tokens,
+            page_numbers: c.page_numbers,
+            chunk_index: c.chunk_index,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
 // ── Annotations FFI ──────────────────────────────────────────────────────────
 
 /// Extract all annotations from a PDF document as JSON.
@@ -3862,6 +4024,152 @@ mod profile_ffi_tests {
         };
         assert_eq!(code, ErrorCode::PdfParseError as c_int);
         assert!(out.is_null());
+    }
+
+    // ─── oxidize_estimate_tokens / oxidize_chunk_text (Task 10c) ───────────
+    // RAG-008 (chunk standalone text) + RAG-009 (token estimator).
+
+    #[test]
+    fn oxidize_estimate_tokens_uses_word_count_x_1_33() {
+        // Upstream `DocumentChunker::estimate_tokens` returns
+        // `(words * 1.33) as usize`. Lock the contract here so a silent
+        // upstream change to the formula breaks this test rather than
+        // silently shifting downstream chunk-count assumptions.
+        let cases = [
+            ("hello world from oxidize", 4 /*words*/, 5 /*tokens, floor(4*1.33)=5*/),
+            ("one", 1, 1 /*floor(1.33)=1*/),
+            ("a b c d e f g h", 8, 10 /*floor(10.64)=10*/),
+            ("", 0, 0),
+        ];
+        for (text, words, expected) in cases {
+            let cs = std::ffi::CString::new(text).unwrap();
+            let mut out: usize = usize::MAX;
+            let code = unsafe { oxidize_estimate_tokens(cs.as_ptr(), &mut out) };
+            assert_eq!(code, ErrorCode::Success as c_int);
+            assert_eq!(
+                out, expected,
+                "input={:?} words={} expected={} got={}",
+                text, words, expected, out
+            );
+        }
+    }
+
+    #[test]
+    fn oxidize_estimate_tokens_null_text_returns_null_pointer() {
+        let mut out: usize = 0;
+        let code = unsafe { oxidize_estimate_tokens(std::ptr::null(), &mut out) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+    }
+
+    #[test]
+    fn oxidize_estimate_tokens_null_out_returns_null_pointer() {
+        let cs = std::ffi::CString::new("text").unwrap();
+        let code = unsafe { oxidize_estimate_tokens(cs.as_ptr(), std::ptr::null_mut()) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+    }
+
+    fn call_chunk_text(text: &str, chunk_size: usize, overlap: usize) -> Vec<serde_json::Value> {
+        let cs = std::ffi::CString::new(text).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { oxidize_chunk_text(cs.as_ptr(), chunk_size, overlap, &mut out) };
+        assert_eq!(code, ErrorCode::Success as c_int);
+        assert!(!out.is_null());
+        json_to_array(out)
+    }
+
+    #[test]
+    fn oxidize_chunk_text_splits_long_input_with_expected_schema() {
+        let long = "word ".repeat(200);
+        let chunks = call_chunk_text(&long, 50, 5);
+
+        // chunk_size=50, overlap=5 → step=45 → 200 tokens / 45 ≈ 5 chunks.
+        assert!(chunks.len() >= 2, "expected multiple chunks for 200-word/size=50 input");
+
+        // Schema validation: every documented field present, correctly typed.
+        for (i, c) in chunks.iter().enumerate() {
+            let id = c.get("id").and_then(|v| v.as_str()).expect("id missing");
+            assert!(id.starts_with("chunk_"), "id must follow `chunk_N` format, got {id}");
+            assert!(c.get("content").and_then(|v| v.as_str()).is_some());
+            assert!(c.get("tokens").and_then(|v| v.as_u64()).is_some());
+            assert!(c.get("page_numbers").and_then(|v| v.as_array()).is_some());
+            assert_eq!(
+                c.get("chunk_index").and_then(|v| v.as_u64()).unwrap() as usize,
+                i,
+                "chunk_index must be sequential 0..n"
+            );
+        }
+    }
+
+    #[test]
+    fn oxidize_chunk_text_overlap_produces_shared_words_between_consecutive_chunks() {
+        // With chunk_size=10 and overlap=3 over 30 distinct numbered words,
+        // chunks 0 and 1 must share at least one word — the overlap parameter
+        // must affect content, not just chunk boundaries.
+        let words: Vec<String> = (0..30).map(|i| format!("w{i}")).collect();
+        let text = words.join(" ");
+        let chunks = call_chunk_text(&text, 10, 3);
+        assert!(chunks.len() >= 2);
+
+        let c0 = chunks[0].get("content").and_then(|v| v.as_str()).unwrap();
+        let c1 = chunks[1].get("content").and_then(|v| v.as_str()).unwrap();
+        let c0_words: std::collections::HashSet<&str> = c0.split_whitespace().collect();
+        let c1_words: std::collections::HashSet<&str> = c1.split_whitespace().collect();
+        let shared: Vec<&&str> = c0_words.intersection(&c1_words).collect();
+        assert!(
+            !shared.is_empty(),
+            "consecutive chunks must share words when overlap > 0; \
+             c0={:?}, c1={:?}",
+            c0_words,
+            c1_words
+        );
+    }
+
+    #[test]
+    fn oxidize_chunk_text_short_input_single_chunk() {
+        // 5-word input with chunk_size=100 must produce exactly one chunk.
+        let chunks = call_chunk_text("one two three four five", 100, 10);
+        assert_eq!(chunks.len(), 1, "short input must produce exactly one chunk");
+        assert_eq!(chunks[0].get("chunk_index").unwrap(), 0);
+    }
+
+    #[test]
+    fn oxidize_chunk_text_rejects_overlap_ge_size() {
+        let cs = std::ffi::CString::new("some text").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_chunk_text(cs.as_ptr(), 10, 10, &mut out) };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+
+        // overlap > size is also invalid.
+        let mut out2: *mut c_char = std::ptr::null_mut();
+        let code2 = unsafe { oxidize_chunk_text(cs.as_ptr(), 5, 10, &mut out2) };
+        assert_eq!(code2, ErrorCode::InvalidArgument as c_int);
+        assert!(out2.is_null());
+    }
+
+    #[test]
+    fn oxidize_chunk_text_rejects_zero_chunk_size() {
+        let cs = std::ffi::CString::new("some text").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_chunk_text(cs.as_ptr(), 0, 0, &mut out) };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_chunk_text_null_text_returns_null_pointer() {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_chunk_text(std::ptr::null(), 10, 0, &mut out) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_chunk_text_null_out_returns_null_pointer() {
+        let cs = std::ffi::CString::new("text").unwrap();
+        let code = unsafe { oxidize_chunk_text(cs.as_ptr(), 10, 0, std::ptr::null_mut()) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
     }
 }
 
