@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using OxidizePdf.NET.Ai;
 using OxidizePdf.NET.Models;
 using OxidizePdf.NET.Pipeline;
 
@@ -335,6 +336,46 @@ public class PdfExtractor
         cancellationToken.ThrowIfCancellationRequested();
 
         return Task.Run(() => StructuredExport(pdfBytes, NativeMethods.oxidize_to_markdown, "markdown"), cancellationToken);
+    }
+
+    /// <summary>
+    /// Export PDF content as Markdown using explicit
+    /// <see cref="MarkdownOptions"/> (RAG-012). The four flag combinations
+    /// produce four distinct outputs (FFI dispatches to the matching upstream
+    /// static exporter):
+    /// <list type="bullet">
+    ///   <item><c>(true, true)</c>: YAML frontmatter + per-page markers.</item>
+    ///   <item><c>(true, false)</c>: YAML frontmatter, no page markers.</item>
+    ///   <item><c>(false, true)</c>: page markers, no YAML.</item>
+    ///   <item><c>(false, false)</c>: plain text under a basic <c># Document</c> heading.</item>
+    /// </list>
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="options">Markdown export options (required).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Markdown representation of the PDF content matching the
+    /// supplied flag combination.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> or <paramref name="options"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty or exceeds the configured maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If export fails inside the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<string> ToMarkdownAsync(
+        byte[] pdfBytes,
+        MarkdownOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(options);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var optionsJson = options.ToJson();
+        return Task.Run(() => MarkdownWithOptions(pdfBytes, optionsJson), cancellationToken);
     }
 
     /// <summary>
@@ -1194,6 +1235,24 @@ public class PdfExtractor
             {
                 if (jsonPtr != IntPtr.Zero)
                     NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+
+    private string MarkdownWithOptions(byte[] pdfBytes, string optionsJson) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr textPtr = IntPtr.Zero;
+            try
+            {
+                var rc = NativeMethods.oxidize_to_markdown_with_options(
+                    ptr, len, optionsJson, out textPtr);
+                ThrowIfError(rc, "Failed to export PDF as markdown with explicit options");
+                return Marshal.PtrToStringUTF8(textPtr) ?? string.Empty;
+            }
+            finally
+            {
+                if (textPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(textPtr);
             }
         });
 
