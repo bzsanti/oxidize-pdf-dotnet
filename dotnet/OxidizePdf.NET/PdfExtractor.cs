@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using OxidizePdf.NET.Models;
+using OxidizePdf.NET.Pipeline;
 
 namespace OxidizePdf.NET;
 
@@ -109,6 +110,35 @@ public class PdfExtractor
         cancellationToken.ThrowIfCancellationRequested();
 
         return Task.Run(() => Partition(pdfBytes), cancellationToken);
+    }
+
+    /// <summary>
+    /// Partition a PDF using a pre-configured <see cref="ExtractionProfile"/>.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="profile">Extraction profile selecting partitioner defaults
+    /// tuned for a class of documents (general, academic, form, etc.).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of semantic elements for the chosen profile.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty or exceeds the configured maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If partitioning fails or the profile discriminant is rejected by the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<PdfElement>> PartitionAsync(
+        byte[] pdfBytes,
+        ExtractionProfile profile,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => PartitionWithProfile(pdfBytes, profile), cancellationToken);
     }
 
     /// <summary>
@@ -707,6 +737,7 @@ public class PdfExtractor
     // ── FFI helpers ──────────────────────────────────────────────────────────
 
     private delegate int NativeJsonCall(IntPtr pdfBytes, nuint pdfLen, out IntPtr outJson);
+    private delegate int NativeJsonCallWithProfile(IntPtr pdfBytes, nuint pdfLen, byte profile, out IntPtr outJson);
     private delegate int NativeStringCall(IntPtr pdfBytes, nuint pdfLen, out IntPtr outText);
 
     private static T WithPinnedPdf<T>(byte[] pdfBytes, Func<IntPtr, nuint, T> action)
@@ -736,6 +767,30 @@ public class PdfExtractor
                 ThrowIfError(result, errorMsg);
                 // Use "[]" as fallback: List<T> types need a JSON array, not object.
                 // This path only triggers if Rust returns Success without setting out_json.
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+                return JsonSerializer.Deserialize<T>(json) ?? new T();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+    }
+
+    private static T CallNativeJsonWithProfile<T>(
+        byte[] pdfBytes,
+        byte profile,
+        NativeJsonCallWithProfile nativeCall,
+        string errorMsg) where T : class, new()
+    {
+        return WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var result = nativeCall(ptr, len, profile, out jsonPtr);
+                ThrowIfError(result, errorMsg);
                 var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
                 return JsonSerializer.Deserialize<T>(json) ?? new T();
             }
@@ -904,6 +959,13 @@ public class PdfExtractor
 
     private List<PdfElement> Partition(byte[] pdfBytes) =>
         CallNativeJson<List<PdfElement>>(pdfBytes, NativeMethods.oxidize_partition, "Failed to partition PDF");
+
+    private List<PdfElement> PartitionWithProfile(byte[] pdfBytes, ExtractionProfile profile) =>
+        CallNativeJsonWithProfile<List<PdfElement>>(
+            pdfBytes,
+            (byte)profile,
+            NativeMethods.oxidize_partition_with_profile,
+            $"Failed to partition PDF with profile {profile}");
 
     private List<RagChunk> ExtractRagChunks(byte[] pdfBytes) =>
         CallNativeJson<List<RagChunk>>(pdfBytes, NativeMethods.oxidize_rag_chunks, "Failed to extract RAG chunks");
