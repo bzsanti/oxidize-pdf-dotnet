@@ -1071,6 +1071,161 @@ unsafe fn structured_export_impl(
     ErrorCode::Success as c_int
 }
 
+/// Export PDF content as Markdown using explicit `MarkdownOptions`.
+///
+/// `MarkdownExporter::new(opts).export(&text)` in oxidize-pdf 2.6.0 is a
+/// Phase-1 stub that ignores `include_page_numbers` and emits at most a
+/// trivial `# Document\n\n` heading — strictly poorer than the legacy
+/// [`oxidize_to_markdown`]. To honour `MarkdownOptions` semantically per
+/// RAG-012, this function dispatches to the four well-tested static
+/// exporters whose output matrix already matches the flag combinations:
+///
+/// | `include_metadata` | `include_page_numbers` | Backend |
+/// |--------------------|------------------------|---------|
+/// | `true`             | `true`                 | `export_with_metadata_and_pages` |
+/// | `true`             | `false`               | `export_with_metadata` |
+/// | `false`            | `true`                 | `export_with_pages` |
+/// | `false`            | `false`               | `export_text` |
+///
+/// `include_metadata=true` emits a YAML frontmatter (`title:`, `pages:`,
+/// optional `created:` / `author:`). `include_page_numbers=true` emits
+/// per-page `**Page N**` markers separated by `\n\n---\n\n`.
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `options_json` — required NUL-terminated UTF-8 C string matching
+///   [`crate::pipeline_config::MarkdownOptionsDto`].
+/// * `out_text` — receives a heap-allocated UTF-8 markdown string. Free
+///   with `oxidize_free_string`.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `options_json` must be a NUL-terminated UTF-8 C string.
+/// - `out_text` must be a writeable `*mut *mut c_char`. On any non-Success
+///   return, `*out_text` is set to null.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_to_markdown_with_options(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    options_json: *const c_char,
+    out_text: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || options_json.is_null() || out_text.is_null() {
+        set_last_error("Null pointer provided to oxidize_to_markdown_with_options");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_text = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let opts_str = match CStr::from_ptr(options_json).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in options_json: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let opts: oxidize_pdf::ai::MarkdownOptions =
+        match serde_json::from_str::<crate::pipeline_config::MarkdownOptionsDto>(opts_str) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid MarkdownOptions JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+
+    // Extract per-page text once — used regardless of flag combination.
+    let extracted = match document.extract_text() {
+        Ok(t) => t,
+        Err(e) => {
+            set_last_error(format!("Failed to extract text: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    let pages: Vec<(usize, String)> = extracted
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (i + 1, p.text.clone()))
+        .collect();
+    let flat_text = pages
+        .iter()
+        .map(|(_, t)| t.clone())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    // Dispatch by the flag matrix. Each branch uses the concrete static
+    // exporter that matches its semantics — we never call the Phase-1
+    // stub `MarkdownExporter::new(opts).export()`.
+    let md_result = match (opts.include_metadata, opts.include_page_numbers) {
+        (true, _) => {
+            // Need DocumentMetadata for any metadata-enabled path.
+            let parsed = match document.metadata() {
+                Ok(m) => m,
+                Err(e) => {
+                    set_last_error(format!("Failed to read PDF metadata: {e}"));
+                    return ErrorCode::PdfParseError as c_int;
+                }
+            };
+            let ai_metadata = oxidize_pdf::ai::DocumentMetadata {
+                title: parsed
+                    .title
+                    .unwrap_or_else(|| "Untitled Document".to_string()),
+                page_count: pages.len(),
+                created_at: parsed.creation_date.clone(),
+                author: parsed.author,
+            };
+            if opts.include_page_numbers {
+                oxidize_pdf::ai::MarkdownExporter::export_with_metadata_and_pages(
+                    &pages,
+                    &ai_metadata,
+                )
+            } else {
+                oxidize_pdf::ai::MarkdownExporter::export_with_metadata(&flat_text, &ai_metadata)
+            }
+        }
+        (false, true) => oxidize_pdf::ai::MarkdownExporter::export_with_pages(&pages),
+        (false, false) => oxidize_pdf::ai::MarkdownExporter::export_text(&flat_text),
+    };
+
+    let md = match md_result {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Markdown export failed: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(md) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Markdown contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_text = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
 /// Export PDF content as Markdown.
 ///
 /// # Safety
@@ -3568,6 +3723,142 @@ mod profile_ffi_tests {
         let mut out: *mut c_char = std::ptr::null_mut();
         let code = unsafe {
             oxidize_semantic_chunks(&dummy, 0, std::ptr::null(), sem.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::PdfParseError as c_int);
+        assert!(out.is_null());
+    }
+
+    // ─── oxidize_to_markdown_with_options (Task 10b, RAG-012) ────────────────
+
+    fn call_to_markdown(pdf: &[u8], opts_json: &str) -> String {
+        let opts_c = std::ffi::CString::new(opts_json).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_to_markdown_with_options(pdf.as_ptr(), pdf.len(), opts_c.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::Success as c_int, "expected Success");
+        assert!(!out.is_null());
+        let md = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe {
+            crate::oxidize_free_string(out);
+        }
+        assert!(!md.is_empty(), "markdown output must not be empty");
+        md
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_metadata_true_emits_yaml_frontmatter() {
+        let pdf = sample_pdf();
+        let md = call_to_markdown(
+            &pdf,
+            r#"{"include_metadata":true,"include_page_numbers":false}"#,
+        );
+        // YAML frontmatter contract from MarkdownExporter::export_with_metadata.
+        assert!(md.starts_with("---\n"), "metadata=true must start with YAML frontmatter");
+        assert!(md.contains("title:"));
+        assert!(md.contains("pages:"));
+        assert!(md.contains("---\n\n# "), "must close frontmatter and emit title heading");
+        // No per-page markers when include_page_numbers=false.
+        assert!(!md.contains("**Page "), "page markers must NOT appear when include_page_numbers=false");
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_metadata_false_no_yaml() {
+        let pdf = sample_pdf();
+        let md = call_to_markdown(
+            &pdf,
+            r#"{"include_metadata":false,"include_page_numbers":false}"#,
+        );
+        assert!(!md.starts_with("---\n"), "metadata=false must NOT emit YAML frontmatter");
+        assert!(!md.contains("title:"));
+        assert!(!md.contains("**Page "));
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_pages_only_emits_page_markers_no_yaml() {
+        let pdf = sample_pdf();
+        let md = call_to_markdown(
+            &pdf,
+            r#"{"include_metadata":false,"include_page_numbers":true}"#,
+        );
+        assert!(!md.starts_with("---\n"), "no YAML when metadata=false");
+        assert!(md.contains("**Page 1**"), "must emit per-page marker for page 1");
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_both_true_emits_yaml_and_page_markers() {
+        let pdf = sample_pdf();
+        let md = call_to_markdown(
+            &pdf,
+            r#"{"include_metadata":true,"include_page_numbers":true}"#,
+        );
+        assert!(md.starts_with("---\n"), "YAML frontmatter when metadata=true");
+        assert!(md.contains("title:"));
+        assert!(md.contains("**Page 1**"), "page marker when include_page_numbers=true");
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_distinct_flag_combinations_produce_distinct_output() {
+        // The four flag combinations must produce four distinct outputs.
+        let pdf = sample_pdf();
+        let combos = [
+            (false, false),
+            (true, false),
+            (false, true),
+            (true, true),
+        ];
+        let outputs: Vec<String> = combos
+            .iter()
+            .map(|(meta, pages)| {
+                call_to_markdown(
+                    &pdf,
+                    &format!(
+                        r#"{{"include_metadata":{meta},"include_page_numbers":{pages}}}"#
+                    ),
+                )
+            })
+            .collect();
+        for i in 0..outputs.len() {
+            for j in (i + 1)..outputs.len() {
+                assert_ne!(
+                    outputs[i], outputs[j],
+                    "combos {:?} and {:?} produced identical markdown — options ignored",
+                    combos[i], combos[j]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_rejects_bad_json() {
+        let pdf = sample_pdf();
+        let bad = std::ffi::CString::new("{not json").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_to_markdown_with_options(pdf.as_ptr(), pdf.len(), bad.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_null_options_returns_null_pointer() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_to_markdown_with_options(pdf.as_ptr(), pdf.len(), std::ptr::null(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_empty_pdf_returns_parse_error() {
+        let dummy: u8 = 0;
+        let opts = std::ffi::CString::new(r#"{"include_metadata":true,"include_page_numbers":true}"#).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_to_markdown_with_options(&dummy, 0, opts.as_ptr(), &mut out)
         };
         assert_eq!(code, ErrorCode::PdfParseError as c_int);
         assert!(out.is_null());
