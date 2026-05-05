@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Inherited from oxidize-pdf 2.6.0**: CWE-20 hardening — non-finite floats (`NaN`, `±inf`) in colour content-stream emission are now sanitised to `0.0` at the writer boundary. Previously, direct construction of `Color::Rgb(NaN, ...)` (or `Gray`/`Cmyk`) bypassed the clamping in the public constructors and produced ISO 32000-1-non-conformant content streams that conformant viewers reject (availability DoS via crafted input). The five `Color::Rgb(r, g, b)` sites in our annotation FFI (`native/src/annotations.rs`) inherit this protection automatically — no FFI code change needed. Upstream advisory: oxidize-pdf issue #220.
+
+### Changed
+- **Updated oxidize-pdf dependency from 2.5.4 to 2.6.0**. Bundle release closing six upstream issues (security #220, #221 colour-emission single-source-of-truth, #216 `text_flow()` page-state propagation, #217 `TableStyle` header typography, #218 `Table::render_with_split` / `render_strict` / `add_paginated_table`, #212 `fill_field` non-WinAnsi encoding). Also picks up 2.5.5 → 2.5.7 fixes (per-font character tracking for subsetting #204, PDF-string escape SEC-F1, resource-name validation SEC-F5, deterministic resource-dict ordering, Roman-numeral page label case fix).
+- **Behavioural improvement: `oxidize_text_flow_create` now inherits page-level font / font_size / fill_color from the caller's `Page::text()` state** (oxidize-pdf #216). Previously these were silently dropped and the caller had to re-set them on the flow. Existing FFI callers that explicitly call `oxidize_text_flow_set_font` after `oxidize_text_flow_create` are unaffected.
+- **Slimmed native crate features** — switched to `default-features = false` and explicitly listed `["compression", "semantic", "signatures"]`. Removed the implicitly-pulled `ocr-tesseract` default feature (no FFI entry point exposed OCR). Native binary size **11 MB → 5.7 MB (−48%)** on linux-x64; equivalent reduction expected on `osx-x64` / `osx-arm64` / `win-x64`. `compression` (flate2) remains explicitly enabled — same wire format as before.
+
+### Dependencies
+- oxidize-pdf 2.5.4 → 2.6.0
+- Disabled implicit upstream defaults (`ocr-tesseract`); compression kept explicit
+
 ## [0.7.2] - 2026-04-21
 
 ### Changed
