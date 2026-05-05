@@ -1192,6 +1192,118 @@ pub unsafe extern "C" fn oxidize_partition(
     ErrorCode::Success as c_int
 }
 
+/// Partition a PDF using a pre-configured extraction profile.
+///
+/// The profile selects sensible defaults for `ExtractionOptions` (column
+/// detection, space threshold) and `PartitionConfig` (header/footer zones,
+/// title font ratio, table confidence) tuned for a class of documents
+/// (`Standard`, `Academic`, `Form`, `Government`, `Dense`, `Presentation`,
+/// `Rag`).
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `profile` — `u8` discriminant matching the C# `ExtractionProfile` enum
+///   (0 = Standard, 1 = Academic, 2 = Form, 3 = Government, 4 = Dense,
+///   5 = Presentation, 6 = Rag). Mapping verified by
+///   [`crate::pipeline_config::profile_from_u8`].
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of element
+///   results. Caller must free with `oxidize_free_string`.
+///
+/// # Returns
+/// `ErrorCode::Success` on success, otherwise an error code; details available
+/// via `oxidize_get_last_error`.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes (or null only
+///   when `pdf_len == 0` is also paired with a non-null sentinel — see
+///   tests). `pdf_len == 0` always returns `PdfParseError`.
+/// - `out_json` must be a writeable `*mut *mut c_char`. On any non-Success
+///   return, `*out_json` is set to null.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_partition_with_profile(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    profile: u8,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_partition_with_profile");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let prof = match crate::pipeline_config::profile_from_u8(profile) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with_profile(prof) {
+        Ok(elems) => elems,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<PdfElementResult> = elements
+        .iter()
+        .map(|el| {
+            let bbox = el.bbox();
+            PdfElementResult {
+                element_type: el.type_name().to_string(),
+                text: el.display_text(),
+                page_number: el.page() + 1, // Convert 0-based to 1-based
+                x: bbox.x,
+                y: bbox.y,
+                width: bbox.width,
+                height: bbox.height,
+                confidence: el.metadata().confidence,
+            }
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize elements: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
 /// Extract structure-aware RAG chunks from a PDF.
 ///
 /// # Safety
@@ -2244,6 +2356,103 @@ pub unsafe extern "C" fn oxidize_get_form_fields(
 
     *out_json = c_string.into_raw();
     ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod profile_ffi_tests {
+    use super::*;
+    use std::ffi::CStr;
+
+    /// Minimal-but-realistic PDF fixture: A4 with a title and a paragraph.
+    /// Built via the `oxidize_pdf` writer so the partitioner has actual
+    /// fragments to classify.
+    fn sample_pdf() -> Vec<u8> {
+        use oxidize_pdf::{Document, Font, Page};
+        let mut doc = Document::new();
+        let mut page = Page::a4();
+        page.text()
+            .set_font(Font::Helvetica, 14.0)
+            .at(50.0, 750.0)
+            .write("Introduction")
+            .unwrap();
+        page.text()
+            .set_font(Font::Helvetica, 11.0)
+            .at(50.0, 720.0)
+            .write("This is a sample paragraph for testing partitioning by profile.")
+            .unwrap();
+        doc.add_page(page);
+        doc.to_bytes().unwrap()
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_returns_json_array() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_profile(pdf.as_ptr(), pdf.len(), 6 /* Rag */, &mut out)
+        };
+        assert_eq!(code, ErrorCode::Success as c_int);
+        assert!(!out.is_null());
+        let json = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe {
+            crate::oxidize_free_string(out);
+        }
+        assert!(json.starts_with('['));
+        assert!(json.contains("element_type"));
+        assert!(json.contains("page_number"));
+        assert!(json.contains("Introduction"));
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_rejects_bad_discriminant() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { oxidize_partition_with_profile(pdf.as_ptr(), pdf.len(), 99, &mut out) };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_null_pdf_returns_null_pointer() {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { oxidize_partition_with_profile(std::ptr::null(), 0, 0, &mut out) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_empty_pdf_returns_parse_error() {
+        let pdf: Vec<u8> = Vec::new();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        // Use a non-null pointer with len=0 so the null-check passes.
+        let dummy: u8 = 0;
+        let code =
+            unsafe { oxidize_partition_with_profile(&dummy, pdf.len(), 0, &mut out) };
+        assert_eq!(code, ErrorCode::PdfParseError as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_accepts_all_valid_profiles() {
+        let pdf = sample_pdf();
+        for profile in 0u8..=6u8 {
+            let mut out: *mut c_char = std::ptr::null_mut();
+            let code = unsafe {
+                oxidize_partition_with_profile(pdf.as_ptr(), pdf.len(), profile, &mut out)
+            };
+            assert_eq!(
+                code,
+                ErrorCode::Success as c_int,
+                "profile {profile} should succeed"
+            );
+            assert!(!out.is_null(), "profile {profile} returned null output");
+            unsafe {
+                crate::oxidize_free_string(out);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
