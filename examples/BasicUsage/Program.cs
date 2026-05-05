@@ -1,5 +1,7 @@
 using OxidizePdf.NET;
+using OxidizePdf.NET.Ai;
 using OxidizePdf.NET.Models;
+using OxidizePdf.NET.Pipeline;
 
 namespace BasicUsage;
 
@@ -51,7 +53,7 @@ class Program
         var pdfBytes = await File.ReadAllBytesAsync(pdfPath);
         Console.WriteLine($"PDF size: {pdfBytes.Length:N0} bytes\n");
 
-        using var extractor = new PdfExtractor();
+        var extractor = new PdfExtractor();
 
         // Example 1: Extract plain text
         Console.WriteLine("Example 1: Plain Text Extraction");
@@ -64,9 +66,11 @@ class Program
         Console.WriteLine($"Extracted {text.Length:N0} characters in {elapsed.TotalMilliseconds:F2}ms");
         Console.WriteLine($"\nFirst 500 characters:\n{text[..Math.Min(500, text.Length)]}...\n");
 
-        // Example 2: Extract chunks for RAG/LLM
-        Console.WriteLine("\nExample 2: Chunked Extraction (RAG/LLM optimized)");
-        Console.WriteLine("--------------------------------------------------");
+        // Example 2 (LEGACY): character-based chunking via ChunkOptions.
+        // Kept for one minor release. Prefer Example 3+ for new code.
+#pragma warning disable CS0618 // ChunkOptions is obsolete; demo kept until removal.
+        Console.WriteLine("\nExample 2: Chunked Extraction (LEGACY ChunkOptions)");
+        Console.WriteLine("---------------------------------------------------");
 
         startTime = DateTime.UtcNow;
 
@@ -97,6 +101,51 @@ class Program
         }
 
         Console.WriteLine($"\n... and {chunks.Count - 3} more chunks");
+#pragma warning restore CS0618
+
+        // Example 3 (NEW): RAG chunks with the Rag profile — token-aware,
+        // structure-aware, ready for vector store ingestion.
+        Console.WriteLine("\nExample 3: RAG profile demo");
+        Console.WriteLine("---------------------------");
+        var ragChunks = await extractor.RagChunksAsync(pdfBytes, ExtractionProfile.Rag);
+        Console.WriteLine($"Extracted {ragChunks.Count} RAG chunks (profile=Rag)");
+        foreach (var chunk in ragChunks.Take(3))
+        {
+            var preview = chunk.Text[..Math.Min(80, chunk.Text.Length)];
+            Console.WriteLine($"  Chunk {chunk.ChunkIndex} pages=[{string.Join(",", chunk.PageNumbers)}] tokens≈{chunk.TokenEstimate}");
+            Console.WriteLine($"    heading: {chunk.HeadingContext ?? "(none)"}");
+            Console.WriteLine($"    text   : {preview}…");
+        }
+
+        // Example 4 (NEW): Custom partition config — XY-Cut reading order
+        // for multi-column layouts plus a tighter table-confidence floor.
+        Console.WriteLine("\nExample 4: Custom partition config (multi-column)");
+        Console.WriteLine("-------------------------------------------------");
+        var partitionCfg = new PartitionConfig()
+            .WithReadingOrder(ReadingOrderStrategy.XyCut(20.0))
+            .WithMinTableConfidence(0.7);
+        var elements = await extractor.PartitionAsync(pdfBytes, partitionCfg);
+        Console.WriteLine($"Got {elements.Count} semantic elements using XY-Cut reading order");
+
+        // Example 5 (NEW): Markdown export with explicit options (RAG-012).
+        Console.WriteLine("\nExample 5: Markdown with options");
+        Console.WriteLine("--------------------------------");
+        var md = await extractor.ToMarkdownAsync(
+            pdfBytes,
+            new MarkdownOptions { IncludeMetadata = false, IncludePageNumbers = true });
+        Console.WriteLine(md[..Math.Min(200, md.Length)]);
+
+        // Example 6 (NEW): Standalone DocumentChunker — works on raw text,
+        // no PDF needed. Useful for chunking non-PDF sources before
+        // embedding-store ingestion.
+        Console.WriteLine("\nExample 6: Standalone DocumentChunker (no PDF)");
+        Console.WriteLine("----------------------------------------------");
+        var chunker = new DocumentChunker(chunkSize: 64, overlap: 8);
+        var longText = "Paragraph one about oxidize-pdf. " +
+                       string.Concat(Enumerable.Repeat("word ", 200));
+        var textChunks = chunker.ChunkText(longText);
+        Console.WriteLine($"Chunked {longText.Length} chars into {textChunks.Count} chunks");
+        Console.WriteLine($"Token estimate for input: {DocumentChunker.EstimateTokens(longText)}");
     }
 
 }

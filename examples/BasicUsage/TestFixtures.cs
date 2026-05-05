@@ -1,3 +1,7 @@
+// Test runner kept on the legacy ChunkOptions API so it exercises the
+// backward-compat path through the deprecation grace period.
+#pragma warning disable CS0618 // ChunkOptions is obsolete; intentional.
+
 using OxidizePdf.NET;
 using OxidizePdf.NET.Models;
 using System.Diagnostics;
@@ -28,7 +32,7 @@ public class TestFixtures
         var stats = new TestStatistics();
         var stopwatch = Stopwatch.StartNew();
 
-        using var extractor = new PdfExtractor();
+        var extractor = new PdfExtractor();
 
         foreach (var pdfPath in pdfFiles)
         {
