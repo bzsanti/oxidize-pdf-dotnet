@@ -142,6 +142,42 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Partition a PDF into typed semantic elements using an explicit
+    /// <see cref="PartitionConfig"/>. Use this when the defaults from a
+    /// profile aren't enough — custom title font ratio, header/footer
+    /// zones, table confidence threshold, or a non-default
+    /// <see cref="ReadingOrderStrategy"/>.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="config">Partition configuration. Validated client-side
+    /// via <see cref="PartitionConfig.Validate"/> before any FFI call.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of semantic elements.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> or <paramref name="config"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty, exceeds the configured maximum size, or <paramref name="config"/> fails validation.</exception>
+    /// <exception cref="PdfExtractionException">If partitioning fails inside the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<PdfElement>> PartitionAsync(
+        byte[] pdfBytes,
+        PartitionConfig config,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(config);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+        config.Validate();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var json = config.ToJson();
+        return Task.Run(() => PartitionWithConfig(pdfBytes, json), cancellationToken);
+    }
+
+    /// <summary>
     /// Extract structure-aware RAG chunks from a PDF using the hybrid chunking pipeline.
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
@@ -738,6 +774,7 @@ public class PdfExtractor
 
     private delegate int NativeJsonCall(IntPtr pdfBytes, nuint pdfLen, out IntPtr outJson);
     private delegate int NativeJsonCallWithProfile(IntPtr pdfBytes, nuint pdfLen, byte profile, out IntPtr outJson);
+    private delegate int NativeJsonCallWithConfig(IntPtr pdfBytes, nuint pdfLen, string configJson, out IntPtr outJson);
     private delegate int NativeStringCall(IntPtr pdfBytes, nuint pdfLen, out IntPtr outText);
 
     private static T WithPinnedPdf<T>(byte[] pdfBytes, Func<IntPtr, nuint, T> action)
@@ -790,6 +827,30 @@ public class PdfExtractor
             try
             {
                 var result = nativeCall(ptr, len, profile, out jsonPtr);
+                ThrowIfError(result, errorMsg);
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+                return JsonSerializer.Deserialize<T>(json) ?? new T();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+    }
+
+    private static T CallNativeJsonWithConfig<T>(
+        byte[] pdfBytes,
+        string configJson,
+        NativeJsonCallWithConfig nativeCall,
+        string errorMsg) where T : class, new()
+    {
+        return WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var result = nativeCall(ptr, len, configJson, out jsonPtr);
                 ThrowIfError(result, errorMsg);
                 var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
                 return JsonSerializer.Deserialize<T>(json) ?? new T();
@@ -966,6 +1027,13 @@ public class PdfExtractor
             (byte)profile,
             NativeMethods.oxidize_partition_with_profile,
             $"Failed to partition PDF with profile {profile}");
+
+    private List<PdfElement> PartitionWithConfig(byte[] pdfBytes, string configJson) =>
+        CallNativeJsonWithConfig<List<PdfElement>>(
+            pdfBytes,
+            configJson,
+            NativeMethods.oxidize_partition_with_config,
+            "Failed to partition PDF with explicit PartitionConfig");
 
     private List<RagChunk> ExtractRagChunks(byte[] pdfBytes) =>
         CallNativeJson<List<RagChunk>>(pdfBytes, NativeMethods.oxidize_rag_chunks, "Failed to extract RAG chunks");
