@@ -1304,6 +1304,134 @@ pub unsafe extern "C" fn oxidize_partition_with_profile(
     ErrorCode::Success as c_int
 }
 
+/// Partition a PDF using an explicit `PartitionConfig` supplied as JSON.
+///
+/// Use this when callers need fine-grained control over the partitioner —
+/// custom `title_min_font_ratio`, header/footer zones, table confidence
+/// threshold, or a non-default `ReadingOrderStrategy` (`Simple`, `None`,
+/// or `XYCut { min_gap }`). For the common case of "give me sane defaults
+/// for academic papers / forms / dense text", call
+/// [`oxidize_partition_with_profile`] instead.
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `config_json` — NUL-terminated UTF-8 C string containing a JSON object
+///   matching [`crate::pipeline_config::PartitionConfigDto`]. Required fields
+///   (all): `detect_tables`, `detect_headers_footers`, `title_min_font_ratio`,
+///   `header_zone`, `footer_zone`, `reading_order`, `min_table_confidence`.
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of element
+///   results. Caller must free with `oxidize_free_string`.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. Error codes:
+/// - `NullPointer`: any of the three pointer parameters is null.
+/// - `InvalidUtf8`: `config_json` is not valid UTF-8.
+/// - `InvalidArgument`: `config_json` does not deserialize as `PartitionConfigDto`.
+/// - `PdfParseError`: `pdf_len == 0`, the lenient parser rejects the bytes,
+///   or `partition_with` itself fails.
+/// - `SerializationError` / `InvalidUtf8`: serde or `CString::new` failure
+///   while building the response.
+///
+/// On any non-Success return, `*out_json` is set to null.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `config_json` must be a valid NUL-terminated UTF-8 C string.
+/// - `out_json` must be a writeable `*mut *mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_partition_with_config(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    config_json: *const c_char,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || config_json.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_partition_with_config");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let cfg_str = match CStr::from_ptr(config_json).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in config_json: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let dto: crate::pipeline_config::PartitionConfigDto = match serde_json::from_str(cfg_str) {
+        Ok(d) => d,
+        Err(e) => {
+            set_last_error(format!("invalid PartitionConfig JSON: {e}"));
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    let cfg: oxidize_pdf::pipeline::PartitionConfig = dto.into();
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with(cfg) {
+        Ok(elems) => elems,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<PdfElementResult> = elements
+        .iter()
+        .map(|el| {
+            let bbox = el.bbox();
+            PdfElementResult {
+                element_type: el.type_name().to_string(),
+                text: el.display_text(),
+                page_number: el.page() + 1,
+                x: bbox.x,
+                y: bbox.y,
+                width: bbox.width,
+                height: bbox.height,
+                confidence: el.metadata().confidence,
+            }
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize elements: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
 /// Extract structure-aware RAG chunks from a PDF.
 ///
 /// # Safety
@@ -2452,6 +2580,152 @@ mod profile_ffi_tests {
                 crate::oxidize_free_string(out);
             }
         }
+    }
+
+    /// Convert the FFI-emitted JSON into a `serde_json::Value` array so tests
+    /// can inspect element_type / text / confidence semantically.
+    fn json_to_array(out: *mut c_char) -> Vec<serde_json::Value> {
+        let json = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe {
+            crate::oxidize_free_string(out);
+        }
+        serde_json::from_str::<Vec<serde_json::Value>>(&json).expect("FFI must emit a JSON array")
+    }
+
+    fn call_with_config(pdf: &[u8], cfg_json: &str) -> Vec<serde_json::Value> {
+        let cfg_c = std::ffi::CString::new(cfg_json).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_config(pdf.as_ptr(), pdf.len(), cfg_c.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::Success as c_int, "expected success");
+        assert!(!out.is_null());
+        json_to_array(out)
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_emits_well_formed_elements() {
+        let pdf = sample_pdf();
+        let cfg = r#"{
+            "detect_tables": false,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": "Simple",
+            "min_table_confidence": 0.5
+        }"#;
+        let elements = call_with_config(&pdf, cfg);
+        assert!(
+            !elements.is_empty(),
+            "fixture should produce at least one element"
+        );
+
+        // Every element must carry the documented schema fields (no smoke test).
+        for el in &elements {
+            assert!(el.get("element_type").and_then(|v| v.as_str()).is_some());
+            assert!(el.get("text").and_then(|v| v.as_str()).is_some());
+            assert!(el
+                .get("page_number")
+                .and_then(|v| v.as_u64())
+                .is_some_and(|n| n >= 1));
+            assert!(el.get("confidence").and_then(|v| v.as_f64()).is_some());
+        }
+
+        // Fixture has no table content, and detect_tables is off — assert the
+        // negation directly.
+        let has_table = elements
+            .iter()
+            .any(|el| el.get("element_type").and_then(|v| v.as_str()) == Some("Table"));
+        assert!(!has_table, "no Table element expected with detect_tables=false on table-free fixture");
+
+        // Introduction text must be present somewhere.
+        let has_intro = elements.iter().any(|el| {
+            el.get("text")
+                .and_then(|v| v.as_str())
+                .is_some_and(|t| t.contains("Introduction"))
+        });
+        assert!(has_intro, "expected fixture title text in output");
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_accepts_xycut_reading_order() {
+        // The XYCut variant carries a payload (`min_gap: f64`) — exercises a
+        // different DTO branch than `"Simple"` / `"None"` and proves the FFI
+        // honours the System.Text.Json shape `{"XYCut":{"min_gap":N}}` that
+        // the C# converter emits.
+        let pdf = sample_pdf();
+        let cfg = r#"{
+            "detect_tables": true,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": {"XYCut":{"min_gap":15.0}},
+            "min_table_confidence": 0.5
+        }"#;
+        let elements = call_with_config(&pdf, cfg);
+        assert!(!elements.is_empty(), "XYCut should still produce elements");
+        let has_intro = elements.iter().any(|el| {
+            el.get("text")
+                .and_then(|v| v.as_str())
+                .is_some_and(|t| t.contains("Introduction"))
+        });
+        assert!(has_intro);
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_accepts_integer_min_gap() {
+        // System.Text.Json emits whole-number doubles as integer tokens;
+        // serde_json must accept them for f64 fields.
+        let pdf = sample_pdf();
+        let cfg = r#"{
+            "detect_tables": true,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": {"XYCut":{"min_gap":15}},
+            "min_table_confidence": 0.5
+        }"#;
+        // No assertion on element content — the assertion is "no crash, success
+        // code, parseable output" which `call_with_config` already enforces.
+        let _ = call_with_config(&pdf, cfg);
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_rejects_bad_json() {
+        let pdf = sample_pdf();
+        let cfg_c = std::ffi::CString::new("{not valid json").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_config(pdf.as_ptr(), pdf.len(), cfg_c.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_rejects_missing_fields() {
+        let pdf = sample_pdf();
+        // Valid JSON but missing required fields — serde should reject.
+        let cfg_c = std::ffi::CString::new(r#"{"detect_tables": true}"#).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_config(pdf.as_ptr(), pdf.len(), cfg_c.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_null_config_returns_null_pointer() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_config(pdf.as_ptr(), pdf.len(), std::ptr::null(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
     }
 }
 
