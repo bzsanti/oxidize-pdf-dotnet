@@ -1,8 +1,12 @@
 # Feature Parity — oxidize-pdf-dotnet vs oxidize-pdf core
 
-Bridge version: 0.5.0+feature/tier-a
-Core dependency: oxidize-pdf 2.3.2
-Last updated: 2026-03-20
+Bridge version: 0.9.0-rag.1
+Core dependency: oxidize-pdf 2.6.0
+Last updated: 2026-05-05
+
+For the cross-bridge (Python ↔ .NET) RAG-pipeline matrix used to schedule
+work, see [`PARITY_SPEC.md`](PARITY_SPEC.md). This document is the
+.NET-only feature inventory against the Rust core.
 
 Status values:
 - `yes` — fully implemented and tested in FFI + .NET
@@ -148,10 +152,10 @@ Status values:
 | PARSE-007 | Page dimensions | yes | |
 | PARSE-008 | Extract text (single page) | yes | |
 | PARSE-009 | Extract text (all pages) | yes | |
-| PARSE-010 | Text chunking | yes | Semantic RAG chunking via ExtractChunksAsync |
+| PARSE-010 | Text chunking (token-aware) | yes | `RagChunksAsync(byte[], PartitionConfig?, HybridChunkConfig?)` (5-field config), `SemanticChunksAsync(SemanticChunkConfig)`. Standalone non-PDF chunker: `Ai.DocumentChunker(chunkSize, overlap).ChunkText(text)`. Legacy `ExtractChunksAsync(ChunkOptions)` kept callable but `[Obsolete]`. |
 | PARSE-011 | Read document metadata | yes | ExtractMetadataAsync — title, author, subject, dates |
-| PARSE-012 | RAG pipeline (rag_chunks, partition) | yes | PartitionAsync + RagChunksAsync |
-| PARSE-013 | Structured export (to_markdown, to_json, to_contextual) | yes | ToMarkdownAsync, ToJsonAsync, ToContextualAsync |
+| PARSE-012 | RAG pipeline (rag_chunks, partition, profiles) | yes | `PartitionAsync(byte[])`, `PartitionAsync(byte[], ExtractionProfile)`, `PartitionAsync(byte[], PartitionConfig)`, `RagChunksAsync(byte[])`, `RagChunksAsync(byte[], ExtractionProfile)`, `RagChunksAsync(byte[], PartitionConfig?, HybridChunkConfig?)`, `SemanticChunksAsync`. Token estimator: `Ai.DocumentChunker.EstimateTokens(string)`. 12 ported semantic disjointness regression tests gate the surface. |
+| PARSE-013 | Structured export (to_markdown, to_json, to_contextual) | yes | ToMarkdownAsync (no-arg + `(byte[], MarkdownOptions)` overload — RAG-012), ToJsonAsync, ToContextualAsync |
 | PARSE-014 | ExtractionOptions (granular control) | yes | ExtractionOptions class with layout, columns, hyphenation |
 | PARSE-015 | Page content analysis (scanned vs text) | yes | AnalyzePageContentAsync |
 | PARSE-016 | Read annotations | yes | GetAnnotationsAsync |
