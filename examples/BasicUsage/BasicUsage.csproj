@@ -11,4 +11,20 @@
     <ProjectReference Include="..\..\dotnet\OxidizePdf.NET\OxidizePdf.NET.csproj" />
   </ItemGroup>
 
+  <!--
+    The referenced OxidizePdf.NET project ships its native binaries under
+    runtimes/<rid>/native/ for NuGet consumption, but a project reference
+    does NOT propagate those runtime assets to the consumer's output folder.
+    Mirror the same CopyNativeBinaries target so `dotnet run` works out of
+    the box.
+  -->
+  <Target Name="CopyNativeBinaries" AfterTargets="Build">
+    <ItemGroup>
+      <NativeBinariesFromRef Include="..\..\dotnet\OxidizePdf.NET\runtimes\**\native\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeBinariesFromRef)"
+          DestinationFolder="$(OutDir)runtimes\%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

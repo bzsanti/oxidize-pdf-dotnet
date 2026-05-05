@@ -1,5 +1,10 @@
 # Feature Parity Roadmap — closing the remaining 26 gaps
 
+> ⏸ **Paused (2026-05-05).** RAG pipeline parity with the Python bridge took
+> precedence and shipped as `0.8.0`. See
+> [`2026-04-22-rag-pipeline-parity.md`](2026-04-22-rag-pipeline-parity.md).
+> Resume M1 after 0.8.0 lands on `main`.
+
 > **Scope:** Master roadmap grouping the 26 remaining features from `docs/FEATURE_PARITY.md` into six release milestones. Each milestone will get its own detailed TDD plan (this file is the index, not a TDD plan).
 
 **Goal:** Reach 100% feature parity with `oxidize-pdf 2.5.4` core across the FFI + .NET wrapper, delivered incrementally in semver-minor releases.

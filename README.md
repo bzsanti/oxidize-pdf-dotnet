@@ -36,42 +36,97 @@ string text = await extractor.ExtractTextAsync(pdfBytes);
 Console.WriteLine(text);
 ```
 
-### AI/RAG Integration with KernelMemory
+### RAG Extraction (recommended)
+
+`OxidizePdf.NET` mirrors the RAG-first surface of the Python bridge
+(`oxidize-python`). Token-aware, structure-aware chunks ready for vector
+store ingestion in one call:
 
 ```csharp
 using OxidizePdf.NET;
+using OxidizePdf.NET.Pipeline;
+
+var extractor = new PdfExtractor();
+var chunks = await extractor.RagChunksAsync(pdfBytes, ExtractionProfile.Rag);
+foreach (var c in chunks)
+{
+    // c.FullText  — text + heading context (use this for embeddings)
+    // c.Text      — the chunk's own text
+    // c.PageNumbers — 1-based source pages (cite results)
+    // c.TokenEstimate — plan batch sizes / model windows
+    // c.HeadingContext — section heading the chunk belongs to (or null)
+}
+```
+
+Seven profiles: `Standard`, `Academic`, `Form`, `Government`, `Dense`,
+`Presentation`, `Rag`. For fine-grained control pass an explicit
+`PartitionConfig` (reading order, header/footer zones, table confidence)
+and/or `HybridChunkConfig` (max tokens, overlap, merge policy):
+
+```csharp
+var partition = new PartitionConfig()
+    .WithReadingOrder(ReadingOrderStrategy.XyCut(20.0))   // multi-column
+    .WithMinTableConfidence(0.7);
+var hybrid = new HybridChunkConfig().WithMaxTokens(256).WithOverlap(32);
+var chunks = await extractor.RagChunksAsync(pdfBytes, partition, hybrid);
+```
+
+Element-aware semantic chunks (titles/tables kept whole):
+
+```csharp
+var semantic = await extractor.SemanticChunksAsync(
+    pdfBytes,
+    new SemanticChunkConfig(maxTokens: 512));
+```
+
+Markdown export with explicit options (RAG-012):
+
+```csharp
+using OxidizePdf.NET.Ai;
+var md = await extractor.ToMarkdownAsync(
+    pdfBytes,
+    new MarkdownOptions { IncludeMetadata = true, IncludePageNumbers = true });
+```
+
+Standalone text chunker (no PDF — for non-PDF sources):
+
+```csharp
+using OxidizePdf.NET.Ai;
+var chunker = new DocumentChunker(chunkSize: 512, overlap: 50);
+var pieces = chunker.ChunkText(rawText);
+var tokens = DocumentChunker.EstimateTokens(rawText);
+```
+
+End-to-end vector-store ingestion with KernelMemory:
+
+```csharp
+using OxidizePdf.NET;
+using OxidizePdf.NET.Pipeline;
 using Microsoft.KernelMemory;
 
 var extractor = new PdfExtractor();
 var memory = new KernelMemoryBuilder().Build();
 
-// Extract chunks optimized for embeddings
-var chunks = await extractor.ExtractChunksAsync(
-    pdfBytes,
-    new ChunkOptions
-    {
-        MaxChunkSize = 512,                // Token limit for embedding model
-        Overlap = 50,                      // Context overlap between chunks
-        PreserveSentenceBoundaries = true, // No mid-sentence cuts
-        IncludeMetadata = true             // Page numbers, confidence scores
-    }
-);
+var chunks = await extractor.RagChunksAsync(pdfBytes, ExtractionProfile.Rag);
 
-// Store in vector database
-foreach (var chunk in chunks)
+foreach (var c in chunks)
 {
     await memory.ImportTextAsync(
-        text: chunk.Text,
-        documentId: $"doc_{chunk.PageNumber}_{chunk.Index}",
+        text: c.FullText,
+        documentId: $"doc_p{c.PageNumbers[0]}_c{c.ChunkIndex}",
         tags: new Dictionary<string, object>
         {
             ["source"] = "SharePoint/Documents/report.pdf",
-            ["page"] = chunk.PageNumber,
-            ["confidence"] = chunk.Confidence
-        }
-    );
+            ["pages"] = string.Join(",", c.PageNumbers),
+            ["heading"] = c.HeadingContext ?? string.Empty,
+            ["tokens"] = c.TokenEstimate,
+        });
 }
 ```
+
+> **Legacy character-based chunking** (`ChunkOptions` + `ExtractChunksAsync`) is
+> marked `[Obsolete]` since 0.9.0-rag.1 and will be removed one minor release
+> later. Prefer the token-aware overloads above.
 
 ### SharePoint Crawler Example
 

@@ -1,3 +1,8 @@
+// Tests reference the legacy [Obsolete] ChunkOptions kept callable for one
+// minor release — file-level pragma so this keeps compiling under
+// TreatWarningsAsErrors=true.
+#pragma warning disable CS0618 // Type or member is obsolete
+
 using OxidizePdf.NET.Models;
 using OxidizePdf.NET.Tests.TestHelpers;
 

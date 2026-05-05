@@ -1,7 +1,9 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using OxidizePdf.NET.Ai;
 using OxidizePdf.NET.Models;
+using OxidizePdf.NET.Pipeline;
 
 namespace OxidizePdf.NET;
 
@@ -112,6 +114,71 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Partition a PDF using a pre-configured <see cref="ExtractionProfile"/>.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="profile">Extraction profile selecting partitioner defaults
+    /// tuned for a class of documents (general, academic, form, etc.).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of semantic elements for the chosen profile.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty or exceeds the configured maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If partitioning fails or the profile discriminant is rejected by the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<PdfElement>> PartitionAsync(
+        byte[] pdfBytes,
+        ExtractionProfile profile,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => PartitionWithProfile(pdfBytes, profile), cancellationToken);
+    }
+
+    /// <summary>
+    /// Partition a PDF into typed semantic elements using an explicit
+    /// <see cref="PartitionConfig"/>. Use this when the defaults from a
+    /// profile aren't enough — custom title font ratio, header/footer
+    /// zones, table confidence threshold, or a non-default
+    /// <see cref="ReadingOrderStrategy"/>.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="config">Partition configuration. Validated client-side
+    /// via <see cref="PartitionConfig.Validate"/> before any FFI call.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of semantic elements.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> or <paramref name="config"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty, exceeds the configured maximum size, or <paramref name="config"/> fails validation.</exception>
+    /// <exception cref="PdfExtractionException">If partitioning fails inside the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<PdfElement>> PartitionAsync(
+        byte[] pdfBytes,
+        PartitionConfig config,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(config);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+        config.Validate();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var json = config.ToJson();
+        return Task.Run(() => PartitionWithConfig(pdfBytes, json), cancellationToken);
+    }
+
+    /// <summary>
     /// Extract structure-aware RAG chunks from a PDF using the hybrid chunking pipeline.
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
@@ -135,6 +202,120 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Extract structure-aware RAG chunks using a pre-configured
+    /// <see cref="ExtractionProfile"/>. Combines the profile's partitioner
+    /// defaults with the upstream <c>HybridChunker::default()</c> chunking.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="profile">Extraction profile selecting partitioner defaults.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of RAG-ready chunks for the chosen profile.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty or exceeds the configured maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If chunking fails or the profile discriminant is rejected by the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<RagChunk>> RagChunksAsync(
+        byte[] pdfBytes,
+        ExtractionProfile profile,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(() => RagChunksWithProfile(pdfBytes, profile), cancellationToken);
+    }
+
+    /// <summary>
+    /// Extract structure-aware RAG chunks with optional partition and hybrid
+    /// chunk configs. Pass <c>null</c> for either to use the corresponding
+    /// upstream default (lets callers tune just the chunk size, just the
+    /// partitioner, both, or neither).
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="partitionConfig">Optional partition configuration. <c>null</c> uses <c>PartitionConfig::default()</c>.</param>
+    /// <param name="hybridConfig">Optional hybrid-chunker configuration. <c>null</c> uses <c>HybridChunkConfig::default()</c>.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of RAG-ready chunks.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty/oversize, or either non-null config fails validation.</exception>
+    /// <exception cref="PdfExtractionException">If chunking fails inside the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<RagChunk>> RagChunksAsync(
+        byte[] pdfBytes,
+        PartitionConfig? partitionConfig,
+        HybridChunkConfig? hybridConfig,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+        partitionConfig?.Validate();
+        hybridConfig?.Validate();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var partitionJson = partitionConfig?.ToJson();
+        var hybridJson = hybridConfig?.ToJson();
+        return Task.Run(() => RagChunksWithConfigs(pdfBytes, partitionJson, hybridJson), cancellationToken);
+    }
+
+    /// <summary>
+    /// Extract semantic (element-boundary-aware) chunks from a PDF. The
+    /// <see cref="SemanticChunkConfig"/> chunker preserves structural unity:
+    /// titles, tables, and code blocks are kept whole when
+    /// <see cref="SemanticChunkConfig.RespectElementBoundaries"/> is true.
+    /// Use this when downstream consumers care about structure over merging
+    /// adjacent prose.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="config">Semantic-chunker configuration. <c>null</c> uses
+    /// <c>SemanticChunkConfig::default()</c> (max_tokens=512, overlap=50,
+    /// respect_element_boundaries=true).</param>
+    /// <param name="partitionConfig">Optional partition configuration for the
+    /// pre-chunking element extraction. <c>null</c> uses
+    /// <c>PartitionConfig::default()</c>.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of semantic chunks.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty/oversize, or either non-null config fails validation.</exception>
+    /// <exception cref="PdfExtractionException">If chunking fails inside the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<List<SemanticChunk>> SemanticChunksAsync(
+        byte[] pdfBytes,
+        SemanticChunkConfig? config = null,
+        PartitionConfig? partitionConfig = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        config ??= new SemanticChunkConfig();
+        config.Validate();
+        partitionConfig?.Validate();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var partitionJson = partitionConfig?.ToJson();
+        var semanticJson = config.ToJson();
+        return Task.Run(
+            () => SemanticChunksImpl(pdfBytes, partitionJson, semanticJson),
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Export PDF content as Markdown.
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
@@ -155,6 +336,46 @@ public class PdfExtractor
         cancellationToken.ThrowIfCancellationRequested();
 
         return Task.Run(() => StructuredExport(pdfBytes, NativeMethods.oxidize_to_markdown, "markdown"), cancellationToken);
+    }
+
+    /// <summary>
+    /// Export PDF content as Markdown using explicit
+    /// <see cref="MarkdownOptions"/> (RAG-012). The four flag combinations
+    /// produce four distinct outputs (FFI dispatches to the matching upstream
+    /// static exporter):
+    /// <list type="bullet">
+    ///   <item><c>(true, true)</c>: YAML frontmatter + per-page markers.</item>
+    ///   <item><c>(true, false)</c>: YAML frontmatter, no page markers.</item>
+    ///   <item><c>(false, true)</c>: page markers, no YAML.</item>
+    ///   <item><c>(false, false)</c>: plain text under a basic <c># Document</c> heading.</item>
+    /// </list>
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="options">Markdown export options (required).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Markdown representation of the PDF content matching the
+    /// supplied flag combination.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> or <paramref name="options"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty or exceeds the configured maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If export fails inside the FFI.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    public Task<string> ToMarkdownAsync(
+        byte[] pdfBytes,
+        MarkdownOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(options);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var optionsJson = options.ToJson();
+        return Task.Run(() => MarkdownWithOptions(pdfBytes, optionsJson), cancellationToken);
     }
 
     /// <summary>
@@ -241,6 +462,7 @@ public class PdfExtractor
     /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size</exception>
     /// <exception cref="OperationCanceledException">If the operation is cancelled</exception>
     /// <exception cref="PdfExtractionException">If extraction fails</exception>
+#pragma warning disable CS0618 // Legacy ChunkOptions kept callable for one minor release.
     public Task<List<DocumentChunk>> ExtractChunksAsync(
         byte[] pdfBytes,
         ChunkOptions? options = null,
@@ -262,6 +484,7 @@ public class PdfExtractor
 
         return Task.Run(() => ExtractChunks(pdfBytes, options), cancellationToken);
     }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Get the number of pages in a PDF
@@ -328,6 +551,7 @@ public class PdfExtractor
     /// <exception cref="ArgumentOutOfRangeException">If pageNumber is less than 1 or exceeds page count</exception>
     /// <exception cref="OperationCanceledException">If the operation is cancelled</exception>
     /// <exception cref="PdfExtractionException">If extraction fails</exception>
+#pragma warning disable CS0618 // Legacy ChunkOptions kept callable for one minor release.
     public Task<List<DocumentChunk>> ExtractChunksFromPageAsync(
         byte[] pdfBytes,
         int pageNumber,
@@ -350,6 +574,7 @@ public class PdfExtractor
 
         return Task.Run(() => ExtractChunksFromPage(pdfBytes, pageNumber, options), cancellationToken);
     }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Checks if a PDF is encrypted.
@@ -707,6 +932,8 @@ public class PdfExtractor
     // ── FFI helpers ──────────────────────────────────────────────────────────
 
     private delegate int NativeJsonCall(IntPtr pdfBytes, nuint pdfLen, out IntPtr outJson);
+    private delegate int NativeJsonCallWithProfile(IntPtr pdfBytes, nuint pdfLen, byte profile, out IntPtr outJson);
+    private delegate int NativeJsonCallWithConfig(IntPtr pdfBytes, nuint pdfLen, string configJson, out IntPtr outJson);
     private delegate int NativeStringCall(IntPtr pdfBytes, nuint pdfLen, out IntPtr outText);
 
     private static T WithPinnedPdf<T>(byte[] pdfBytes, Func<IntPtr, nuint, T> action)
@@ -747,6 +974,54 @@ public class PdfExtractor
         });
     }
 
+    private static T CallNativeJsonWithProfile<T>(
+        byte[] pdfBytes,
+        byte profile,
+        NativeJsonCallWithProfile nativeCall,
+        string errorMsg) where T : class, new()
+    {
+        return WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var result = nativeCall(ptr, len, profile, out jsonPtr);
+                ThrowIfError(result, errorMsg);
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+                return JsonSerializer.Deserialize<T>(json) ?? new T();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+    }
+
+    private static T CallNativeJsonWithConfig<T>(
+        byte[] pdfBytes,
+        string configJson,
+        NativeJsonCallWithConfig nativeCall,
+        string errorMsg) where T : class, new()
+    {
+        return WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var result = nativeCall(ptr, len, configJson, out jsonPtr);
+                ThrowIfError(result, errorMsg);
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+                return JsonSerializer.Deserialize<T>(json) ?? new T();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+    }
+
     private static string CallNativeString(byte[] pdfBytes, NativeStringCall nativeCall, string errorMsg)
     {
         return WithPinnedPdf(pdfBytes, (ptr, len) =>
@@ -771,6 +1046,7 @@ public class PdfExtractor
     private string ExtractText(byte[] pdfBytes) =>
         CallNativeString(pdfBytes, NativeMethods.oxidize_extract_text, "Failed to extract text from PDF");
 
+#pragma warning disable CS0618 // Legacy ChunkOptions kept callable for one minor release.
     private List<DocumentChunk> ExtractChunks(byte[] pdfBytes, ChunkOptions options)
     {
         IntPtr pdfPtr = IntPtr.Zero;
@@ -815,6 +1091,7 @@ public class PdfExtractor
                 NativeMethods.oxidize_free_string(jsonPtr);
         }
     }
+#pragma warning restore CS0618
 
     private int GetPageCount(byte[] pdfBytes) =>
         WithPinnedPdf(pdfBytes, (ptr, len) =>
@@ -841,6 +1118,7 @@ public class PdfExtractor
             }
         });
 
+#pragma warning disable CS0618 // Legacy ChunkOptions kept callable for one minor release.
     private List<DocumentChunk> ExtractChunksFromPage(byte[] pdfBytes, int pageNumber, ChunkOptions options)
     {
         IntPtr pdfPtr = IntPtr.Zero;
@@ -882,6 +1160,7 @@ public class PdfExtractor
                 NativeMethods.oxidize_free_string(jsonPtr);
         }
     }
+#pragma warning restore CS0618
 
     private bool IsEncrypted(byte[] pdfBytes) =>
         WithPinnedPdf(pdfBytes, (ptr, len) =>
@@ -905,8 +1184,85 @@ public class PdfExtractor
     private List<PdfElement> Partition(byte[] pdfBytes) =>
         CallNativeJson<List<PdfElement>>(pdfBytes, NativeMethods.oxidize_partition, "Failed to partition PDF");
 
+    private List<PdfElement> PartitionWithProfile(byte[] pdfBytes, ExtractionProfile profile) =>
+        CallNativeJsonWithProfile<List<PdfElement>>(
+            pdfBytes,
+            (byte)profile,
+            NativeMethods.oxidize_partition_with_profile,
+            $"Failed to partition PDF with profile {profile}");
+
+    private List<PdfElement> PartitionWithConfig(byte[] pdfBytes, string configJson) =>
+        CallNativeJsonWithConfig<List<PdfElement>>(
+            pdfBytes,
+            configJson,
+            NativeMethods.oxidize_partition_with_config,
+            "Failed to partition PDF with explicit PartitionConfig");
+
     private List<RagChunk> ExtractRagChunks(byte[] pdfBytes) =>
         CallNativeJson<List<RagChunk>>(pdfBytes, NativeMethods.oxidize_rag_chunks, "Failed to extract RAG chunks");
+
+    private List<RagChunk> RagChunksWithProfile(byte[] pdfBytes, ExtractionProfile profile) =>
+        CallNativeJsonWithProfile<List<RagChunk>>(
+            pdfBytes,
+            (byte)profile,
+            NativeMethods.oxidize_rag_chunks_with_profile,
+            $"Failed to extract RAG chunks with profile {profile}");
+
+    private List<RagChunk> RagChunksWithConfigs(byte[] pdfBytes, string? partitionJson, string? hybridJson) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var rc = NativeMethods.oxidize_rag_chunks_with_config(
+                    ptr, len, partitionJson, hybridJson, out jsonPtr);
+                ThrowIfError(rc, "Failed to extract RAG chunks with explicit configs");
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+                return JsonSerializer.Deserialize<List<RagChunk>>(json) ?? new();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+
+    private List<SemanticChunk> SemanticChunksImpl(byte[] pdfBytes, string? partitionJson, string semanticJson) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr jsonPtr = IntPtr.Zero;
+            try
+            {
+                var rc = NativeMethods.oxidize_semantic_chunks(
+                    ptr, len, partitionJson, semanticJson, out jsonPtr);
+                ThrowIfError(rc, "Failed to extract semantic chunks");
+                var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
+                return JsonSerializer.Deserialize<List<SemanticChunk>>(json) ?? new();
+            }
+            finally
+            {
+                if (jsonPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(jsonPtr);
+            }
+        });
+
+    private string MarkdownWithOptions(byte[] pdfBytes, string optionsJson) =>
+        WithPinnedPdf(pdfBytes, (ptr, len) =>
+        {
+            IntPtr textPtr = IntPtr.Zero;
+            try
+            {
+                var rc = NativeMethods.oxidize_to_markdown_with_options(
+                    ptr, len, optionsJson, out textPtr);
+                ThrowIfError(rc, "Failed to export PDF as markdown with explicit options");
+                return Marshal.PtrToStringUTF8(textPtr) ?? string.Empty;
+            }
+            finally
+            {
+                if (textPtr != IntPtr.Zero)
+                    NativeMethods.oxidize_free_string(textPtr);
+            }
+        });
 
     private string StructuredExport(byte[] pdfBytes, NativeStringCall nativeFunc, string formatName) =>
         CallNativeString(pdfBytes, nativeFunc, $"Failed to export PDF as {formatName}");
@@ -1047,7 +1403,7 @@ public class PdfExtractor
             return (width, height);
         });
 
-    private static void ThrowIfError(int errorCode, string message)
+    internal static void ThrowIfError(int errorCode, string message)
     {
         if (errorCode == (int)NativeMethods.ErrorCode.Success)
             return;
