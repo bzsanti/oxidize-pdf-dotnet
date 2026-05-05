@@ -1395,7 +1395,7 @@ public class PdfExtractor
             return (width, height);
         });
 
-    private static void ThrowIfError(int errorCode, string message)
+    internal static void ThrowIfError(int errorCode, string message)
     {
         if (errorCode == (int)NativeMethods.ErrorCode.Success)
             return;
