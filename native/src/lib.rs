@@ -16,6 +16,7 @@ pub mod measure;
 pub mod operations;
 pub mod page;
 pub mod parser;
+pub mod pipeline_config;
 pub mod security;
 pub mod table;
 pub mod text;
