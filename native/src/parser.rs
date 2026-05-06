@@ -198,6 +198,34 @@ struct RagChunkResult {
     is_oversized: bool,
 }
 
+/// Serialization-friendly semantic chunk struct for FFI output. Mirrors
+/// `oxidize_pdf::pipeline::SemanticChunk`'s public accessor surface
+/// (`text()`, `token_estimate()`, `page_numbers()`, `is_oversized()`).
+/// Page numbers are emitted 1-based (FFI contract).
+#[derive(Debug, Serialize)]
+struct SemanticChunkResult {
+    chunk_index: usize,
+    text: String,
+    page_numbers: Vec<u32>,
+    token_estimate: usize,
+    is_oversized: bool,
+}
+
+/// Serialization-friendly text-chunk struct for the standalone
+/// `DocumentChunker` FFI (`oxidize_chunk_text`). Mirrors
+/// `oxidize_pdf::ai::DocumentChunk`'s public scalar fields, intentionally
+/// dropping the nested `metadata` (position + sentence-boundary flags) —
+/// the .NET `TextChunk` POCO doesn't expose them and adding them would
+/// change the wire format unnecessarily.
+#[derive(Debug, Serialize)]
+struct TextChunkResult {
+    id: String,
+    content: String,
+    tokens: usize,
+    page_numbers: Vec<usize>,
+    chunk_index: usize,
+}
+
 // ── Signature result types ────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
@@ -1058,6 +1086,161 @@ unsafe fn structured_export_impl(
     ErrorCode::Success as c_int
 }
 
+/// Export PDF content as Markdown using explicit `MarkdownOptions`.
+///
+/// `MarkdownExporter::new(opts).export(&text)` in oxidize-pdf 2.6.0 is a
+/// Phase-1 stub that ignores `include_page_numbers` and emits at most a
+/// trivial `# Document\n\n` heading — strictly poorer than the legacy
+/// [`oxidize_to_markdown`]. To honour `MarkdownOptions` semantically per
+/// RAG-012, this function dispatches to the four well-tested static
+/// exporters whose output matrix already matches the flag combinations:
+///
+/// | `include_metadata` | `include_page_numbers` | Backend |
+/// |--------------------|------------------------|---------|
+/// | `true`             | `true`                 | `export_with_metadata_and_pages` |
+/// | `true`             | `false`               | `export_with_metadata` |
+/// | `false`            | `true`                 | `export_with_pages` |
+/// | `false`            | `false`               | `export_text` |
+///
+/// `include_metadata=true` emits a YAML frontmatter (`title:`, `pages:`,
+/// optional `created:` / `author:`). `include_page_numbers=true` emits
+/// per-page `**Page N**` markers separated by `\n\n---\n\n`.
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `options_json` — required NUL-terminated UTF-8 C string matching
+///   [`crate::pipeline_config::MarkdownOptionsDto`].
+/// * `out_text` — receives a heap-allocated UTF-8 markdown string. Free
+///   with `oxidize_free_string`.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `options_json` must be a NUL-terminated UTF-8 C string.
+/// - `out_text` must be a writeable `*mut *mut c_char`. On any non-Success
+///   return, `*out_text` is set to null.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_to_markdown_with_options(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    options_json: *const c_char,
+    out_text: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || options_json.is_null() || out_text.is_null() {
+        set_last_error("Null pointer provided to oxidize_to_markdown_with_options");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_text = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let opts_str = match CStr::from_ptr(options_json).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in options_json: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let opts: oxidize_pdf::ai::MarkdownOptions =
+        match serde_json::from_str::<crate::pipeline_config::MarkdownOptionsDto>(opts_str) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid MarkdownOptions JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+
+    // Extract per-page text once — used regardless of flag combination.
+    let extracted = match document.extract_text() {
+        Ok(t) => t,
+        Err(e) => {
+            set_last_error(format!("Failed to extract text: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    let pages: Vec<(usize, String)> = extracted
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (i + 1, p.text.clone()))
+        .collect();
+    let flat_text = pages
+        .iter()
+        .map(|(_, t)| t.clone())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    // Dispatch by the flag matrix. Each branch uses the concrete static
+    // exporter that matches its semantics — we never call the Phase-1
+    // stub `MarkdownExporter::new(opts).export()`.
+    let md_result = match (opts.include_metadata, opts.include_page_numbers) {
+        (true, _) => {
+            // Need DocumentMetadata for any metadata-enabled path.
+            let parsed = match document.metadata() {
+                Ok(m) => m,
+                Err(e) => {
+                    set_last_error(format!("Failed to read PDF metadata: {e}"));
+                    return ErrorCode::PdfParseError as c_int;
+                }
+            };
+            let ai_metadata = oxidize_pdf::ai::DocumentMetadata {
+                title: parsed
+                    .title
+                    .unwrap_or_else(|| "Untitled Document".to_string()),
+                page_count: pages.len(),
+                created_at: parsed.creation_date.clone(),
+                author: parsed.author,
+            };
+            if opts.include_page_numbers {
+                oxidize_pdf::ai::MarkdownExporter::export_with_metadata_and_pages(
+                    &pages,
+                    &ai_metadata,
+                )
+            } else {
+                oxidize_pdf::ai::MarkdownExporter::export_with_metadata(&flat_text, &ai_metadata)
+            }
+        }
+        (false, true) => oxidize_pdf::ai::MarkdownExporter::export_with_pages(&pages),
+        (false, false) => oxidize_pdf::ai::MarkdownExporter::export_text(&flat_text),
+    };
+
+    let md = match md_result {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Markdown export failed: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(md) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Markdown contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_text = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
 /// Export PDF content as Markdown.
 ///
 /// # Safety
@@ -1192,6 +1375,656 @@ pub unsafe extern "C" fn oxidize_partition(
     ErrorCode::Success as c_int
 }
 
+/// Partition a PDF using a pre-configured extraction profile.
+///
+/// The profile selects sensible defaults for `ExtractionOptions` (column
+/// detection, space threshold) and `PartitionConfig` (header/footer zones,
+/// title font ratio, table confidence) tuned for a class of documents
+/// (`Standard`, `Academic`, `Form`, `Government`, `Dense`, `Presentation`,
+/// `Rag`).
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `profile` — `u8` discriminant matching the C# `ExtractionProfile` enum
+///   (0 = Standard, 1 = Academic, 2 = Form, 3 = Government, 4 = Dense,
+///   5 = Presentation, 6 = Rag). Mapping verified by
+///   [`crate::pipeline_config::profile_from_u8`].
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of element
+///   results. Caller must free with `oxidize_free_string`.
+///
+/// # Returns
+/// `ErrorCode::Success` on success, otherwise an error code; details available
+/// via `oxidize_get_last_error`.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes (or null only
+///   when `pdf_len == 0` is also paired with a non-null sentinel — see
+///   tests). `pdf_len == 0` always returns `PdfParseError`.
+/// - `out_json` must be a writeable `*mut *mut c_char`. On any non-Success
+///   return, `*out_json` is set to null.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_partition_with_profile(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    profile: u8,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_partition_with_profile");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let prof = match crate::pipeline_config::profile_from_u8(profile) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with_profile(prof) {
+        Ok(elems) => elems,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<PdfElementResult> = elements
+        .iter()
+        .map(|el| {
+            let bbox = el.bbox();
+            PdfElementResult {
+                element_type: el.type_name().to_string(),
+                text: el.display_text(),
+                page_number: el.page() + 1, // Convert 0-based to 1-based
+                x: bbox.x,
+                y: bbox.y,
+                width: bbox.width,
+                height: bbox.height,
+                confidence: el.metadata().confidence,
+            }
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize elements: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Partition a PDF using an explicit `PartitionConfig` supplied as JSON.
+///
+/// Use this when callers need fine-grained control over the partitioner —
+/// custom `title_min_font_ratio`, header/footer zones, table confidence
+/// threshold, or a non-default `ReadingOrderStrategy` (`Simple`, `None`,
+/// or `XYCut { min_gap }`). For the common case of "give me sane defaults
+/// for academic papers / forms / dense text", call
+/// [`oxidize_partition_with_profile`] instead.
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `config_json` — NUL-terminated UTF-8 C string containing a JSON object
+///   matching [`crate::pipeline_config::PartitionConfigDto`]. Required fields
+///   (all): `detect_tables`, `detect_headers_footers`, `title_min_font_ratio`,
+///   `header_zone`, `footer_zone`, `reading_order`, `min_table_confidence`.
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of element
+///   results. Caller must free with `oxidize_free_string`.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. Error codes:
+/// - `NullPointer`: any of the three pointer parameters is null.
+/// - `InvalidUtf8`: `config_json` is not valid UTF-8.
+/// - `InvalidArgument`: `config_json` does not deserialize as `PartitionConfigDto`.
+/// - `PdfParseError`: `pdf_len == 0`, the lenient parser rejects the bytes,
+///   or `partition_with` itself fails.
+/// - `SerializationError` / `InvalidUtf8`: serde or `CString::new` failure
+///   while building the response.
+///
+/// On any non-Success return, `*out_json` is set to null.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `config_json` must be a valid NUL-terminated UTF-8 C string.
+/// - `out_json` must be a writeable `*mut *mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_partition_with_config(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    config_json: *const c_char,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || config_json.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_partition_with_config");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let cfg_str = match CStr::from_ptr(config_json).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in config_json: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let dto: crate::pipeline_config::PartitionConfigDto = match serde_json::from_str(cfg_str) {
+        Ok(d) => d,
+        Err(e) => {
+            set_last_error(format!("invalid PartitionConfig JSON: {e}"));
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    let cfg: oxidize_pdf::pipeline::PartitionConfig = dto.into();
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with(cfg) {
+        Ok(elems) => elems,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<PdfElementResult> = elements
+        .iter()
+        .map(|el| {
+            let bbox = el.bbox();
+            PdfElementResult {
+                element_type: el.type_name().to_string(),
+                text: el.display_text(),
+                page_number: el.page() + 1,
+                x: bbox.x,
+                y: bbox.y,
+                width: bbox.width,
+                height: bbox.height,
+                confidence: el.metadata().confidence,
+            }
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize elements: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Extract RAG chunks using a pre-configured extraction profile.
+///
+/// Combines [`oxidize_partition_with_profile`] with the default
+/// `HybridChunker` settings (max_tokens 512, overlap_tokens 50,
+/// `MergePolicy::AnyInlineContent`). Use [`oxidize_rag_chunks_with_config`]
+/// when you need to tune the chunk size or merge policy.
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `profile` — `u8` discriminant; same mapping as
+///   [`oxidize_partition_with_profile`].
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of
+///   `RagChunkResult` records (`chunk_index`, `text`, `full_text`,
+///   `page_numbers` (1-based), `element_types`, `heading_context`,
+///   `token_estimate`, `is_oversized`). Free with `oxidize_free_string`.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. Error codes match
+/// [`oxidize_partition_with_profile`].
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `out_json` must be a writeable `*mut *mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_rag_chunks_with_profile(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    profile: u8,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_rag_chunks_with_profile");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let prof = match crate::pipeline_config::profile_from_u8(profile) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let chunks = match document.rag_chunks_with_profile(prof) {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(format!("Failed to extract RAG chunks: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<RagChunkResult> = chunks
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| RagChunkResult {
+            chunk_index: i,
+            text: chunk.text.clone(),
+            full_text: chunk.full_text.clone(),
+            page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(), // 0-based to 1-based
+            element_types: chunk.element_types.clone(),
+            heading_context: chunk.heading_context.clone(),
+            token_estimate: chunk.token_estimate,
+            is_oversized: chunk.is_oversized,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize RAG chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Extract semantic chunks (element-boundary-aware) from a PDF.
+///
+/// The `SemanticChunker` differs from the `HybridChunker` (used by
+/// [`oxidize_rag_chunks`] and friends) in that it respects element
+/// boundaries — titles, tables, and code blocks are kept whole when
+/// `respect_element_boundaries` is true. Use this entry point when the
+/// downstream consumer cares about preserving structural unity over
+/// merging adjacent prose.
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `partition_config_json` — optional `PartitionConfigDto` JSON, or
+///   `NULL` for defaults.
+/// * `semantic_config_json` — **required** `SemanticChunkConfigDto` JSON
+///   (no sensible default that all callers would agree on; failing fast
+///   is the correct behaviour).
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of
+///   `SemanticChunkResult` records (`chunk_index`, `text`, `page_numbers`
+///   (1-based), `token_estimate`, `is_oversized`). Free with
+///   `oxidize_free_string`.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. Error codes:
+/// - `NullPointer`: `pdf_bytes`, `semantic_config_json`, or `out_json` is null.
+/// - `InvalidUtf8`: a non-null config pointer is not valid UTF-8.
+/// - `InvalidArgument`: a non-null config does not deserialize as the
+///   matching DTO.
+/// - `PdfParseError`: `pdf_len == 0`, parser fails, or partition fails.
+/// - `SerializationError` / `InvalidUtf8`: response build failure.
+///
+/// On any non-Success return, `*out_json` is set to null.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `partition_config_json`, if non-null, must be a NUL-terminated UTF-8
+///   C string. `semantic_config_json` must always be a NUL-terminated
+///   UTF-8 C string.
+/// - `out_json` must be a writeable `*mut *mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_semantic_chunks(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    partition_config_json: *const c_char,
+    semantic_config_json: *const c_char,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || semantic_config_json.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_semantic_chunks");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let partition_cfg: oxidize_pdf::pipeline::PartitionConfig = if partition_config_json.is_null() {
+        oxidize_pdf::pipeline::PartitionConfig::default()
+    } else {
+        let s = match CStr::from_ptr(partition_config_json).to_str() {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("invalid UTF-8 in partition_config_json: {e}"));
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        match serde_json::from_str::<crate::pipeline_config::PartitionConfigDto>(s) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid PartitionConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        }
+    };
+
+    let sem_str = match CStr::from_ptr(semantic_config_json).to_str() {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in semantic_config_json: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let sem_cfg: oxidize_pdf::pipeline::SemanticChunkConfig =
+        match serde_json::from_str::<crate::pipeline_config::SemanticChunkConfigDto>(sem_str) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid SemanticChunkConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with(partition_cfg) {
+        Ok(e) => e,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let chunker = oxidize_pdf::pipeline::SemanticChunker::new(sem_cfg);
+    let sem_chunks = chunker.chunk(&elements);
+
+    let results: Vec<SemanticChunkResult> = sem_chunks
+        .iter()
+        .enumerate()
+        .map(|(i, sc)| SemanticChunkResult {
+            chunk_index: i,
+            text: sc.text(),
+            page_numbers: sc.page_numbers().into_iter().map(|p| p + 1).collect(),
+            token_estimate: sc.token_estimate(),
+            is_oversized: sc.is_oversized(),
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize semantic chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Extract RAG chunks using explicit partition and/or hybrid configs.
+///
+/// Both config pointers are independently optional: passing `NULL` for either
+/// uses the upstream default (`PartitionConfig::default()` /
+/// `HybridChunkConfig::default()`). This lets callers tune just the chunk
+/// size while keeping default partitioning, or vice versa.
+///
+/// # Arguments
+/// * `pdf_bytes` — pointer to `pdf_len` bytes of PDF data.
+/// * `pdf_len` — length in bytes.
+/// * `partition_config_json` — optional `PartitionConfigDto` UTF-8 JSON string,
+///   or `NULL` for defaults.
+/// * `hybrid_config_json` — optional `HybridChunkConfigDto` UTF-8 JSON string,
+///   or `NULL` for defaults.
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of
+///   `RagChunkResult` records (1-based page numbers). Free with
+///   `oxidize_free_string`.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. Error codes:
+/// - `NullPointer`: `pdf_bytes` or `out_json` is null.
+/// - `InvalidUtf8`: a non-null config pointer is not valid UTF-8.
+/// - `InvalidArgument`: a non-null config does not deserialize as the
+///   matching DTO (malformed JSON or missing fields).
+/// - `PdfParseError`: `pdf_len == 0`, parser fails, or partition fails.
+/// - `SerializationError` / `InvalidUtf8`: response build failure.
+///
+/// On any non-Success return, `*out_json` is set to null.
+///
+/// # Safety
+/// - `pdf_bytes` must be a valid pointer to `pdf_len` bytes.
+/// - `partition_config_json` and `hybrid_config_json`, if non-null, must
+///   each be NUL-terminated UTF-8 C strings.
+/// - `out_json` must be a writeable `*mut *mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_rag_chunks_with_config(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    partition_config_json: *const c_char,
+    hybrid_config_json: *const c_char,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_rag_chunks_with_config");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let partition_cfg: oxidize_pdf::pipeline::PartitionConfig = if partition_config_json.is_null() {
+        oxidize_pdf::pipeline::PartitionConfig::default()
+    } else {
+        let s = match CStr::from_ptr(partition_config_json).to_str() {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("invalid UTF-8 in partition_config_json: {e}"));
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        match serde_json::from_str::<crate::pipeline_config::PartitionConfigDto>(s) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid PartitionConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        }
+    };
+
+    let hybrid_cfg: oxidize_pdf::pipeline::HybridChunkConfig = if hybrid_config_json.is_null() {
+        oxidize_pdf::pipeline::HybridChunkConfig::default()
+    } else {
+        let s = match CStr::from_ptr(hybrid_config_json).to_str() {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("invalid UTF-8 in hybrid_config_json: {e}"));
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        match serde_json::from_str::<crate::pipeline_config::HybridChunkConfigDto>(s) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid HybridChunkConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        }
+    };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with(partition_cfg) {
+        Ok(e) => e,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let chunker = oxidize_pdf::pipeline::HybridChunker::new(hybrid_cfg);
+    let hybrid_chunks = chunker.chunk(&elements);
+    let chunks: Vec<oxidize_pdf::pipeline::RagChunk> = hybrid_chunks
+        .iter()
+        .enumerate()
+        .map(|(i, hc)| oxidize_pdf::pipeline::RagChunk::from_hybrid_chunk(i, hc))
+        .collect();
+
+    let results: Vec<RagChunkResult> = chunks
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| RagChunkResult {
+            chunk_index: i,
+            text: chunk.text.clone(),
+            full_text: chunk.full_text.clone(),
+            page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(),
+            element_types: chunk.element_types.clone(),
+            heading_context: chunk.heading_context.clone(),
+            token_estimate: chunk.token_estimate,
+            is_oversized: chunk.is_oversized,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize RAG chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
 /// Extract structure-aware RAG chunks from a PDF.
 ///
 /// # Safety
@@ -1254,6 +2087,153 @@ pub unsafe extern "C" fn oxidize_rag_chunks(
         Ok(j) => j,
         Err(e) => {
             set_last_error(format!("Failed to serialize RAG chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
+}
+
+/// Estimate the number of tokens in a text string using the upstream
+/// `DocumentChunker::estimate_tokens` heuristic — currently
+/// `(words * 1.33) as usize` where `words` is `text.split_whitespace().count()`.
+///
+/// # Arguments
+/// * `text` — NUL-terminated UTF-8 C string.
+/// * `out_count` — receives the estimated token count.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. `NullPointer` if either argument is
+/// null. `InvalidUtf8` if `text` is not valid UTF-8.
+///
+/// # Safety
+/// `text` must be a valid NUL-terminated UTF-8 C string. `out_count` must
+/// point to a writeable `usize`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_estimate_tokens(
+    text: *const c_char,
+    out_count: *mut usize,
+) -> c_int {
+    clear_last_error();
+
+    if text.is_null() || out_count.is_null() {
+        set_last_error("Null pointer provided to oxidize_estimate_tokens");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    let s = match CStr::from_ptr(text).to_str() {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in text: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_count = oxidize_pdf::ai::DocumentChunker::estimate_tokens(s);
+    ErrorCode::Success as c_int
+}
+
+/// Chunk arbitrary text using a fixed-size + overlap strategy. No PDF
+/// parsing involved — this is the standalone path for callers who already
+/// have raw text in hand.
+///
+/// `chunk_size` and `overlap` are interpreted in **whitespace-separated
+/// tokens** (matching the upstream chunker's tokenisation). The chunker
+/// also tries to respect sentence boundaries inside the last 10 tokens of
+/// each chunk.
+///
+/// # Arguments
+/// * `text` — NUL-terminated UTF-8 C string to chunk.
+/// * `chunk_size` — target tokens per chunk; must be positive.
+/// * `overlap` — overlap between consecutive chunks; must be strictly
+///   less than `chunk_size`.
+/// * `out_json` — receives a heap-allocated UTF-8 JSON array of
+///   `TextChunkResult` records (`id`, `content`, `tokens`,
+///   `page_numbers`, `chunk_index`). `page_numbers` is empty for
+///   text-only input — there's no page concept here.
+///
+/// # Returns
+/// `ErrorCode::Success` on success. Error codes:
+/// - `NullPointer`: `text` or `out_json` is null.
+/// - `InvalidUtf8`: `text` is not valid UTF-8.
+/// - `InvalidArgument`: `chunk_size == 0` or `overlap >= chunk_size`.
+/// - `PdfParseError`: the upstream chunker failed (rare for valid input).
+/// - `SerializationError` / `InvalidUtf8`: response build failure.
+///
+/// On any non-Success return, `*out_json` is set to null.
+///
+/// # Safety
+/// - `text` must be a valid NUL-terminated UTF-8 C string.
+/// - `out_json` must be a writeable `*mut *mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_chunk_text(
+    text: *const c_char,
+    chunk_size: usize,
+    overlap: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    clear_last_error();
+
+    if text.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_chunk_text");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if chunk_size == 0 {
+        set_last_error("chunk_size must be > 0");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+
+    if overlap >= chunk_size {
+        set_last_error(format!(
+            "overlap ({overlap}) must be strictly less than chunk_size ({chunk_size})"
+        ));
+        return ErrorCode::InvalidArgument as c_int;
+    }
+
+    let s = match CStr::from_ptr(text).to_str() {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in text: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let chunker = oxidize_pdf::ai::DocumentChunker::new(chunk_size, overlap);
+    let chunks = match chunker.chunk_text(s) {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(format!("chunk_text failed: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<TextChunkResult> = chunks
+        .into_iter()
+        .map(|c| TextChunkResult {
+            id: c.id,
+            content: c.content,
+            tokens: c.tokens,
+            page_numbers: c.page_numbers,
+            chunk_index: c.chunk_index,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize chunks: {e}"));
             return ErrorCode::SerializationError as c_int;
         }
     };
@@ -2244,6 +3224,978 @@ pub unsafe extern "C" fn oxidize_get_form_fields(
 
     *out_json = c_string.into_raw();
     ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod profile_ffi_tests {
+    use super::*;
+    use std::ffi::CStr;
+
+    /// Minimal-but-realistic PDF fixture: A4 with a title and a paragraph.
+    /// Built via the `oxidize_pdf` writer so the partitioner has actual
+    /// fragments to classify.
+    fn sample_pdf() -> Vec<u8> {
+        use oxidize_pdf::{Document, Font, Page};
+        let mut doc = Document::new();
+        let mut page = Page::a4();
+        page.text()
+            .set_font(Font::Helvetica, 14.0)
+            .at(50.0, 750.0)
+            .write("Introduction")
+            .unwrap();
+        page.text()
+            .set_font(Font::Helvetica, 11.0)
+            .at(50.0, 720.0)
+            .write("This is a sample paragraph for testing partitioning by profile.")
+            .unwrap();
+        doc.add_page(page);
+        doc.to_bytes().unwrap()
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_returns_json_array() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_profile(pdf.as_ptr(), pdf.len(), 6 /* Rag */, &mut out)
+        };
+        assert_eq!(code, ErrorCode::Success as c_int);
+        assert!(!out.is_null());
+        let json = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe {
+            crate::oxidize_free_string(out);
+        }
+        assert!(json.starts_with('['));
+        assert!(json.contains("element_type"));
+        assert!(json.contains("page_number"));
+        assert!(json.contains("Introduction"));
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_rejects_bad_discriminant() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_partition_with_profile(pdf.as_ptr(), pdf.len(), 99, &mut out) };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_null_pdf_returns_null_pointer() {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_partition_with_profile(std::ptr::null(), 0, 0, &mut out) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_empty_pdf_returns_parse_error() {
+        let pdf: Vec<u8> = Vec::new();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        // Use a non-null pointer with len=0 so the null-check passes.
+        let dummy: u8 = 0;
+        let code = unsafe { oxidize_partition_with_profile(&dummy, pdf.len(), 0, &mut out) };
+        assert_eq!(code, ErrorCode::PdfParseError as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_partition_with_profile_accepts_all_valid_profiles() {
+        let pdf = sample_pdf();
+        for profile in 0u8..=6u8 {
+            let mut out: *mut c_char = std::ptr::null_mut();
+            let code = unsafe {
+                oxidize_partition_with_profile(pdf.as_ptr(), pdf.len(), profile, &mut out)
+            };
+            assert_eq!(
+                code,
+                ErrorCode::Success as c_int,
+                "profile {profile} should succeed"
+            );
+            assert!(!out.is_null(), "profile {profile} returned null output");
+            unsafe {
+                crate::oxidize_free_string(out);
+            }
+        }
+    }
+
+    /// Convert the FFI-emitted JSON into a `serde_json::Value` array so tests
+    /// can inspect element_type / text / confidence semantically.
+    fn json_to_array(out: *mut c_char) -> Vec<serde_json::Value> {
+        let json = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe {
+            crate::oxidize_free_string(out);
+        }
+        serde_json::from_str::<Vec<serde_json::Value>>(&json).expect("FFI must emit a JSON array")
+    }
+
+    fn call_with_config(pdf: &[u8], cfg_json: &str) -> Vec<serde_json::Value> {
+        let cfg_c = std::ffi::CString::new(cfg_json).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_config(pdf.as_ptr(), pdf.len(), cfg_c.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::Success as c_int, "expected success");
+        assert!(!out.is_null());
+        json_to_array(out)
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_emits_well_formed_elements() {
+        let pdf = sample_pdf();
+        let cfg = r#"{
+            "detect_tables": false,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": "Simple",
+            "min_table_confidence": 0.5
+        }"#;
+        let elements = call_with_config(&pdf, cfg);
+        assert!(
+            !elements.is_empty(),
+            "fixture should produce at least one element"
+        );
+
+        // Every element must carry the documented schema fields (no smoke test).
+        for el in &elements {
+            assert!(el.get("element_type").and_then(|v| v.as_str()).is_some());
+            assert!(el.get("text").and_then(|v| v.as_str()).is_some());
+            assert!(el
+                .get("page_number")
+                .and_then(|v| v.as_u64())
+                .is_some_and(|n| n >= 1));
+            assert!(el.get("confidence").and_then(|v| v.as_f64()).is_some());
+        }
+
+        // Fixture has no table content, and detect_tables is off — assert the
+        // negation directly.
+        let has_table = elements
+            .iter()
+            .any(|el| el.get("element_type").and_then(|v| v.as_str()) == Some("Table"));
+        assert!(
+            !has_table,
+            "no Table element expected with detect_tables=false on table-free fixture"
+        );
+
+        // Introduction text must be present somewhere.
+        let has_intro = elements.iter().any(|el| {
+            el.get("text")
+                .and_then(|v| v.as_str())
+                .is_some_and(|t| t.contains("Introduction"))
+        });
+        assert!(has_intro, "expected fixture title text in output");
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_accepts_xycut_reading_order() {
+        // The XYCut variant carries a payload (`min_gap: f64`) — exercises a
+        // different DTO branch than `"Simple"` / `"None"` and proves the FFI
+        // honours the System.Text.Json shape `{"XYCut":{"min_gap":N}}` that
+        // the C# converter emits.
+        let pdf = sample_pdf();
+        let cfg = r#"{
+            "detect_tables": true,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": {"XYCut":{"min_gap":15.0}},
+            "min_table_confidence": 0.5
+        }"#;
+        let elements = call_with_config(&pdf, cfg);
+        assert!(!elements.is_empty(), "XYCut should still produce elements");
+        let has_intro = elements.iter().any(|el| {
+            el.get("text")
+                .and_then(|v| v.as_str())
+                .is_some_and(|t| t.contains("Introduction"))
+        });
+        assert!(has_intro);
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_accepts_integer_min_gap() {
+        // System.Text.Json emits whole-number doubles as integer tokens;
+        // serde_json must accept them for f64 fields.
+        let pdf = sample_pdf();
+        let cfg = r#"{
+            "detect_tables": true,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": {"XYCut":{"min_gap":15}},
+            "min_table_confidence": 0.5
+        }"#;
+        // No assertion on element content — the assertion is "no crash, success
+        // code, parseable output" which `call_with_config` already enforces.
+        let _ = call_with_config(&pdf, cfg);
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_rejects_bad_json() {
+        let pdf = sample_pdf();
+        let cfg_c = std::ffi::CString::new("{not valid json").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_config(pdf.as_ptr(), pdf.len(), cfg_c.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_rejects_missing_fields() {
+        let pdf = sample_pdf();
+        // Valid JSON but missing required fields — serde should reject.
+        let cfg_c = std::ffi::CString::new(r#"{"detect_tables": true}"#).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_config(pdf.as_ptr(), pdf.len(), cfg_c.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+    }
+
+    #[test]
+    fn oxidize_partition_with_config_null_config_returns_null_pointer() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_partition_with_config(pdf.as_ptr(), pdf.len(), std::ptr::null(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    // ─── oxidize_rag_chunks_with_profile (Task 8) ───────────────────────────
+
+    fn call_rag_chunks_with_profile(pdf: &[u8], profile: u8) -> Vec<serde_json::Value> {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { oxidize_rag_chunks_with_profile(pdf.as_ptr(), pdf.len(), profile, &mut out) };
+        assert_eq!(code, ErrorCode::Success as c_int);
+        assert!(!out.is_null());
+        json_to_array(out)
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_returns_well_formed_chunks() {
+        let pdf = sample_pdf();
+        let chunks = call_rag_chunks_with_profile(&pdf, 6 /* Rag */);
+        assert!(
+            !chunks.is_empty(),
+            "fixture should produce at least one chunk"
+        );
+
+        // Every chunk must carry the documented RagChunkResult schema (no smoke test).
+        for (i, c) in chunks.iter().enumerate() {
+            let idx = c
+                .get("chunk_index")
+                .and_then(|v| v.as_u64())
+                .expect("chunk_index missing");
+            assert_eq!(idx as usize, i, "chunk_index must be sequential 0..n");
+            assert!(c.get("text").and_then(|v| v.as_str()).is_some());
+            assert!(c.get("full_text").and_then(|v| v.as_str()).is_some());
+            assert!(c.get("page_numbers").and_then(|v| v.as_array()).is_some());
+            assert!(c.get("element_types").and_then(|v| v.as_array()).is_some());
+            assert!(c.get("token_estimate").and_then(|v| v.as_u64()).is_some());
+            assert!(c.get("is_oversized").and_then(|v| v.as_bool()).is_some());
+            // heading_context may be null — just check key presence.
+            assert!(c.get("heading_context").is_some());
+        }
+
+        // Page numbers must be 1-based (FFI converts the 0-based core values).
+        for c in &chunks {
+            for p in c.get("page_numbers").unwrap().as_array().unwrap() {
+                assert!(
+                    p.as_u64().unwrap() >= 1,
+                    "page_numbers must be 1-based (FFI contract)"
+                );
+            }
+        }
+
+        // The fixture's title text must surface in at least one chunk's text.
+        let has_intro = chunks.iter().any(|c| {
+            c.get("text")
+                .and_then(|v| v.as_str())
+                .is_some_and(|t| t.contains("Introduction"))
+        });
+        assert!(has_intro);
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_accepts_all_valid_profiles() {
+        let pdf = sample_pdf();
+        for profile in 0u8..=6u8 {
+            let chunks = call_rag_chunks_with_profile(&pdf, profile);
+            assert!(
+                !chunks.is_empty(),
+                "profile {profile} must produce chunks for the fixture"
+            );
+        }
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_rejects_bad_discriminant() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { oxidize_rag_chunks_with_profile(pdf.as_ptr(), pdf.len(), 99, &mut out) };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_null_pdf_returns_null_pointer() {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_rag_chunks_with_profile(std::ptr::null(), 0, 0, &mut out) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_profile_empty_pdf_returns_parse_error() {
+        let dummy: u8 = 0;
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_rag_chunks_with_profile(&dummy, 0, 0, &mut out) };
+        assert_eq!(code, ErrorCode::PdfParseError as c_int);
+        assert!(out.is_null());
+    }
+
+    // ─── oxidize_rag_chunks_with_config (Task 9) ─────────────────────────────
+
+    /// Calls `oxidize_rag_chunks_with_config` with the supplied optional configs
+    /// (pass `None` to use the upstream default for that parameter), asserts a
+    /// successful response, and returns the parsed JSON array.
+    fn call_rag_chunks_with_config(
+        pdf: &[u8],
+        partition_cfg: Option<&str>,
+        hybrid_cfg: Option<&str>,
+    ) -> Vec<serde_json::Value> {
+        let p_owned = partition_cfg.map(|s| std::ffi::CString::new(s).unwrap());
+        let h_owned = hybrid_cfg.map(|s| std::ffi::CString::new(s).unwrap());
+        let p_ptr = p_owned.as_ref().map_or(std::ptr::null(), |c| c.as_ptr());
+        let h_ptr = h_owned.as_ref().map_or(std::ptr::null(), |c| c.as_ptr());
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(pdf.as_ptr(), pdf.len(), p_ptr, h_ptr, &mut out)
+        };
+        assert_eq!(code, ErrorCode::Success as c_int);
+        assert!(!out.is_null());
+        json_to_array(out)
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_both_null_uses_defaults() {
+        let pdf = sample_pdf();
+        let chunks = call_rag_chunks_with_config(&pdf, None, None);
+        assert!(!chunks.is_empty());
+        // Default chunk schema must be present.
+        assert!(chunks[0].get("chunk_index").is_some());
+        assert!(chunks[0].get("full_text").is_some());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_only_hybrid_supplied() {
+        // Default partition, custom hybrid — the common case for size tuning.
+        let pdf = sample_pdf();
+        let hybrid = r#"{
+            "max_tokens": 16,
+            "overlap_tokens": 0,
+            "merge_adjacent": false,
+            "propagate_headings": true,
+            "merge_policy": "SameTypeOnly"
+        }"#;
+        let chunks = call_rag_chunks_with_config(&pdf, None, Some(hybrid));
+        assert!(!chunks.is_empty());
+        for chunk in &chunks {
+            assert!(chunk.get("chunk_index").is_some());
+            assert!(chunk
+                .get("token_estimate")
+                .and_then(|v| v.as_u64())
+                .is_some());
+        }
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_only_partition_supplied() {
+        // Custom partition, default hybrid.
+        let pdf = sample_pdf();
+        let partition = r#"{
+            "detect_tables": false,
+            "detect_headers_footers": false,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": "Simple",
+            "min_table_confidence": 0.5
+        }"#;
+        let chunks = call_rag_chunks_with_config(&pdf, Some(partition), None);
+        assert!(!chunks.is_empty());
+        // 1-based page numbers contract.
+        for c in &chunks {
+            for p in c.get("page_numbers").unwrap().as_array().unwrap() {
+                assert!(p.as_u64().unwrap() >= 1);
+            }
+        }
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_both_supplied() {
+        let pdf = sample_pdf();
+        let partition = r#"{
+            "detect_tables": true,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": {"XYCut":{"min_gap":15.0}},
+            "min_table_confidence": 0.5
+        }"#;
+        let hybrid = r#"{
+            "max_tokens": 64,
+            "overlap_tokens": 0,
+            "merge_adjacent": true,
+            "propagate_headings": true,
+            "merge_policy": "AnyInlineContent"
+        }"#;
+        let chunks = call_rag_chunks_with_config(&pdf, Some(partition), Some(hybrid));
+        assert!(!chunks.is_empty());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_rejects_bad_partition_json() {
+        let pdf = sample_pdf();
+        let bad = std::ffi::CString::new("{not json").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(
+                pdf.as_ptr(),
+                pdf.len(),
+                bad.as_ptr(),
+                std::ptr::null(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_rejects_bad_hybrid_json() {
+        let pdf = sample_pdf();
+        let bad = std::ffi::CString::new("{not json").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(
+                pdf.as_ptr(),
+                pdf.len(),
+                std::ptr::null(),
+                bad.as_ptr(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer() {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+                std::ptr::null(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error() {
+        let dummy: u8 = 0;
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_rag_chunks_with_config(&dummy, 0, std::ptr::null(), std::ptr::null(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::PdfParseError as c_int);
+        assert!(out.is_null());
+    }
+
+    // ─── oxidize_semantic_chunks (Task 10) ────────────────────────────────────
+
+    fn call_semantic_chunks(
+        pdf: &[u8],
+        partition_cfg: Option<&str>,
+        semantic_cfg: &str,
+    ) -> Vec<serde_json::Value> {
+        let p_owned = partition_cfg.map(|s| std::ffi::CString::new(s).unwrap());
+        let p_ptr = p_owned.as_ref().map_or(std::ptr::null(), |c| c.as_ptr());
+        let s_owned = std::ffi::CString::new(semantic_cfg).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_semantic_chunks(pdf.as_ptr(), pdf.len(), p_ptr, s_owned.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::Success as c_int);
+        assert!(!out.is_null());
+        json_to_array(out)
+    }
+
+    #[test]
+    fn oxidize_semantic_chunks_returns_well_formed_chunks() {
+        let pdf = sample_pdf();
+        let sem = r#"{"max_tokens":64,"overlap_tokens":10,"respect_element_boundaries":true}"#;
+        let chunks = call_semantic_chunks(&pdf, None, sem);
+        assert!(!chunks.is_empty());
+
+        // Schema validation — every documented field present, correctly typed,
+        // sequential chunk_index, 1-based page_numbers.
+        for (i, c) in chunks.iter().enumerate() {
+            assert_eq!(
+                c.get("chunk_index").and_then(|v| v.as_u64()).unwrap() as usize,
+                i,
+                "chunk_index must be sequential 0..n"
+            );
+            assert!(c.get("text").and_then(|v| v.as_str()).is_some());
+            assert!(c.get("token_estimate").and_then(|v| v.as_u64()).is_some());
+            assert!(c.get("is_oversized").and_then(|v| v.as_bool()).is_some());
+            for p in c.get("page_numbers").unwrap().as_array().unwrap() {
+                assert!(p.as_u64().unwrap() >= 1, "page_numbers must be 1-based");
+            }
+        }
+
+        // Fixture's title text should appear in some chunk.
+        let has_intro = chunks.iter().any(|c| {
+            c.get("text")
+                .and_then(|v| v.as_str())
+                .is_some_and(|t| t.contains("Introduction"))
+        });
+        assert!(has_intro);
+    }
+
+    #[test]
+    fn oxidize_semantic_chunks_accepts_custom_partition_config() {
+        let pdf = sample_pdf();
+        let partition = r#"{
+            "detect_tables": false,
+            "detect_headers_footers": false,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": "Simple",
+            "min_table_confidence": 0.5
+        }"#;
+        let sem = r#"{"max_tokens":128,"overlap_tokens":0,"respect_element_boundaries":true}"#;
+        let chunks = call_semantic_chunks(&pdf, Some(partition), sem);
+        assert!(!chunks.is_empty());
+    }
+
+    #[test]
+    fn oxidize_semantic_chunks_rejects_null_semantic_config() {
+        // Unlike the partition config (which is optional), the semantic
+        // config is REQUIRED — there's no default we want to silently apply.
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_semantic_chunks(
+                pdf.as_ptr(),
+                pdf.len(),
+                std::ptr::null(),
+                std::ptr::null(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_semantic_chunks_rejects_bad_semantic_json() {
+        let pdf = sample_pdf();
+        let bad = std::ffi::CString::new("{not json").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_semantic_chunks(
+                pdf.as_ptr(),
+                pdf.len(),
+                std::ptr::null(),
+                bad.as_ptr(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_semantic_chunks_rejects_bad_partition_json() {
+        let pdf = sample_pdf();
+        let bad_partition = std::ffi::CString::new("{not json").unwrap();
+        let sem = std::ffi::CString::new(
+            r#"{"max_tokens":64,"overlap_tokens":10,"respect_element_boundaries":true}"#,
+        )
+        .unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_semantic_chunks(
+                pdf.as_ptr(),
+                pdf.len(),
+                bad_partition.as_ptr(),
+                sem.as_ptr(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_semantic_chunks_null_pdf_returns_null_pointer() {
+        let sem = std::ffi::CString::new(
+            r#"{"max_tokens":64,"overlap_tokens":10,"respect_element_boundaries":true}"#,
+        )
+        .unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_semantic_chunks(
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+                sem.as_ptr(),
+                &mut out,
+            )
+        };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_semantic_chunks_empty_pdf_returns_parse_error() {
+        let dummy: u8 = 0;
+        let sem = std::ffi::CString::new(
+            r#"{"max_tokens":64,"overlap_tokens":10,"respect_element_boundaries":true}"#,
+        )
+        .unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { oxidize_semantic_chunks(&dummy, 0, std::ptr::null(), sem.as_ptr(), &mut out) };
+        assert_eq!(code, ErrorCode::PdfParseError as c_int);
+        assert!(out.is_null());
+    }
+
+    // ─── oxidize_to_markdown_with_options (Task 10b, RAG-012) ────────────────
+
+    fn call_to_markdown(pdf: &[u8], opts_json: &str) -> String {
+        let opts_c = std::ffi::CString::new(opts_json).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_to_markdown_with_options(pdf.as_ptr(), pdf.len(), opts_c.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::Success as c_int, "expected Success");
+        assert!(!out.is_null());
+        let md = unsafe { CStr::from_ptr(out).to_string_lossy().into_owned() };
+        unsafe {
+            crate::oxidize_free_string(out);
+        }
+        assert!(!md.is_empty(), "markdown output must not be empty");
+        md
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_metadata_true_emits_yaml_frontmatter() {
+        let pdf = sample_pdf();
+        let md = call_to_markdown(
+            &pdf,
+            r#"{"include_metadata":true,"include_page_numbers":false}"#,
+        );
+        // YAML frontmatter contract from MarkdownExporter::export_with_metadata.
+        assert!(
+            md.starts_with("---\n"),
+            "metadata=true must start with YAML frontmatter"
+        );
+        assert!(md.contains("title:"));
+        assert!(md.contains("pages:"));
+        assert!(
+            md.contains("---\n\n# "),
+            "must close frontmatter and emit title heading"
+        );
+        // No per-page markers when include_page_numbers=false.
+        assert!(
+            !md.contains("**Page "),
+            "page markers must NOT appear when include_page_numbers=false"
+        );
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_metadata_false_no_yaml() {
+        let pdf = sample_pdf();
+        let md = call_to_markdown(
+            &pdf,
+            r#"{"include_metadata":false,"include_page_numbers":false}"#,
+        );
+        assert!(
+            !md.starts_with("---\n"),
+            "metadata=false must NOT emit YAML frontmatter"
+        );
+        assert!(!md.contains("title:"));
+        assert!(!md.contains("**Page "));
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_pages_only_emits_page_markers_no_yaml() {
+        let pdf = sample_pdf();
+        let md = call_to_markdown(
+            &pdf,
+            r#"{"include_metadata":false,"include_page_numbers":true}"#,
+        );
+        assert!(!md.starts_with("---\n"), "no YAML when metadata=false");
+        assert!(
+            md.contains("**Page 1**"),
+            "must emit per-page marker for page 1"
+        );
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_both_true_emits_yaml_and_page_markers() {
+        let pdf = sample_pdf();
+        let md = call_to_markdown(
+            &pdf,
+            r#"{"include_metadata":true,"include_page_numbers":true}"#,
+        );
+        assert!(
+            md.starts_with("---\n"),
+            "YAML frontmatter when metadata=true"
+        );
+        assert!(md.contains("title:"));
+        assert!(
+            md.contains("**Page 1**"),
+            "page marker when include_page_numbers=true"
+        );
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_distinct_flag_combinations_produce_distinct_output() {
+        // The four flag combinations must produce four distinct outputs.
+        let pdf = sample_pdf();
+        let combos = [(false, false), (true, false), (false, true), (true, true)];
+        let outputs: Vec<String> = combos
+            .iter()
+            .map(|(meta, pages)| {
+                call_to_markdown(
+                    &pdf,
+                    &format!(r#"{{"include_metadata":{meta},"include_page_numbers":{pages}}}"#),
+                )
+            })
+            .collect();
+        for i in 0..outputs.len() {
+            for j in (i + 1)..outputs.len() {
+                assert_ne!(
+                    outputs[i], outputs[j],
+                    "combos {:?} and {:?} produced identical markdown — options ignored",
+                    combos[i], combos[j]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_rejects_bad_json() {
+        let pdf = sample_pdf();
+        let bad = std::ffi::CString::new("{not json").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_to_markdown_with_options(pdf.as_ptr(), pdf.len(), bad.as_ptr(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_null_options_returns_null_pointer() {
+        let pdf = sample_pdf();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe {
+            oxidize_to_markdown_with_options(pdf.as_ptr(), pdf.len(), std::ptr::null(), &mut out)
+        };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_to_markdown_with_options_empty_pdf_returns_parse_error() {
+        let dummy: u8 = 0;
+        let opts =
+            std::ffi::CString::new(r#"{"include_metadata":true,"include_page_numbers":true}"#)
+                .unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_to_markdown_with_options(&dummy, 0, opts.as_ptr(), &mut out) };
+        assert_eq!(code, ErrorCode::PdfParseError as c_int);
+        assert!(out.is_null());
+    }
+
+    // ─── oxidize_estimate_tokens / oxidize_chunk_text (Task 10c) ───────────
+    // RAG-008 (chunk standalone text) + RAG-009 (token estimator).
+
+    #[test]
+    fn oxidize_estimate_tokens_uses_word_count_x_1_33() {
+        // Upstream `DocumentChunker::estimate_tokens` returns
+        // `(words * 1.33) as usize`. Lock the contract here so a silent
+        // upstream change to the formula breaks this test rather than
+        // silently shifting downstream chunk-count assumptions.
+        let cases = [
+            (
+                "hello world from oxidize",
+                4, /*words*/
+                5, /*tokens, floor(4*1.33)=5*/
+            ),
+            ("one", 1, 1 /*floor(1.33)=1*/),
+            ("a b c d e f g h", 8, 10 /*floor(10.64)=10*/),
+            ("", 0, 0),
+        ];
+        for (text, words, expected) in cases {
+            let cs = std::ffi::CString::new(text).unwrap();
+            let mut out: usize = usize::MAX;
+            let code = unsafe { oxidize_estimate_tokens(cs.as_ptr(), &mut out) };
+            assert_eq!(code, ErrorCode::Success as c_int);
+            assert_eq!(
+                out, expected,
+                "input={:?} words={} expected={} got={}",
+                text, words, expected, out
+            );
+        }
+    }
+
+    #[test]
+    fn oxidize_estimate_tokens_null_text_returns_null_pointer() {
+        let mut out: usize = 0;
+        let code = unsafe { oxidize_estimate_tokens(std::ptr::null(), &mut out) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+    }
+
+    #[test]
+    fn oxidize_estimate_tokens_null_out_returns_null_pointer() {
+        let cs = std::ffi::CString::new("text").unwrap();
+        let code = unsafe { oxidize_estimate_tokens(cs.as_ptr(), std::ptr::null_mut()) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+    }
+
+    fn call_chunk_text(text: &str, chunk_size: usize, overlap: usize) -> Vec<serde_json::Value> {
+        let cs = std::ffi::CString::new(text).unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_chunk_text(cs.as_ptr(), chunk_size, overlap, &mut out) };
+        assert_eq!(code, ErrorCode::Success as c_int);
+        assert!(!out.is_null());
+        json_to_array(out)
+    }
+
+    #[test]
+    fn oxidize_chunk_text_splits_long_input_with_expected_schema() {
+        let long = "word ".repeat(200);
+        let chunks = call_chunk_text(&long, 50, 5);
+
+        // chunk_size=50, overlap=5 → step=45 → 200 tokens / 45 ≈ 5 chunks.
+        assert!(
+            chunks.len() >= 2,
+            "expected multiple chunks for 200-word/size=50 input"
+        );
+
+        // Schema validation: every documented field present, correctly typed.
+        for (i, c) in chunks.iter().enumerate() {
+            let id = c.get("id").and_then(|v| v.as_str()).expect("id missing");
+            assert!(
+                id.starts_with("chunk_"),
+                "id must follow `chunk_N` format, got {id}"
+            );
+            assert!(c.get("content").and_then(|v| v.as_str()).is_some());
+            assert!(c.get("tokens").and_then(|v| v.as_u64()).is_some());
+            assert!(c.get("page_numbers").and_then(|v| v.as_array()).is_some());
+            assert_eq!(
+                c.get("chunk_index").and_then(|v| v.as_u64()).unwrap() as usize,
+                i,
+                "chunk_index must be sequential 0..n"
+            );
+        }
+    }
+
+    #[test]
+    fn oxidize_chunk_text_overlap_produces_shared_words_between_consecutive_chunks() {
+        // With chunk_size=10 and overlap=3 over 30 distinct numbered words,
+        // chunks 0 and 1 must share at least one word — the overlap parameter
+        // must affect content, not just chunk boundaries.
+        let words: Vec<String> = (0..30).map(|i| format!("w{i}")).collect();
+        let text = words.join(" ");
+        let chunks = call_chunk_text(&text, 10, 3);
+        assert!(chunks.len() >= 2);
+
+        let c0 = chunks[0].get("content").and_then(|v| v.as_str()).unwrap();
+        let c1 = chunks[1].get("content").and_then(|v| v.as_str()).unwrap();
+        let c0_words: std::collections::HashSet<&str> = c0.split_whitespace().collect();
+        let c1_words: std::collections::HashSet<&str> = c1.split_whitespace().collect();
+        let shared: Vec<&&str> = c0_words.intersection(&c1_words).collect();
+        assert!(
+            !shared.is_empty(),
+            "consecutive chunks must share words when overlap > 0; \
+             c0={:?}, c1={:?}",
+            c0_words,
+            c1_words
+        );
+    }
+
+    #[test]
+    fn oxidize_chunk_text_short_input_single_chunk() {
+        // 5-word input with chunk_size=100 must produce exactly one chunk.
+        let chunks = call_chunk_text("one two three four five", 100, 10);
+        assert_eq!(
+            chunks.len(),
+            1,
+            "short input must produce exactly one chunk"
+        );
+        assert_eq!(chunks[0].get("chunk_index").unwrap(), 0);
+    }
+
+    #[test]
+    fn oxidize_chunk_text_rejects_overlap_ge_size() {
+        let cs = std::ffi::CString::new("some text").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_chunk_text(cs.as_ptr(), 10, 10, &mut out) };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+
+        // overlap > size is also invalid.
+        let mut out2: *mut c_char = std::ptr::null_mut();
+        let code2 = unsafe { oxidize_chunk_text(cs.as_ptr(), 5, 10, &mut out2) };
+        assert_eq!(code2, ErrorCode::InvalidArgument as c_int);
+        assert!(out2.is_null());
+    }
+
+    #[test]
+    fn oxidize_chunk_text_rejects_zero_chunk_size() {
+        let cs = std::ffi::CString::new("some text").unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_chunk_text(cs.as_ptr(), 0, 0, &mut out) };
+        assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_chunk_text_null_text_returns_null_pointer() {
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code = unsafe { oxidize_chunk_text(std::ptr::null(), 10, 0, &mut out) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+        assert!(out.is_null());
+    }
+
+    #[test]
+    fn oxidize_chunk_text_null_out_returns_null_pointer() {
+        let cs = std::ffi::CString::new("text").unwrap();
+        let code = unsafe { oxidize_chunk_text(cs.as_ptr(), 10, 0, std::ptr::null_mut()) };
+        assert_eq!(code, ErrorCode::NullPointer as c_int);
+    }
 }
 
 #[cfg(test)]

@@ -908,12 +908,70 @@ internal static class NativeMethods
     internal static extern int oxidize_rag_chunks(
         IntPtr pdfBytes, nuint pdfLen, out IntPtr outJson);
 
+    /// <summary>
+    /// Partition PDF using a pre-configured ExtractionProfile. <paramref name="profile"/>
+    /// is the byte discriminant of <c>OxidizePdf.NET.Pipeline.ExtractionProfile</c>
+    /// (0 = Standard ... 6 = Rag).
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_partition_with_profile(
+        IntPtr pdfBytes, nuint pdfLen, byte profile, out IntPtr outJson);
+
+    /// <summary>
+    /// Partition PDF using a <c>PartitionConfig</c> serialised as UTF-8 JSON
+    /// (matches the serde shape of <c>oxidize_pdf::pipeline::PartitionConfig</c>).
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_partition_with_config(
+        IntPtr pdfBytes, nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string configJson,
+        out IntPtr outJson);
+
+    /// <summary>Extract RAG chunks using a pre-configured ExtractionProfile.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_rag_chunks_with_profile(
+        IntPtr pdfBytes, nuint pdfLen, byte profile, out IntPtr outJson);
+
+    /// <summary>
+    /// Extract RAG chunks with optional partition and hybrid configs (pass
+    /// <c>null</c> for either to use the upstream default for that stage).
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_rag_chunks_with_config(
+        IntPtr pdfBytes, nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? partitionConfigJson,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? hybridConfigJson,
+        out IntPtr outJson);
+
+    /// <summary>
+    /// Extract semantic chunks (element-boundary-aware). The semantic config is
+    /// REQUIRED — passing <c>null</c> returns <c>NullPointer</c>; the partition
+    /// config is optional and falls back to <c>PartitionConfig::default()</c>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_semantic_chunks(
+        IntPtr pdfBytes, nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? partitionConfigJson,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string semanticConfigJson,
+        out IntPtr outJson);
+
     // ── Parser — structured export ─────────────────────────────────────────────
 
     /// <summary>Export PDF content as Markdown</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_to_markdown(
         IntPtr pdfBytes, nuint pdfLen, out IntPtr outText);
+
+    /// <summary>
+    /// Export PDF content as Markdown with explicit <c>MarkdownOptions</c>
+    /// (RAG-012). Accepts the JSON serialisation of
+    /// <c>OxidizePdf.NET.Ai.MarkdownOptions</c> — required.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_to_markdown_with_options(
+        IntPtr pdfBytes, nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string optionsJson,
+        out IntPtr outText);
 
     /// <summary>Export PDF content in contextual format (LLM-optimized)</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -924,6 +982,30 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_to_json(
         IntPtr pdfBytes, nuint pdfLen, out IntPtr outText);
+
+    // ── AI / text chunking (no PDF) ───────────────────────────────────────────
+
+    /// <summary>
+    /// Chunk arbitrary text using a fixed-size + overlap strategy (RAG-008).
+    /// <paramref name="chunkSize"/> and <paramref name="overlap"/> are in
+    /// whitespace-separated tokens; <paramref name="overlap"/> must be
+    /// strictly less than <paramref name="chunkSize"/>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_chunk_text(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        nuint chunkSize, nuint overlap,
+        out IntPtr outJson);
+
+    /// <summary>
+    /// Estimate token count for arbitrary text (RAG-009). Heuristic:
+    /// <c>floor(words * 1.33)</c> where <c>words</c> is the count of
+    /// whitespace-separated tokens.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_estimate_tokens(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        out nuint outCount);
 
     // ── Parser — extraction options ────────────────────────────────────────────
 
