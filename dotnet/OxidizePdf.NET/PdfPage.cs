@@ -41,7 +41,7 @@ public sealed class PdfPage : IDisposable
             throw new PdfExtractionException("Failed to create page");
     }
 
-    private PdfPage(IntPtr handle)
+    internal PdfPage(IntPtr handle)
     {
         _handle = handle;
         if (_handle == IntPtr.Zero)

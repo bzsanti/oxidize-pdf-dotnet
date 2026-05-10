@@ -7,6 +7,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-05-10
+
+### Added
+- **`PdfDocument.NewPageA4()`, `NewPageLetter()`, `NewPage(width, height)`** —
+  document-bound page factories that pre-bind the document's
+  `FontMetricsStore` to the page at construction time. These replace the
+  legacy two-step pattern (`PdfPage.A4()` / `Letter()` / `new PdfPage(w, h)`
+  followed by `PdfDocument.AddPage(page)`) for any flow that draws custom
+  fonts via `PdfTextFlow.WriteWrapped`, table layout, or header / footer
+  width-based positioning. The legacy pattern keeps working for built-in
+  fonts; for custom fonts it falls back to upstream hardcoded default widths
+  in oxidize-pdf 2.8.0+, so the new factories are mandatory there. Backed by
+  three new FFI entry points: `oxidize_document_new_page_a4`,
+  `oxidize_document_new_page_letter`, `oxidize_document_new_page`.
+
+### Fixed
+- **Custom-font measurement during text wrapping** now resolves against the
+  document's per-instance `FontMetricsStore` instead of falling back to the
+  upstream hardcoded Helvetica-shaped default profile. Before this fix, the
+  FFI flow constructed the drawing page standalone (`PdfPage.A4()`) and only
+  bound the store at `add_page` time — too late to affect any draw
+  operations that ran first. Symptoms in the rendered PDF: incorrect line
+  breaks for paragraphs drawn through `PdfTextFlow.WriteWrapped`, incorrect
+  column widths in auto-sized tables, incorrect x-positioning for justified
+  / centered / right-aligned text. The fix is the new factory methods above;
+  no behaviour change for callers that only use built-in fonts. Verified
+  by a Rust regression suite
+  (`native/src/document.rs::fontmetricsstore_binding_tests`) that locks the
+  full chain from `add_font_from_bytes` through `measure_text_with`,
+  including a cross-check against the oracle path
+  (`Font::from_bytes::measure_text`).
+
+### Changed
+- **Updated oxidize-pdf dependency 2.6.0 → 2.8.0**. The FFI public surface is
+  unchanged; the bump is transparent for `OxidizePdf.NET` callers. The bump
+  spans two upstream releases (2.7.0 and 2.8.0); inherited capabilities and
+  observable behaviour changes are listed below. None of the new APIs are
+  yet exposed through the FFI.
+
+  **Inherited from oxidize-pdf 2.7.0:**
+  - **Painter-model call order preserved across `Page::graphics()` /
+    `Page::text()` / `Page::add_text_flow()` / `Page::append_raw_content()`**
+    (upstream issue #227). Pre-2.7.0 the writer flushed the entire graphics
+    buffer before the entire text buffer regardless of caller order.
+    Observable change for FFI callers that interleave
+    `oxidize_page_*_graphics_*` and text-emitting calls on the same page —
+    z-ordering of generated PDFs now follows call order. No FFI signature
+    change required.
+  - **Non-finite float sanitisation extended to all numeric content-stream
+    operators** in `GraphicsContext`, `TextContext`, and `TextFlowContext`
+    (upstream issues #220 / #221). Path coords (`m`, `l`, `c`, `re`), line
+    widths, miter limits, transforms (`cm`), text positioning, and text-state
+    operators now route through `finite_or_zero` at the emission boundary.
+    Out-of-scope paths (`forms/appearance.rs`, `signature_widget.rs`,
+    `annotations`, `Op::Raw`) remain caller responsibility upstream.
+    Extends the 2.6.0 colour-only fix already inherited by 0.8.0.
+  - **Typed content-stream IR (`graphics::ops::Op` + `serialize_ops`)** —
+    internal refactor; no observable FFI impact.
+  - **`cm` matrix wire format normalised to `{:.2}` precision** — cosmetic
+    change in emitted PDF bytes; ISO 32000-1-conformant in both old and new
+    forms. Tests asserting byte-exact `cm` output downstream may need
+    updating.
+  - **`TextFlowContext` text-state setters** (`set_character_spacing`,
+    `set_word_spacing`, `set_horizontal_scaling`, `set_leading`,
+    `set_text_rise`, `set_rendering_mode`, `set_stroke_color`, upstream
+    issue #222) — available upstream but not currently bridged through the
+    FFI.
+  - **API surface change with patch-compat semantics**:
+    `GraphicsContext::operations()` / `get_operations()`,
+    `TextContext::operations()`, `TextFlowContext::operations()`, and
+    `Page::graphics_operations()` now return owned `String` (was `&str`).
+    The FFI does not call these methods, so the change is invisible at the
+    FFI boundary.
+
+  **Inherited from oxidize-pdf 2.8.0:**
+  - **`FontMetricsStore`** — per-`Document` custom font metrics store
+    (replaces the process-wide global registry).
+    `Document::add_font_from_bytes` automatically routes to the new store,
+    so any custom font registered via
+    `oxidize_document_add_font_from_bytes` benefits from scoped metrics
+    with no API change. Resolves the cross-`Document` leak /
+    last-writer-wins race documented upstream as issue #230. **Caveat for
+    custom-font drawing flow**: `oxidize_document_add_page` clones the page
+    into the document and the cloned copy receives the metrics-store
+    inject; the caller's `PageHandle` does not. Drawing operations on the
+    `PageHandle` that require metrics for `Font::Custom(_)` (text wrapping,
+    table layout, header/footer width measurement) measure against default
+    widths — the per-Document store is not bound on the handle. Tracked for
+    a future revision that adopts the upstream document-first factories
+    (`Document::new_page_a4()` / `new_page_letter()` / `new_page(w,h)`).
+  - **Form-filling fix for `ComboBox` and `ListBox` widgets with
+    `Font::Custom(_)`** — `Document::fill_field` now correctly emits
+    Type0/CID appearance streams for choice fields with custom fonts
+    (upstream issue #212). The fix is available upstream;
+    `Document::fill_field` is **not yet exposed through the FFI** — when
+    bridged, it will inherit the fix automatically.
+  - **Form-filling fix for `PushButton` widgets with `Font::Custom(_)`** —
+    the `/AP` resource dictionary now emits a `/Subtype /Type0` placeholder
+    instead of an invalid `/Type1` entry that previously rejected
+    non-WinAnsi labels with `PdfError::EncodingError` (upstream issue #212).
+  - **`Document::new_page_a4 / new_page_letter / new_page(w,h)` factory
+    methods** — available upstream; FFI continues to use `Page::a4()` /
+    `Page::letter()` / `Page::new(w,h)` followed by `add_page`. See the
+    `FontMetricsStore` caveat above for the implications during custom-font
+    drawing.
+- **Deprecated upstream APIs the FFI does not call**:
+  `text::metrics::register_custom_font_metrics` and
+  `text::metrics::get_custom_font_metrics`. No FFI changes required.
+
 ## [0.8.0] - 2026-05-05
 
 ### Added — RAG pipeline parity with the Python bridge

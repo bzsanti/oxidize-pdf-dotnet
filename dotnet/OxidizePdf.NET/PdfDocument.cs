@@ -246,10 +246,103 @@ public sealed class PdfDocument : IDisposable
     // ── Pages ─────────────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Creates a new A4 page bound to this document's font metrics store.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Use this factory <strong>instead of</strong> <see cref="PdfPage.A4"/> when the
+    /// page will draw text in a custom font registered via
+    /// <see cref="AddFont(string, byte[])"/> or <see cref="AddFontFromFile"/>. Pages
+    /// produced by this factory share the document's per-instance metrics store, so
+    /// measurement-driven flows (text wrapping in <see cref="PdfTextFlow"/>, table
+    /// layout, header/footer width) resolve custom-font widths against the real font
+    /// metrics rather than the default 500/em fallback that pages constructed
+    /// standalone receive in oxidize-pdf 2.8.0+.
+    /// </para>
+    /// <para>
+    /// Custom fonts can be added to the document either before or after this call —
+    /// the underlying store is shared via <c>Arc</c>, so subsequent registrations
+    /// are visible to the page automatically.
+    /// </para>
+    /// </remarks>
+    /// <returns>A new <see cref="PdfPage"/> bound to this document's metrics store.</returns>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage NewPageA4()
+    {
+        ThrowIfDisposed();
+        var ptr = NativeMethods.oxidize_document_new_page_a4(_handle);
+        if (ptr == IntPtr.Zero)
+        {
+            var rustError = NativeMethods.GetLastError();
+            throw new PdfExtractionException(
+                $"Failed to create document-bound A4 page: {rustError ?? "(no detail)"}");
+        }
+        return new PdfPage(ptr);
+    }
+
+    /// <summary>
+    /// Creates a new US Letter page bound to this document's font metrics store.
+    /// See <see cref="NewPageA4"/> for the rationale.
+    /// </summary>
+    /// <returns>A new <see cref="PdfPage"/> bound to this document's metrics store.</returns>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage NewPageLetter()
+    {
+        ThrowIfDisposed();
+        var ptr = NativeMethods.oxidize_document_new_page_letter(_handle);
+        if (ptr == IntPtr.Zero)
+        {
+            var rustError = NativeMethods.GetLastError();
+            throw new PdfExtractionException(
+                $"Failed to create document-bound Letter page: {rustError ?? "(no detail)"}");
+        }
+        return new PdfPage(ptr);
+    }
+
+    /// <summary>
+    /// Creates a new page with explicit dimensions bound to this document's font
+    /// metrics store. See <see cref="NewPageA4"/> for the rationale.
+    /// </summary>
+    /// <param name="width">Page width in PDF points (must be finite and positive).</param>
+    /// <param name="height">Page height in PDF points (must be finite and positive).</param>
+    /// <returns>A new <see cref="PdfPage"/> bound to this document's metrics store.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">If <paramref name="width"/> or <paramref name="height"/> is non-finite or non-positive.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage NewPage(double width, double height)
+    {
+        if (!double.IsFinite(width) || width <= 0.0)
+            throw new ArgumentOutOfRangeException(nameof(width),
+                "Width must be finite and positive.");
+        if (!double.IsFinite(height) || height <= 0.0)
+            throw new ArgumentOutOfRangeException(nameof(height),
+                "Height must be finite and positive.");
+        ThrowIfDisposed();
+        var ptr = NativeMethods.oxidize_document_new_page(_handle, width, height);
+        if (ptr == IntPtr.Zero)
+        {
+            var rustError = NativeMethods.GetLastError();
+            throw new PdfExtractionException(
+                $"Failed to create document-bound page ({width}×{height}): {rustError ?? "(no detail)"}");
+        }
+        return new PdfPage(ptr);
+    }
+
+    /// <summary>
     /// Adds a page to the document. The page is cloned internally by the native layer,
     /// so the <see cref="PdfPage"/> can be disposed after this call.
     /// Returns <c>this</c> for fluent chaining.
     /// </summary>
+    /// <remarks>
+    /// For pages that draw custom-font text in measurement-heavy flows, prefer the
+    /// document-bound factories (<see cref="NewPageA4"/>, <see cref="NewPageLetter"/>,
+    /// <see cref="NewPage"/>) over <see cref="PdfPage.A4"/> / <see cref="PdfPage.Letter"/>
+    /// / <see cref="PdfPage(double, double)"/>. Pages from those factories carry the
+    /// document's font metrics store from creation, so drawing operations executed
+    /// before this call already see the real font widths.
+    /// </remarks>
     /// <param name="page">The page to add.</param>
     /// <exception cref="ArgumentNullException">If <paramref name="page"/> is null.</exception>
     /// <exception cref="ObjectDisposedException">If this document or the page has been disposed.</exception>

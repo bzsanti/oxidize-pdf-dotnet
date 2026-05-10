@@ -219,6 +219,29 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_add_page(IntPtr docHandle, IntPtr pageHandle);
 
+    /// <summary>
+    /// Create a new A4 page bound to the document's FontMetricsStore.
+    /// Required for correct custom-font measurement (oxidize-pdf 2.8.0+).
+    /// Returned handle must be freed with <c>oxidize_page_free</c>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr oxidize_document_new_page_a4(IntPtr docHandle);
+
+    /// <summary>
+    /// Create a new US Letter page bound to the document's FontMetricsStore.
+    /// Returned handle must be freed with <c>oxidize_page_free</c>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr oxidize_document_new_page_letter(IntPtr docHandle);
+
+    /// <summary>
+    /// Create a new page with explicit dimensions bound to the document's FontMetricsStore.
+    /// Returned handle must be freed with <c>oxidize_page_free</c>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr oxidize_document_new_page(
+        IntPtr docHandle, double width, double height);
+
     /// <summary>Serialize the document to PDF bytes</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_save_to_bytes(

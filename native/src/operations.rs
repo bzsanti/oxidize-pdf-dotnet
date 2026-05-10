@@ -21,34 +21,48 @@ fn temp_pdf_path(suffix: &str) -> PathBuf {
     std::env::temp_dir().join(name)
 }
 
-/// Write bytes to a temp file, run `f`, then delete the file.
+/// RAII guard that removes a temp file on drop — including unwinding panics
+/// from the wrapped closure. The previous design relied on a manual
+/// `fs::remove_file` after the closure returned, which leaked the file if
+/// the closure panicked. Rust panics that cross a `cdylib` boundary are UB,
+/// but a panic that unwinds before reaching the boundary still skipped
+/// cleanup; the guard closes that hole. Errors during removal are silently
+/// ignored (best-effort cleanup).
+struct TempFileGuard(PathBuf);
+
+impl TempFileGuard {
+    fn path_str(&self) -> Result<&str, String> {
+        self.0
+            .to_str()
+            .ok_or_else(|| "Temp path is not valid UTF-8".to_string())
+    }
+}
+
+impl Drop for TempFileGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
+/// Write bytes to a temp file, run `f`, then delete the file (including on panic).
 fn with_temp_input<F, T>(bytes: &[u8], f: F) -> Result<T, String>
 where
     F: FnOnce(&str) -> Result<T, String>,
 {
-    let path = temp_pdf_path("_in");
-    fs::write(&path, bytes).map_err(|e| format!("Failed to write temp input: {e}"))?;
-    let path_str = path
-        .to_str()
-        .ok_or_else(|| "Temp path is not valid UTF-8".to_string())?;
-    let result = f(path_str);
-    let _ = fs::remove_file(&path);
-    result
+    let guard = TempFileGuard(temp_pdf_path("_in"));
+    fs::write(&guard.0, bytes).map_err(|e| format!("Failed to write temp input: {e}"))?;
+    f(guard.path_str()?)
 }
 
-/// Run `f` with a temp output path, then read the result bytes and delete the file.
+/// Run `f` with a temp output path, then read the result bytes and delete the file
+/// (including on panic).
 fn with_temp_output<F>(f: F) -> Result<Vec<u8>, String>
 where
     F: FnOnce(&str) -> Result<(), String>,
 {
-    let path = temp_pdf_path("_out");
-    let path_str = path
-        .to_str()
-        .ok_or_else(|| "Temp path is not valid UTF-8".to_string())?;
-    f(path_str)?;
-    let bytes = fs::read(&path).map_err(|e| format!("Failed to read temp output: {e}"))?;
-    let _ = fs::remove_file(&path);
-    Ok(bytes)
+    let guard = TempFileGuard(temp_pdf_path("_out"));
+    f(guard.path_str()?)?;
+    fs::read(&guard.0).map_err(|e| format!("Failed to read temp output: {e}"))
 }
 
 /// Allocate a byte buffer on the heap for the caller.  The caller must free it with
