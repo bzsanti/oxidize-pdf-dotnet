@@ -1,7 +1,20 @@
 # Bridge Parity Spec — oxidize-pdf (Python + .NET)
 
-**Last updated:** 2026-05-05
-**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.8.0 (=core 2.6.0)
+**Last updated:** 2026-05-10
+**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.8.0 (=core 2.8.0)
+
+> **Core-version divergence (2026-05-10):** the .NET bridge tracks core 2.8.0
+> while the Python bridge is still pinned at core 2.6.0. Capability cells
+> below were last validated against core 2.6.0; any 2.7.0 / 2.8.0 upstream
+> additions are inherited by the .NET native build but are **not yet
+> reflected** in this matrix and are not yet exposed through either bridge.
+> Until Python catches up, treat each cell's "✅ / ⚠️ / ❌" as the truth for
+> the **lower** of the two core versions. Concrete deltas to integrate:
+> per-`Document` `FontMetricsStore` (#230), `ComboBox` / `ListBox` /
+> `PushButton` custom-font appearance fixes (#212), painter-model call-order
+> fix (#227), non-finite float sanitisation extension (#220 / #221),
+> `TextFlowContext` text-state setters (#222), `Document::new_page_*()`
+> factory methods.
 
 This document is the **canonical contract** that both bridges must satisfy. The same matrix exists in [`oxidize-pdf-dotnet/docs/PARITY_SPEC.md`](https://github.com/bzsanti/oxidize-pdf-dotnet/blob/main/docs/PARITY_SPEC.md). Any divergence between the two copies is a bug — the IDs, capability descriptions, and "Action for parity" cells must stay synchronized.
 

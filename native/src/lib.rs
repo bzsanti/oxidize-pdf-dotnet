@@ -84,6 +84,14 @@ pub unsafe extern "C" fn oxidize_free_string(ptr: *mut c_char) {
 
 /// Free a byte array previously allocated by an `oxidize_*` function.
 ///
+/// Reconstructs the original `Box<[u8]>` (every allocation site uses
+/// `Vec::into_boxed_slice` followed by `mem::forget`, so reclaiming the
+/// memory as a boxed slice is exactly the inverse). The previous
+/// `Vec::from_raw_parts(ptr, len, len)` form was correct only because
+/// `into_boxed_slice` shrinks-to-fit; the boxed-slice form does not depend
+/// on that invariant and rejects any future allocation site that would
+/// break it (the slice constructor takes only `len`).
+///
 /// # Safety
 /// - `ptr` must have been set by a previous call to an `oxidize_*` function that returns bytes.
 /// - `len` must match the length reported by that same call.
@@ -94,7 +102,7 @@ pub unsafe extern "C" fn oxidize_free_bytes(ptr: *mut u8, len: usize) {
     if ptr.is_null() {
         return;
     }
-    drop(Vec::from_raw_parts(ptr, len, len));
+    drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len)));
 }
 
 // ── Introspection ─────────────────────────────────────────────────────────────
@@ -167,7 +175,15 @@ mod tests {
 
         unsafe {
             let version = CStr::from_ptr(version_ptr).to_string_lossy();
-            assert!(version.contains("oxidize-pdf-ffi"));
+            assert!(
+                version.contains("oxidize-pdf-ffi"),
+                "version string must contain crate name; got {version:?}"
+            );
+            assert!(
+                version.contains(env!("CARGO_PKG_VERSION")),
+                "version string must contain crate version {expected:?}; got {version:?}",
+                expected = env!("CARGO_PKG_VERSION"),
+            );
             oxidize_free_string(version_ptr);
         }
     }

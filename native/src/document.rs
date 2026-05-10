@@ -275,6 +275,25 @@ pub unsafe extern "C" fn oxidize_document_save_to_file(
 
 /// Add a page to the document. The page is cloned internally; the caller retains ownership.
 ///
+/// # FontMetricsStore binding (oxidize-pdf 2.8.0+)
+///
+/// Upstream `Document::add_page` injects the document's `FontMetricsStore`
+/// into the cloned page if the page does not already carry one. The
+/// document-side copy therefore measures `Font::Custom(_)` against the
+/// per-Document store; the caller's `PageHandle` is unmodified and its
+/// inner `Page` retains `font_metrics_store: None`.
+///
+/// Implications:
+/// - Drawing on the `PageHandle` *after* this call is a no-op for the final
+///   PDF (the document holds an independent clone).
+/// - Drawing on the `PageHandle` *before* this call that requires metrics
+///   for `Font::Custom(_)` — text wrapping in `TextFlowContext`, table
+///   layout, header/footer width measurement — falls back to default
+///   widths because the store is not bound at draw time. To get correct
+///   per-Document metrics during drawing, the FFI flow must be revised to
+///   use the upstream `Document::new_page_*()` factory methods (which
+///   pre-bind the store) before drawing. Tracked separately.
+///
 /// # Safety
 /// - `handle` must be a valid pointer returned by `oxidize_document_create`.
 /// - `page_handle` must be a valid pointer returned by `oxidize_page_create` or
