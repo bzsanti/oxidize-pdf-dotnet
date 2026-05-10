@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Updated oxidize-pdf dependency 2.6.0 → 2.8.0**. The FFI public surface is
+  unchanged; the bump is transparent for `OxidizePdf.NET` callers. New
+  upstream capabilities are inherited by the native build but **not yet
+  exposed** through the FFI:
+  - `FontMetricsStore` — per-`Document` custom font metrics store (replaces
+    the process-wide global registry). `Document::add_font_from_bytes`
+    automatically routes to the new store, so any custom font registered via
+    `oxidize_document_add_font_from_bytes` benefits from scoped metrics with
+    no API change. Resolves the cross-`Document` leak / last-writer-wins
+    race documented upstream as issue #230.
+  - Form-filling fix for `ComboBox` and `ListBox` widgets with
+    `Font::Custom(_)` — `Document::fill_field` now correctly emits Type0/CID
+    appearance streams for choice fields with custom fonts (upstream
+    issue #212). `oxidize_document_fill_field` inherits the fix.
+  - Form-filling fix for `PushButton` widgets with `Font::Custom(_)` — the
+    `/AP` resource dictionary now emits a `/Subtype /Type0` placeholder
+    instead of an invalid `/Type1` entry that previously rejected non-WinAnsi
+    labels with `PdfError::EncodingError` (upstream issue #212).
+  - Typed content-stream IR (`graphics::ops::Op`) — internal refactor with
+    no observable FFI impact.
+  - `cm` matrix wire format normalised to `{:.2}` precision — cosmetic
+    change in emitted PDF bytes; ISO 32000-1-conformant in both old and new
+    forms.
+  - `TextFlowContext` text-state setters (`set_character_spacing`,
+    `set_word_spacing`, `set_horizontal_scaling`, `set_leading`,
+    `set_text_rise`, `set_rendering_mode`, `set_stroke_color`) — available
+    upstream but not currently bridged through the FFI.
+  - `Document::new_page_a4 / new_page_letter / new_page(w,h)` factory
+    methods — available upstream; FFI continues to use `Page::a4()` /
+    `Page::letter()` / `Page::new(w,h)` followed by `add_page` (the
+    metrics-store injection now happens in `add_page`, so the FFI path
+    transparently gets the per-Document binding).
+- **Deprecated upstream APIs the FFI does not call**:
+  `text::metrics::register_custom_font_metrics` and
+  `text::metrics::get_custom_font_metrics`. No FFI changes required.
+
 ## [0.8.0] - 2026-05-05
 
 ### Added — RAG pipeline parity with the Python bridge
