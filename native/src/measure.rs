@@ -36,6 +36,11 @@ pub unsafe extern "C" fn oxidize_measure_text(
     }
 
     let data = std::slice::from_raw_parts(font_bytes, font_len).to_vec();
+    // The "__measure__" name is a private placeholder used only for this stateless
+    // measurement call. It is never registered against any `Document`'s
+    // `FontMetricsStore` (post-2.8.0) nor against the legacy global registry, so
+    // there is no risk of collision with caller-registered font names. The local
+    // `Font` instance lives only for the duration of this function.
     let font = match oxidize_pdf::fonts::Font::from_bytes("__measure__", data) {
         Ok(f) => f,
         Err(e) => {
