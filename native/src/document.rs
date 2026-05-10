@@ -273,6 +273,91 @@ pub unsafe extern "C" fn oxidize_document_save_to_file(
     ErrorCode::Success as c_int
 }
 
+/// Create a new A4 page bound to this document's `FontMetricsStore`.
+///
+/// **Use this instead of `oxidize_page_create_preset(A4)` when the page will
+/// draw text in a `Font::Custom(_)` registered via
+/// `oxidize_document_add_font_from_bytes`.** Pages produced by this factory
+/// share the document's per-instance metrics store, so measurement helpers
+/// (text wrapping in `TextFlowContext`, table layout, header / footer width)
+/// resolve custom-font widths against the real font metrics rather than the
+/// default 500/em fallback that pages constructed standalone receive in
+/// oxidize-pdf 2.8.0+.
+///
+/// The returned handle must be freed with `oxidize_page_free`. Custom fonts
+/// can be added to the document either before or after this call — the
+/// store is `Arc`-shared, so subsequent registrations are visible to the
+/// page automatically.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - The returned pointer must be freed with `oxidize_page_free`.
+/// - Returns null and sets the last-error message on failure.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_new_page_a4(
+    handle: *const DocumentHandle,
+) -> *mut crate::page::PageHandle {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_new_page_a4");
+        return ptr::null_mut();
+    }
+    let page = (*handle).inner.new_page_a4();
+    Box::into_raw(Box::new(crate::page::PageHandle { inner: page }))
+}
+
+/// Create a new US Letter page bound to this document's `FontMetricsStore`.
+/// See [`oxidize_document_new_page_a4`] for the rationale.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - The returned pointer must be freed with `oxidize_page_free`.
+/// - Returns null and sets the last-error message on failure.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_new_page_letter(
+    handle: *const DocumentHandle,
+) -> *mut crate::page::PageHandle {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_new_page_letter");
+        return ptr::null_mut();
+    }
+    let page = (*handle).inner.new_page_letter();
+    Box::into_raw(Box::new(crate::page::PageHandle { inner: page }))
+}
+
+/// Create a new page with explicit dimensions bound to this document's
+/// `FontMetricsStore`. See [`oxidize_document_new_page_a4`] for the
+/// rationale.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by `oxidize_document_create`.
+/// - The returned pointer must be freed with `oxidize_page_free`.
+/// - `width` and `height` are interpreted as PDF points and must be finite
+///   and positive. Non-finite or non-positive values are rejected with a
+///   null return and last-error message.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_new_page(
+    handle: *const DocumentHandle,
+    width: f64,
+    height: f64,
+) -> *mut crate::page::PageHandle {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_document_new_page");
+        return ptr::null_mut();
+    }
+    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+        set_last_error(format!(
+            "Invalid page dimensions for oxidize_document_new_page: \
+             width={width}, height={height} (must be finite and positive)"
+        ));
+        return ptr::null_mut();
+    }
+    let page = (*handle).inner.new_page(width, height);
+    Box::into_raw(Box::new(crate::page::PageHandle { inner: page }))
+}
+
 /// Add a page to the document. The page is cloned internally; the caller retains ownership.
 ///
 /// # FontMetricsStore binding (oxidize-pdf 2.8.0+)
@@ -281,18 +366,16 @@ pub unsafe extern "C" fn oxidize_document_save_to_file(
 /// into the cloned page if the page does not already carry one. The
 /// document-side copy therefore measures `Font::Custom(_)` against the
 /// per-Document store; the caller's `PageHandle` is unmodified and its
-/// inner `Page` retains `font_metrics_store: None`.
+/// inner `Page` retains whatever store binding it had before this call.
 ///
-/// Implications:
-/// - Drawing on the `PageHandle` *after* this call is a no-op for the final
-///   PDF (the document holds an independent clone).
-/// - Drawing on the `PageHandle` *before* this call that requires metrics
-///   for `Font::Custom(_)` — text wrapping in `TextFlowContext`, table
-///   layout, header/footer width measurement — falls back to default
-///   widths because the store is not bound at draw time. To get correct
-///   per-Document metrics during drawing, the FFI flow must be revised to
-///   use the upstream `Document::new_page_*()` factory methods (which
-///   pre-bind the store) before drawing. Tracked separately.
+/// **For pages that will draw `Font::Custom(_)` text via measurement-heavy
+/// flows (`TextFlowContext`, table layout, header / footer width), construct
+/// the page via [`oxidize_document_new_page_a4`] /
+/// [`oxidize_document_new_page_letter`] / [`oxidize_document_new_page`]
+/// instead of [`crate::page::oxidize_page_create_preset`] /
+/// [`crate::page::oxidize_page_create`].** Pages from those factories carry
+/// the document's metrics store from creation, so drawing operations that
+/// run before this call already see the real font widths.
 ///
 /// # Safety
 /// - `handle` must be a valid pointer returned by `oxidize_document_create`.
@@ -527,4 +610,116 @@ pub unsafe extern "C" fn oxidize_document_add_font_from_file(
         return ErrorCode::IoError as c_int;
     }
     ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod fontmetricsstore_binding_tests {
+    //! Regression suite for the per-`Document` `FontMetricsStore` binding introduced upstream in oxidize-pdf 2.8.0 (issue #230).
+    //!
+    //! The legacy FFI flow (`oxidize_page_create_preset` / `oxidize_page_create` + `oxidize_page_set_custom_font` + draw + `oxidize_document_add_page`) exposes a behavioural gap: the page used for drawing is constructed standalone and never receives the document's `FontMetricsStore`. When `TextFlowContext::write_wrapped` (and the other measurement-driven emitters) run on that page they fall back to default widths from `text::metrics::create_default_custom_metrics` for any `Font::Custom(name)` not present in the legacy global registry — which 2.8.0 no longer writes to from `add_font_from_bytes`.
+    //!
+    //! The fix is to construct the drawing page via the new `oxidize_document_new_page_a4` / `_letter` / `_(w, h)` FFI factories (which call upstream `Document::new_page_*`). Those factories pre-bind the document's `FontMetricsStore` to the page; the binding is `Arc`-shared, so subsequent `add_font_from_bytes` registrations on the document are visible to the page automatically.
+    //!
+    //! These tests verify the full chain at the upstream Rust API level — the same surface the FFI thin-wraps. They are the rigorous regression detector for this fix; the .NET test layer cannot inspect glyph-level widths because the upstream Type0/CID font width array (`/W`) is not understood by `text::extraction::calculate_text_width`, which falls back to `text.len() * font_size * 0.5` regardless of whether the renderer used real or default metrics.
+
+    use oxidize_pdf::text::metrics::measure_text_with;
+    use oxidize_pdf::text::Font;
+    use oxidize_pdf::Document;
+    use std::path::PathBuf;
+
+    fn fixtures_sample_ttf_bytes() -> Vec<u8> {
+        let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../dotnet/OxidizePdf.NET.Tests/fixtures/fonts/sample.ttf");
+        std::fs::read(&p).expect("fixture sample.ttf must be readable")
+    }
+
+    #[test]
+    fn add_font_from_bytes_populates_document_font_metrics_store() {
+        let bytes = fixtures_sample_ttf_bytes();
+        let mut doc = Document::new();
+        doc.add_font_from_bytes("narrow", bytes)
+            .expect("add_font_from_bytes must succeed for sample.ttf");
+        assert!(
+            doc.font_metrics().get("narrow").is_some(),
+            "Document::font_metrics() must contain 'narrow' after add_font_from_bytes"
+        );
+        let m = doc.font_metrics().get("narrow").unwrap();
+        // 'i' should not be the default width — sample.ttf has glyph data for 'i'.
+        let w = m.char_width('i');
+        assert!(
+            w > 0 && w < 500,
+            "char_width('i') in sample.ttf metrics must be a real positive value below the \
+             500/em default; got {w}"
+        );
+    }
+
+    /// `Document::new_page(w, h)` (and the `_a4` / `_letter` variants) must
+    /// return a page that carries the document's `FontMetricsStore`. The
+    /// store is `Arc`-shared, so fonts registered on the document before or
+    /// after the page is created are visible to the page automatically.
+    #[test]
+    fn document_new_page_propagates_metrics_store_to_page() {
+        let mut doc = Document::new();
+        doc.add_font_from_bytes("narrow", fixtures_sample_ttf_bytes())
+            .unwrap();
+        let page = doc.new_page(400.0, 600.0);
+        let store = page.font_metrics_store().expect(
+            "page.font_metrics_store() must be Some when constructed via Document::new_page",
+        );
+        assert!(
+            store.get("narrow").is_some(),
+            "page.font_metrics_store() must see fonts registered on the document"
+        );
+    }
+
+    /// Substantive regression assertion. The diagnostic is:
+    /// `measure_text_with(text, custom, size, Some(store))` must equal the
+    /// oracle (`Font.measure_text` direct), and must differ from
+    /// `measure_text_with(text, custom, size, None)` (fallback profile).
+    /// A `text/flow.rs` measurement that returns the fallback value when the
+    /// page is bound is what the architectural fix prevents.
+    #[test]
+    fn measure_text_with_real_metrics_differs_from_fallback() {
+        let mut doc = Document::new();
+        doc.add_font_from_bytes("narrow", fixtures_sample_ttf_bytes())
+            .unwrap();
+        let store = doc.font_metrics();
+        let text = "iiiiiiiiiiiiiiiiiiii"; // 20 narrow chars
+        let size = 24.0;
+        let real = measure_text_with(text, &Font::Custom("narrow".into()), size, Some(store));
+        let fallback = measure_text_with(text, &Font::Custom("narrow".into()), size, None);
+
+        // Oracle: the same per-em widths reach a different code path
+        // (`Font::from_bytes` -> `measure_text`) that bypasses the
+        // `FontMetricsStore` entirely. They must agree.
+        let oracle_font =
+            oxidize_pdf::fonts::Font::from_bytes("oracle", fixtures_sample_ttf_bytes()).unwrap();
+        let oracle = oracle_font.measure_text(text, size as f32).width as f64;
+        assert!(
+            (real - oracle).abs() < 0.5,
+            "measure_text_with(store) ({real}) must match the oracle Font.measure_text \
+             ({oracle}) — both consult the same per-Document widths."
+        );
+
+        // The fallback path differs measurably from the real path. If it
+        // didn't, the test couldn't detect the regression.
+        assert!(
+            (real - fallback).abs() > 5.0,
+            "real measurement ({real}) and fallback ({fallback}) must differ by more \
+             than 5 points; pick a longer text or a different font fixture if they're \
+             too close to discriminate."
+        );
+
+        // The exact upstream fallback for "i" is 222/em (Helvetica profile in
+        // `create_default_custom_metrics`). 20 * 222/1000 * 24 = 106.56. Lock
+        // it so a future upstream change to the default profile fails this
+        // test and forces a deliberate review.
+        let expected_fallback = 20.0 * 222.0 / 1000.0 * 24.0;
+        assert!(
+            (fallback - expected_fallback).abs() < 0.5,
+            "upstream fallback for 'i' is expected to be {expected_fallback} \
+             (Helvetica-i in `create_default_custom_metrics`); got {fallback}. \
+             If this fails, the upstream default profile changed."
+        );
+    }
 }
