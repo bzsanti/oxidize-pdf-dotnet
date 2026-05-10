@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`PdfDocument.NewPageA4()`, `NewPageLetter()`, `NewPage(width, height)`** —
+  document-bound page factories that pre-bind the document's
+  `FontMetricsStore` to the page at construction time. These replace the
+  legacy two-step pattern (`PdfPage.A4()` / `Letter()` / `new PdfPage(w, h)`
+  followed by `PdfDocument.AddPage(page)`) for any flow that draws custom
+  fonts via `PdfTextFlow.WriteWrapped`, table layout, or header / footer
+  width-based positioning. The legacy pattern keeps working for built-in
+  fonts; for custom fonts it falls back to upstream hardcoded default widths
+  in oxidize-pdf 2.8.0+, so the new factories are mandatory there. Backed by
+  three new FFI entry points: `oxidize_document_new_page_a4`,
+  `oxidize_document_new_page_letter`, `oxidize_document_new_page`.
+
+### Fixed
+- **Custom-font measurement during text wrapping** now resolves against the
+  document's per-instance `FontMetricsStore` instead of falling back to the
+  upstream hardcoded Helvetica-shaped default profile. Before this fix, the
+  FFI flow constructed the drawing page standalone (`PdfPage.A4()`) and only
+  bound the store at `add_page` time — too late to affect any draw
+  operations that ran first. Symptoms in the rendered PDF: incorrect line
+  breaks for paragraphs drawn through `PdfTextFlow.WriteWrapped`, incorrect
+  column widths in auto-sized tables, incorrect x-positioning for justified
+  / centered / right-aligned text. The fix is the new factory methods above;
+  no behaviour change for callers that only use built-in fonts. Verified
+  by a Rust regression suite
+  (`native/src/document.rs::fontmetricsstore_binding_tests`) that locks the
+  full chain from `add_font_from_bytes` through `measure_text_with`,
+  including a cross-check against the oracle path
+  (`Font::from_bytes::measure_text`).
+
 ### Changed
 - **Updated oxidize-pdf dependency 2.6.0 → 2.8.0**. The FFI public surface is
   unchanged; the bump is transparent for `OxidizePdf.NET` callers. The bump
