@@ -1,7 +1,7 @@
 # Bridge Parity Spec — oxidize-pdf (Python + .NET)
 
 **Last updated:** 2026-05-10
-**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.8.0 (=core 2.8.0)
+**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.9.0 (=core 2.8.0)
 
 > **Core-version divergence (2026-05-10):** the .NET bridge tracks core 2.8.0
 > while the Python bridge is still pinned at core 2.6.0. Capability cells

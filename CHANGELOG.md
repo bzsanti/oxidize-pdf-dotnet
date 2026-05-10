@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-05-10
+
 ### Added
 - **`PdfDocument.NewPageA4()`, `NewPageLetter()`, `NewPage(width, height)`** —
   document-bound page factories that pre-bind the document's

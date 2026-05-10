@@ -1,6 +1,6 @@
 # Feature Parity — oxidize-pdf-dotnet vs oxidize-pdf core
 
-Bridge version: 0.9.0-rag.1
+Bridge version: 0.9.0
 Core dependency: oxidize-pdf 2.8.0
 Last updated: 2026-05-10
 

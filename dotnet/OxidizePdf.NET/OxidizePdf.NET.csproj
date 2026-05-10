@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>OxidizePdf.NET</PackageId>
-    <Version>0.8.0</Version>
+    <Version>0.9.0</Version>
     <Authors>Santiago Fernández Muñoz</Authors>
     <Company>BelowZero</Company>
     <Description>.NET bindings for oxidize-pdf - Fast, memory-safe PDF creation, extraction, and manipulation optimized for RAG/LLM pipelines. Supports document creation with text and graphics, intelligent chunking, split, merge, rotate, and page extraction.</Description>
