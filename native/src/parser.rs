@@ -143,6 +143,10 @@ fn chunks_to_cstring(chunks: &[DocumentChunk]) -> Result<CString, c_int> {
 
 /// FFI-compatible extraction options struct.
 /// Mirrors C# ExtractionOptions and maps to oxidize_pdf::text::ExtractionOptions.
+///
+/// Field order matches `ExtractionOptionsNative` in the .NET wrapper.
+/// Booleans are laid out as a single byte each (`#[repr(C)]` + Rust `bool`
+/// is 1-byte ABI-compatible with `[MarshalAs(UnmanagedType.I1)] bool`).
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct ExtractionOptionsFFI {
@@ -153,6 +157,16 @@ pub struct ExtractionOptionsFFI {
     pub detect_columns: bool,
     pub column_threshold: f64,
     pub merge_hyphenated: bool,
+    /// Synthesise `U+0020` when a `TJ` numeric kern advance exceeds
+    /// `tj_space_threshold * font_size` (oxidize-pdf 2.10.0, issue #272).
+    /// Upstream default `0.2`.
+    pub tj_space_threshold: f64,
+    /// Group fragments into single-line and paragraph-level fragments
+    /// (oxidize-pdf 2.10.0, issue #261). Upstream default `false`.
+    pub reconstruct_paragraphs: bool,
+    /// Include `/Artifact` marked-content scopes (page furniture)
+    /// (oxidize-pdf 2.10.0, issue #269). Upstream default `false`.
+    pub include_artifacts: bool,
 }
 
 impl ExtractionOptionsFFI {
@@ -160,12 +174,15 @@ impl ExtractionOptionsFFI {
         oxidize_pdf::text::ExtractionOptions {
             preserve_layout: self.preserve_layout,
             space_threshold: self.space_threshold,
+            tj_space_threshold: self.tj_space_threshold,
             newline_threshold: self.newline_threshold,
             sort_by_position: self.sort_by_position,
             detect_columns: self.detect_columns,
             column_threshold: self.column_threshold,
             merge_hyphenated: self.merge_hyphenated,
             track_space_decisions: false,
+            reconstruct_paragraphs: self.reconstruct_paragraphs,
+            include_artifacts: self.include_artifacts,
         }
     }
 }

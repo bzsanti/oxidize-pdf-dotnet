@@ -1,13 +1,15 @@
 # Bridge Parity Spec — oxidize-pdf (Python + .NET)
 
-**Last updated:** 2026-05-10
-**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.9.0 (=core 2.8.0)
+**Last updated:** 2026-05-28
+**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.10.0 (=core 2.10.0)
 
-> **Core-version divergence (2026-05-10):** the .NET bridge tracks core 2.8.0
+> **Core-version divergence (2026-05-28):** the .NET bridge tracks core 2.10.0
 > while the Python bridge is still pinned at core 2.6.0. Capability cells
-> below were last validated against core 2.6.0; any 2.7.0 / 2.8.0 upstream
-> additions are inherited by the .NET native build but are **not yet
-> reflected** in this matrix and are not yet exposed through either bridge.
+> below were last validated against core 2.6.0; any 2.7.0–2.10.0 upstream
+> additions are inherited by the .NET native build. The 2.10.0
+> `ExtractionOptions` additions (`tj_space_threshold`, `reconstruct_paragraphs`,
+> `include_artifacts`) are now exposed via .NET; other 2.7.0–2.10.0
+> capabilities are **not yet reflected** in this matrix.
 > Until Python catches up, treat each cell's "✅ / ⚠️ / ❌" as the truth for
 > the **lower** of the two core versions. Concrete deltas to integrate:
 > per-`Document` `FontMetricsStore` (#230), `ComboBox` / `ListBox` /

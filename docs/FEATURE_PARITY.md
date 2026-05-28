@@ -1,8 +1,8 @@
 # Feature Parity — oxidize-pdf-dotnet vs oxidize-pdf core
 
-Bridge version: 0.9.0
-Core dependency: oxidize-pdf 2.8.0
-Last updated: 2026-05-10
+Bridge version: 0.10.0
+Core dependency: oxidize-pdf 2.10.0
+Last updated: 2026-05-28
 
 For the cross-bridge (Python ↔ .NET) RAG-pipeline matrix used to schedule
 work, see [`PARITY_SPEC.md`](PARITY_SPEC.md). This document is the
