@@ -195,7 +195,7 @@ This tier exposes the largest current asymmetry: Python is "build + read"; .NET 
 
 | ID | Capability | Python | .NET | Action for parity |
 |---|---|---|---|---|
-| QA-001 | `FEATURE_PARITY.md` up to date with current bridge version | ✅ 2026-04-22 | ❌ stale 2026-03-20 (says core 2.3.2; actual is 2.5.5) | **.NET: refresh parity doc when closing the alignment analysis** |
+| QA-001 | `FEATURE_PARITY.md` up to date with current bridge version | ✅ 2026-04-22 | ✅ 2026-05-28 (bridge 0.10.0 = core 2.10.0) | — |
 | QA-002 | Semantic disjointness tests for RAG | ✅ 19 tests (12 bridge + 7 reader) | ❌ | (covered by RAG-020) |
 | QA-003 | CI cross-platform matrix (3.10–3.14 / .NET 6/8/9) | ✅ 5 OS × 5 Python | ✅ similar matrix | — |
 | QA-004 | Empirical audit script for RAG correctness | ✅ `.private/audit_rag_chunks.py` | ❌ | **.NET: add equivalent C# script that runs against `fixtures/`** |

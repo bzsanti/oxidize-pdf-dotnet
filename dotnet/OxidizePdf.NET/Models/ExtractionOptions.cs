@@ -2,7 +2,11 @@ namespace OxidizePdf.NET.Models;
 
 /// <summary>
 /// Options for controlling text extraction behavior from parsed PDFs.
-/// Defaults match oxidize-pdf core's ExtractionOptions::default().
+/// Defaults match oxidize-pdf 2.10.0 <c>ExtractionOptions::default()</c>.
+/// When bumping the core dependency, verify these defaults against upstream
+/// (<c>oxidize-pdf-core/src/text/extraction.rs</c>, <c>impl Default for
+/// ExtractionOptions</c>) — they are duplicated here as plain literals and
+/// can drift silently otherwise.
 /// </summary>
 public class ExtractionOptions
 {

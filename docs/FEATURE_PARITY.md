@@ -156,7 +156,7 @@ Status values:
 | PARSE-011 | Read document metadata | yes | ExtractMetadataAsync — title, author, subject, dates |
 | PARSE-012 | RAG pipeline (rag_chunks, partition, profiles) | yes | `PartitionAsync(byte[])`, `PartitionAsync(byte[], ExtractionProfile)`, `PartitionAsync(byte[], PartitionConfig)`, `RagChunksAsync(byte[])`, `RagChunksAsync(byte[], ExtractionProfile)`, `RagChunksAsync(byte[], PartitionConfig?, HybridChunkConfig?)`, `SemanticChunksAsync`. Token estimator: `Ai.DocumentChunker.EstimateTokens(string)`. 12 ported semantic disjointness regression tests gate the surface. |
 | PARSE-013 | Structured export (to_markdown, to_json, to_contextual) | yes | ToMarkdownAsync (no-arg + `(byte[], MarkdownOptions)` overload — RAG-012), ToJsonAsync, ToContextualAsync |
-| PARSE-014 | ExtractionOptions (granular control) | yes | ExtractionOptions class with layout, columns, hyphenation |
+| PARSE-014 | ExtractionOptions (granular control) | yes | ExtractionOptions class with layout, columns, hyphenation, plus oxidize-pdf 2.10.0 additions: `TjSpaceThreshold` (TJ-kern space synthesis, upstream #272), `ReconstructParagraphs` (line/paragraph grouping, upstream #261), `IncludeArtifacts` (page-furniture filtering, upstream #269) |
 | PARSE-015 | Page content analysis (scanned vs text) | yes | AnalyzePageContentAsync |
 | PARSE-016 | Read annotations | yes | GetAnnotationsAsync |
 | PARSE-017 | Read page resources / content streams | yes | GetPageResourcesAsync + GetPageContentStreamAsync |

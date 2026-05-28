@@ -37,6 +37,11 @@
     <None Include="icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Test project consumes internal types for FFI layout pinning tests -->
+    <InternalsVisibleTo Include="OxidizePdf.NET.Tests" />
+  </ItemGroup>
+
   <!-- System.Text.Json is included in the framework since net8.0 -->
 
   <!-- Copy native binaries to output directory for development -->
