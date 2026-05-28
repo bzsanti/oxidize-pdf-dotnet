@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>OxidizePdf.NET</PackageId>
-    <Version>0.9.0</Version>
+    <Version>0.10.0</Version>
     <Authors>Santiago Fernández Muñoz</Authors>
     <Company>BelowZero</Company>
     <Description>.NET bindings for oxidize-pdf - Fast, memory-safe PDF creation, extraction, and manipulation optimized for RAG/LLM pipelines. Supports document creation with text and graphics, intelligent chunking, split, merge, rotate, and page extraction.</Description>
@@ -35,6 +35,11 @@
     <None Include="runtimes\**\*" Pack="true" PackagePath="runtimes\" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <None Include="icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Test project consumes internal types for FFI layout pinning tests -->
+    <InternalsVisibleTo Include="OxidizePdf.NET.Tests" />
   </ItemGroup>
 
   <!-- System.Text.Json is included in the framework since net8.0 -->

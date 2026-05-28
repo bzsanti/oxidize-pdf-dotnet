@@ -1,13 +1,15 @@
 # Bridge Parity Spec — oxidize-pdf (Python + .NET)
 
-**Last updated:** 2026-05-10
-**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.9.0 (=core 2.8.0)
+**Last updated:** 2026-05-28
+**Bridge versions checkpoint:** Python `oxidize-pdf` 0.5.0 (=core 2.6.0) · .NET `OxidizePdf.NET` 0.10.0 (=core 2.10.0)
 
-> **Core-version divergence (2026-05-10):** the .NET bridge tracks core 2.8.0
+> **Core-version divergence (2026-05-28):** the .NET bridge tracks core 2.10.0
 > while the Python bridge is still pinned at core 2.6.0. Capability cells
-> below were last validated against core 2.6.0; any 2.7.0 / 2.8.0 upstream
-> additions are inherited by the .NET native build but are **not yet
-> reflected** in this matrix and are not yet exposed through either bridge.
+> below were last validated against core 2.6.0; any 2.7.0–2.10.0 upstream
+> additions are inherited by the .NET native build. The 2.10.0
+> `ExtractionOptions` additions (`tj_space_threshold`, `reconstruct_paragraphs`,
+> `include_artifacts`) are now exposed via .NET; other 2.7.0–2.10.0
+> capabilities are **not yet reflected** in this matrix.
 > Until Python catches up, treat each cell's "✅ / ⚠️ / ❌" as the truth for
 > the **lower** of the two core versions. Concrete deltas to integrate:
 > per-`Document` `FontMetricsStore` (#230), `ComboBox` / `ListBox` /
@@ -193,7 +195,7 @@ This tier exposes the largest current asymmetry: Python is "build + read"; .NET 
 
 | ID | Capability | Python | .NET | Action for parity |
 |---|---|---|---|---|
-| QA-001 | `FEATURE_PARITY.md` up to date with current bridge version | ✅ 2026-04-22 | ❌ stale 2026-03-20 (says core 2.3.2; actual is 2.5.5) | **.NET: refresh parity doc when closing the alignment analysis** |
+| QA-001 | `FEATURE_PARITY.md` up to date with current bridge version | ✅ 2026-04-22 | ✅ 2026-05-28 (bridge 0.10.0 = core 2.10.0) | — |
 | QA-002 | Semantic disjointness tests for RAG | ✅ 19 tests (12 bridge + 7 reader) | ❌ | (covered by RAG-020) |
 | QA-003 | CI cross-platform matrix (3.10–3.14 / .NET 6/8/9) | ✅ 5 OS × 5 Python | ✅ similar matrix | — |
 | QA-004 | Empirical audit script for RAG correctness | ✅ `.private/audit_rag_chunks.py` | ❌ | **.NET: add equivalent C# script that runs against `fixtures/`** |

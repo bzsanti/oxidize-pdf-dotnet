@@ -143,6 +143,10 @@ fn chunks_to_cstring(chunks: &[DocumentChunk]) -> Result<CString, c_int> {
 
 /// FFI-compatible extraction options struct.
 /// Mirrors C# ExtractionOptions and maps to oxidize_pdf::text::ExtractionOptions.
+///
+/// Field order matches `ExtractionOptionsNative` in the .NET wrapper.
+/// Booleans are laid out as a single byte each (`#[repr(C)]` + Rust `bool`
+/// is 1-byte ABI-compatible with `[MarshalAs(UnmanagedType.I1)] bool`).
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct ExtractionOptionsFFI {
@@ -153,6 +157,16 @@ pub struct ExtractionOptionsFFI {
     pub detect_columns: bool,
     pub column_threshold: f64,
     pub merge_hyphenated: bool,
+    /// Synthesise `U+0020` when a `TJ` numeric kern advance exceeds
+    /// `tj_space_threshold * font_size` (oxidize-pdf 2.10.0, issue #272).
+    /// Upstream default `0.2`.
+    pub tj_space_threshold: f64,
+    /// Group fragments into single-line and paragraph-level fragments
+    /// (oxidize-pdf 2.10.0, issue #261). Upstream default `false`.
+    pub reconstruct_paragraphs: bool,
+    /// Include `/Artifact` marked-content scopes (page furniture)
+    /// (oxidize-pdf 2.10.0, issue #269). Upstream default `false`.
+    pub include_artifacts: bool,
 }
 
 impl ExtractionOptionsFFI {
@@ -160,12 +174,15 @@ impl ExtractionOptionsFFI {
         oxidize_pdf::text::ExtractionOptions {
             preserve_layout: self.preserve_layout,
             space_threshold: self.space_threshold,
+            tj_space_threshold: self.tj_space_threshold,
             newline_threshold: self.newline_threshold,
             sort_by_position: self.sort_by_position,
             detect_columns: self.detect_columns,
             column_threshold: self.column_threshold,
             merge_hyphenated: self.merge_hyphenated,
             track_space_decisions: false,
+            reconstruct_paragraphs: self.reconstruct_paragraphs,
+            include_artifacts: self.include_artifacts,
         }
     }
 }
@@ -4213,5 +4230,37 @@ mod form_tests {
     fn page_index_saturating_add_does_not_overflow() {
         let max_page: u32 = u32::MAX;
         assert_eq!(max_page.saturating_add(1), u32::MAX);
+    }
+}
+
+/// Layout-pinning tests for FFI structs. These tests freeze the binary
+/// representation of `#[repr(C)]` structs that cross the FFI boundary so
+/// future field reorderings or insertions break here loudly rather than
+/// producing silently misaligned values on the .NET side. The mirror tests
+/// in C# (`ExtractionOptionsNativeLayoutTests`) assert the same offsets via
+/// `Marshal.OffsetOf`; if either side changes, both tests must move in
+/// lockstep.
+#[cfg(test)]
+mod ffi_layout_tests {
+    use super::ExtractionOptionsFFI;
+    use std::mem::{offset_of, size_of};
+
+    #[test]
+    fn extraction_options_ffi_size_is_64() {
+        assert_eq!(size_of::<ExtractionOptionsFFI>(), 64);
+    }
+
+    #[test]
+    fn extraction_options_ffi_field_offsets() {
+        assert_eq!(offset_of!(ExtractionOptionsFFI, preserve_layout), 0);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, space_threshold), 8);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, newline_threshold), 16);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, sort_by_position), 24);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, detect_columns), 25);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, column_threshold), 32);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, merge_hyphenated), 40);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, tj_space_threshold), 48);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, reconstruct_paragraphs), 56);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, include_artifacts), 57);
     }
 }
