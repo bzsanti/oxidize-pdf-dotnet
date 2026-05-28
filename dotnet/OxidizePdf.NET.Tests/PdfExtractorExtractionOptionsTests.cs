@@ -102,6 +102,16 @@ public class PdfExtractorExtractionOptionsTests
         Assert.False(options.DetectColumns);
         Assert.Equal(50.0, options.ColumnThreshold);
         Assert.True(options.MergeHyphenated);
+        Assert.Equal(0.2, options.TjSpaceThreshold);
+        Assert.False(options.ReconstructParagraphs);
+        Assert.False(options.IncludeArtifacts);
+    }
+
+    [Fact]
+    public void ExtractionOptions_Validate_ThrowsWhenTjSpaceThresholdIsNegative()
+    {
+        var options = new ExtractionOptions { TjSpaceThreshold = -0.1 };
+        Assert.Throws<ArgumentException>(() => options.Validate());
     }
 
     // ── Validation tests ─────────────────────────────────────────────────────

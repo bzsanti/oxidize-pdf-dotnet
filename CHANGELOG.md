@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-05-28
+
+### Added
+- **`ExtractionOptions.TjSpaceThreshold`** (default `0.2`) — synthesises an
+  implicit `U+0020` when a `TJ` numeric kerning offset exceeds
+  `TjSpaceThreshold × font_size`. Inherited from upstream
+  oxidize-pdf 2.10.0 (issue #272). Fixes run-on words like
+  `MINISTERIO` → `M I N I S T E R I O` and similar artefacts on
+  government / academic / LaTeX PDFs that encode inter-word gaps as
+  wide negative kerns rather than literal spaces.
+- **`ExtractionOptions.ReconstructParagraphs`** (default `false`) — groups
+  raw text fragments by baseline into line-level fragments, then groups
+  consecutive lines with normal leading into paragraph-level fragments.
+  Inherited from upstream oxidize-pdf 2.10.0 (issue #261). Direct
+  `ExtractTextWithOptionsAsync` callers must opt in; the partition
+  pipeline forces it on internally.
+- **`ExtractionOptions.IncludeArtifacts`** (default `false`) — opt-in
+  inclusion of `/Artifact` marked-content scopes (page headers, footers,
+  watermarks, decorative content). Inherited from upstream
+  oxidize-pdf 2.10.0 (issue #269). Default matches PDF/UA accessibility
+  guidance and typical RAG callers; flip to `true` for forensic auditing
+  or redaction tooling.
+
+### Changed
+- **Updated oxidize-pdf dependency 2.8.0 → 2.10.0**. The bump spans two
+  upstream releases (2.9.0 and 2.10.0). Inherited capabilities and
+  observable behaviour changes are listed below.
+
+  **Inherited from oxidize-pdf 2.9.0:**
+  - **`ocr-tesseract` removed from default features** upstream. Not
+    user-visible here: the FFI crate already pins
+    `default-features = false` and only enables `compression`, `semantic`,
+    and `signatures`.
+  - **`external-images` added to default features** upstream. Not
+    user-visible here for the same reason.
+  - **README / crate metadata** rewritten by upstream to lead with RAG
+    positioning. No FFI surface change.
+
+  **Inherited from oxidize-pdf 2.10.0 (RAG-grade text extraction):**
+  - **Non-Identity CID encoding decode for Type0 fonts** (upstream
+    issue #272). Character codes are now resolved to CIDs via embedded
+    `/Encoding` stream CMaps and predefined Adobe CMaps (GBK-EUC-H,
+    GBKp-EUC-H, 90ms-RKSJ-H, 90pv-RKSJ-H, KSCms-UHC-H) before mapping
+    to Unicode, instead of assuming Identity. Fixes garbled glyph-code-
+    as-Latin1 output on CJK and government PDFs.
+  - **CMap parser hardened** against minified PostScript and adversarial
+    input — token-based parser with guaranteed progress invariant
+    replaces the prior whitespace-sensitive scanner (no more parser
+    hangs on stray close delimiters).
+  - **Marked-content extraction** (upstream issue #269 Phase 1).
+    `TextFragment` upstream now carries `mcid: Option<u32>` and
+    `struct_tag: Option<String>` from the innermost BDC ancestor; this
+    bridge consumes them via field access only, so the addition is
+    transparent at the FFI boundary.
+  - **CTM composed into fragment positions** (upstream issue #262).
+    Text positions now respect the current transformation matrix; a
+    `q`/`Q` graphics-state stack was added.
+  - **Line interleaving / column splitting fix** on tightly-spaced
+    multi-column layouts (upstream issue #265). `row_id`-aware
+    `merge_into_lines`, font-size-relative Y tolerance, deferred sort,
+    baseline tolerance tightened to `0.2 × height`, plus a
+    `font_size = 0` fallback.
+  - **Parser position leak** fixed (upstream issue #260). `peek_token`
+    restores position on error; `find_keyword_ahead` no longer reads
+    past the peek buffer.
+  - **`rag_realworld` example** in upstream — not bridged.
+
+### Migration notes
+- **Wire-format change**: `ExtractionOptionsNative` (FFI struct backing
+  `ExtractionOptions`) gained three trailing fields. The native binary
+  shipped in this NuGet package and the managed wrapper are versioned
+  together, so end users do not need to act — but anyone running a
+  custom-built native lib against a managed wrapper of a different
+  version will see a mismatch. Rebuild both.
+- **Defaults preserve 0.9.0 behaviour**: all three new
+  `ExtractionOptions` properties default to upstream defaults that
+  match pre-bump behaviour (no paragraph reconstruction, no artifact
+  inclusion). `TjSpaceThreshold` does introduce one new behaviour
+  (implicit space synthesis from wide `TJ` kerns) but this is a
+  correctness fix; extractor output on affected PDFs (CJK, LaTeX,
+  government corpora) now contains the spaces those PDFs always meant
+  to render. Set `TjSpaceThreshold = double.PositiveInfinity` to opt
+  out (not recommended).
+
 ## [0.9.0] - 2026-05-10
 
 ### Added

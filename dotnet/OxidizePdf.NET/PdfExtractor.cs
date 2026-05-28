@@ -1285,7 +1285,10 @@ public class PdfExtractor
                 SortByPosition = options.SortByPosition,
                 DetectColumns = options.DetectColumns,
                 ColumnThreshold = options.ColumnThreshold,
-                MergeHyphenated = options.MergeHyphenated
+                MergeHyphenated = options.MergeHyphenated,
+                TjSpaceThreshold = options.TjSpaceThreshold,
+                ReconstructParagraphs = options.ReconstructParagraphs,
+                IncludeArtifacts = options.IncludeArtifacts
             };
 
             var result = NativeMethods.oxidize_extract_text_with_options(

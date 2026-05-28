@@ -1034,6 +1034,7 @@ internal static class NativeMethods
 
     /// <summary>
     /// FFI-compatible extraction options struct matching Rust ExtractionOptionsFFI.
+    /// Field order MUST match <c>ExtractionOptionsFFI</c> in <c>native/src/parser.rs</c>.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct ExtractionOptionsNative
@@ -1049,6 +1050,11 @@ internal static class NativeMethods
         public double ColumnThreshold;
         [MarshalAs(UnmanagedType.I1)]
         public bool MergeHyphenated;
+        public double TjSpaceThreshold;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool ReconstructParagraphs;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool IncludeArtifacts;
     }
 
     /// <summary>Extract text from PDF bytes using custom extraction options</summary>
