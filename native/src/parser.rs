@@ -4260,10 +4260,7 @@ mod ffi_layout_tests {
         assert_eq!(offset_of!(ExtractionOptionsFFI, column_threshold), 32);
         assert_eq!(offset_of!(ExtractionOptionsFFI, merge_hyphenated), 40);
         assert_eq!(offset_of!(ExtractionOptionsFFI, tj_space_threshold), 48);
-        assert_eq!(
-            offset_of!(ExtractionOptionsFFI, reconstruct_paragraphs),
-            56
-        );
+        assert_eq!(offset_of!(ExtractionOptionsFFI, reconstruct_paragraphs), 56);
         assert_eq!(offset_of!(ExtractionOptionsFFI, include_artifacts), 57);
     }
 }
