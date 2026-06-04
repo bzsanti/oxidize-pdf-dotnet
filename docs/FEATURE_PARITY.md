@@ -96,12 +96,12 @@ Status values:
 | GFX-011 | Clipping (rect, circle) | yes | |
 | GFX-012 | Blend modes (16) | yes | |
 | GFX-013 | Coordinate transforms (translate, scale, rotate) | yes | Translate, Scale, RotateRadians/Degrees, Transform (6-element CTM) |
-| GFX-014 | Calibrated colors (CalRGB, CalGray) | no | |
-| GFX-015 | Lab colors | no | |
+| GFX-014 | Calibrated colors (CalRGB, CalGray) | yes | Hardcoded + named variants; `SetFillColorCalGray`/`CalRgb`, `AddColorSpace` + `*CalibratedNamed`. PR #37 |
+| GFX-015 | Lab colors | yes | Hardcoded + named; `SetFillColorLab`, `SetFillColorLabNamed`. PR #37 |
 | GFX-016 | Patterns (tiling) | no | |
 | GFX-017 | Shadings (axial, radial gradients) | no | |
 | GFX-018 | FormXObject / templates | no | |
-| GFX-019 | ICC color profiles | no | |
+| GFX-019 | ICC color profiles | yes | Inline ICCBased + embedded profile (.NET superset); `AddColorSpace`/`AddIccColorSpace` + `SetFillColorIcc`. PR #37 |
 | GFX-020 | Transparency groups | no | |
 | GFX-021 | Soft masks | no | |
 | GFX-022 | Draw text from graphics context | no | |
