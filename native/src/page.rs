@@ -358,6 +358,211 @@ pub unsafe extern "C" fn oxidize_page_add_color_space_lab(
     }
 }
 
+/// Register an ICC color space with an embedded profile under `name`.
+///
+/// `data` / `data_len`: raw ICC binary bytes. Must be non-null and non-empty.
+/// `color_space_kind`: 1=Gray, 3=Rgb, 4=Cmyk (maps to `IccColorSpace` variants).
+///
+/// This is the .NET-superset path (embedded profile); the Python bridge
+/// does not expose this. For the inline ICCBased path (no binary),
+/// use `oxidize_page_add_color_space_icc_based` instead.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+/// - `data` must be a valid pointer to `data_len` bytes, or null when
+///   `data_len` is 0 (the function rejects the null/empty case).
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_add_icc_color_space(
+    page: *mut PageHandle,
+    name: *const c_char,
+    data: *const u8,
+    data_len: usize,
+    color_space_kind: c_int,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_icc_color_space");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if data.is_null() || data_len == 0 {
+        set_last_error("ICC profile data must not be empty");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in ICC color space name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let icc_cs = match color_space_kind {
+        1 => oxidize_pdf::graphics::IccColorSpace::Gray,
+        3 => oxidize_pdf::graphics::IccColorSpace::Rgb,
+        4 => oxidize_pdf::graphics::IccColorSpace::Cmyk,
+        _ => {
+            set_last_error(format!("Unknown ICC color space kind: {color_space_kind}"));
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    let profile_data = std::slice::from_raw_parts(data, data_len).to_vec();
+    let profile = oxidize_pdf::graphics::IccProfile::new(name_str.clone(), profile_data, icc_cs);
+    match (*page).inner.add_icc_color_space(name_str, &profile) {
+        Ok(()) => ErrorCode::Success as c_int,
+        Err(e) => {
+            set_last_error(format!("add_icc_color_space failed: {e}"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    }
+}
+
+/// Register an inline ICCBased color space (N components + Alternate device
+/// space, no embedded binary) under `name`. Mirrors the Python bridge's
+/// `PageColorSpace.icc_based(n, alternate)`. For the embedded-profile path use
+/// `oxidize_page_add_icc_color_space`.
+///
+/// `n`: 1=Gray, 3=RGB/Lab, 4=CMYK — any other value returns `InvalidArgument`.
+/// `alternate`: e.g. "DeviceRGB" / "DeviceGray" / "DeviceCMYK".
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+/// - `alternate` must be a valid non-null, null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_add_color_space_icc_based(
+    page: *mut PageHandle,
+    name: *const c_char,
+    n: c_int,
+    alternate: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() || alternate.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_color_space_icc_based");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if !matches!(n, 1 | 3 | 4) {
+        set_last_error(format!(
+            "Invalid N value {n}: must be 1 (Gray), 3 (RGB/Lab), or 4 (CMYK)"
+        ));
+        return ErrorCode::InvalidArgument as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in color space name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let alternate_str = match CStr::from_ptr(alternate).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in alternate color space name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::{PageColorSpace, ParameterisedFamily};
+    use oxidize_pdf::objects::{Dictionary, Object};
+    let mut params = Dictionary::new();
+    params.set("N", Object::Integer(n as i64));
+    params.set("Alternate", Object::Name(alternate_str));
+    let cs = PageColorSpace::Parameterised {
+        family: ParameterisedFamily::IccBased,
+        params,
+    };
+    match (*page).inner.add_color_space(name_str, cs) {
+        Ok(()) => ErrorCode::Success as c_int,
+        Err(e) => {
+            set_last_error(format!("add_color_space (icc_based) failed: {e}"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    }
+}
+
+#[cfg(test)]
+mod add_icc_color_space_ffi_tests {
+    use super::*;
+
+    #[test]
+    fn add_icc_color_space_null_page_returns_error() {
+        unsafe {
+            let name = std::ffi::CString::new("ICCGray").unwrap();
+            let data = [0u8; 64];
+            // IccColorSpace::Gray = 1
+            let result = oxidize_page_add_icc_color_space(
+                std::ptr::null_mut(),
+                name.as_ptr(),
+                data.as_ptr(),
+                64,
+                1,
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn add_icc_color_space_empty_data_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = std::ffi::CString::new("ICCGray").unwrap();
+            let result =
+                oxidize_page_add_icc_color_space(page, name.as_ptr(), std::ptr::null(), 0, 1);
+            assert_eq!(result, 9, "empty ICC data must return InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+}
+
+#[cfg(test)]
+mod add_color_space_icc_based_ffi_tests {
+    use super::*;
+
+    #[test]
+    fn icc_based_valid_n3_device_rgb_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = std::ffi::CString::new("ICCCS1").unwrap();
+            let alternate = std::ffi::CString::new("DeviceRGB").unwrap();
+            let result =
+                oxidize_page_add_color_space_icc_based(page, name.as_ptr(), 3, alternate.as_ptr());
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn icc_based_null_page_returns_null_pointer() {
+        unsafe {
+            let name = std::ffi::CString::new("ICCCS1").unwrap();
+            let alternate = std::ffi::CString::new("DeviceRGB").unwrap();
+            let result = oxidize_page_add_color_space_icc_based(
+                std::ptr::null_mut(),
+                name.as_ptr(),
+                3,
+                alternate.as_ptr(),
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn icc_based_invalid_n_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = std::ffi::CString::new("ICCCS1").unwrap();
+            let alternate = std::ffi::CString::new("DeviceRGB").unwrap();
+            let result =
+                oxidize_page_add_color_space_icc_based(page, name.as_ptr(), 2, alternate.as_ptr());
+            assert_eq!(result, 9, "n=2 must return InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+}
+
 #[cfg(test)]
 mod add_color_space_ffi_tests {
     use super::*;

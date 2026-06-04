@@ -665,6 +665,89 @@ pub unsafe extern "C" fn oxidize_page_transform(
     ErrorCode::Success as c_int
 }
 
+// ── ICC draw ──────────────────────────────────────────────────────────────────
+
+/// Set fill color using an ICC-based color space registered under `name`.
+///
+/// `components` must be non-null and non-empty. The function enforces this
+/// in ALL builds (the upstream `debug_assert!` is compiled out in release;
+/// this FFI layer catches it instead and returns `ErrorCode::InvalidArgument`).
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+/// - `components` must be a valid pointer to `components_len` `f64` values, or
+///   null when `components_len` is 0 (the function rejects the null case).
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_fill_color_icc(
+    page: *mut PageHandle,
+    name: *const c_char,
+    components: *const f64,
+    components_len: usize,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_fill_color_icc");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if components.is_null() || components_len == 0 {
+        set_last_error("ICC fill color components must not be empty");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in ICC color space name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let comps = std::slice::from_raw_parts(components, components_len).to_vec();
+    (*page).inner.graphics().set_fill_color_icc(name_str, comps);
+    ErrorCode::Success as c_int
+}
+
+/// Set stroke color using an ICC-based color space registered under `name`.
+///
+/// See `oxidize_page_set_fill_color_icc` for parameter and safety notes.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+/// - `components` must be a valid pointer to `components_len` `f64` values, or
+///   null when `components_len` is 0 (the function rejects the null case).
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_stroke_color_icc(
+    page: *mut PageHandle,
+    name: *const c_char,
+    components: *const f64,
+    components_len: usize,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_icc");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if components.is_null() || components_len == 0 {
+        set_last_error("ICC stroke color components must not be empty");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in ICC color space name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let comps = std::slice::from_raw_parts(components, components_len).to_vec();
+    (*page)
+        .inner
+        .graphics()
+        .set_stroke_color_icc(name_str, comps);
+    ErrorCode::Success as c_int
+}
+
 // ── CalGray color (hardcoded name "CalGray1" via upstream) ────────────────────
 
 /// Set the graphics fill color using a calibrated gray color space.
@@ -1342,6 +1425,57 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_lab_named(
         .graphics()
         .set_stroke_color_lab_named(name_str, color);
     ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod icc_draw_ffi_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+
+    #[test]
+    fn fill_icc_valid_params_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = std::ffi::CString::new("ICCRGB1").unwrap();
+            let components: [f64; 3] = [0.5, 0.3, 0.8];
+            let result =
+                oxidize_page_set_fill_color_icc(page, name.as_ptr(), components.as_ptr(), 3);
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn fill_icc_null_page_returns_error() {
+        unsafe {
+            let name = std::ffi::CString::new("ICCRGB1").unwrap();
+            let components: [f64; 3] = [0.5, 0.3, 0.8];
+            let result = oxidize_page_set_fill_color_icc(
+                std::ptr::null_mut(),
+                name.as_ptr(),
+                components.as_ptr(),
+                3,
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn fill_icc_empty_components_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = std::ffi::CString::new("ICCRGB1").unwrap();
+            let result = oxidize_page_set_fill_color_icc(page, name.as_ptr(), std::ptr::null(), 0);
+            // ErrorCode::InvalidArgument = 9
+            assert_eq!(
+                result, 9,
+                "empty components must return InvalidArgument (9)"
+            );
+            oxidize_page_free(page);
+        }
+    }
 }
 
 #[cfg(test)]
