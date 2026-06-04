@@ -1,4 +1,5 @@
-use std::os::raw::c_int;
+use std::ffi::CStr;
+use std::os::raw::{c_char, c_int};
 
 use crate::types::PagePreset;
 use crate::{clear_last_error, set_last_error, ErrorCode};
@@ -186,4 +187,219 @@ pub unsafe extern "C" fn oxidize_page_get_margins(
     *out_bottom = m.bottom;
     *out_left = m.left;
     ErrorCode::Success as c_int
+}
+
+// ── Color space registration ──────────────────────────────────────────────────
+
+/// Register a CalGray color space under `name` on this page.
+///
+/// Required before drawing with `oxidize_page_set_fill_color_cal_gray_named`
+/// or `oxidize_page_set_stroke_color_cal_gray_named`.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_add_color_space_cal_gray(
+    page: *mut PageHandle,
+    name: *const c_char,
+    wp_x: f64,
+    wp_y: f64,
+    wp_z: f64,
+    bp_x: f64,
+    bp_y: f64,
+    bp_z: f64,
+    gamma: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_color_space_cal_gray");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in color space name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::{CalGrayColorSpace, PageColorSpace};
+    let cs = CalGrayColorSpace::new()
+        .with_white_point([wp_x, wp_y, wp_z])
+        .with_black_point([bp_x, bp_y, bp_z])
+        .with_gamma(gamma);
+    match (*page)
+        .inner
+        .add_color_space(name_str, PageColorSpace::from(&cs))
+    {
+        Ok(()) => ErrorCode::Success as c_int,
+        Err(e) => {
+            set_last_error(format!("add_color_space failed: {e}"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    }
+}
+
+/// Register a CalRGB color space under `name` on this page.
+///
+/// Required before drawing with `oxidize_page_set_fill_color_cal_rgb_named`
+/// or `oxidize_page_set_stroke_color_cal_rgb_named`.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+#[allow(clippy::too_many_arguments)]
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_add_color_space_cal_rgb(
+    page: *mut PageHandle,
+    name: *const c_char,
+    wp_x: f64,
+    wp_y: f64,
+    wp_z: f64,
+    bp_x: f64,
+    bp_y: f64,
+    bp_z: f64,
+    gamma_r: f64,
+    gamma_g: f64,
+    gamma_b: f64,
+    m0: f64,
+    m1: f64,
+    m2: f64,
+    m3: f64,
+    m4: f64,
+    m5: f64,
+    m6: f64,
+    m7: f64,
+    m8: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_color_space_cal_rgb");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in color space name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::{CalRgbColorSpace, PageColorSpace};
+    let cs = CalRgbColorSpace::new()
+        .with_white_point([wp_x, wp_y, wp_z])
+        .with_black_point([bp_x, bp_y, bp_z])
+        .with_gamma([gamma_r, gamma_g, gamma_b])
+        .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
+    match (*page)
+        .inner
+        .add_color_space(name_str, PageColorSpace::from(&cs))
+    {
+        Ok(()) => ErrorCode::Success as c_int,
+        Err(e) => {
+            set_last_error(format!("add_color_space failed: {e}"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    }
+}
+
+/// Register a Lab color space under `name` on this page.
+///
+/// Required before drawing with `oxidize_page_set_fill_color_lab_named`
+/// or `oxidize_page_set_stroke_color_lab_named`.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+#[allow(clippy::too_many_arguments)]
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_add_color_space_lab(
+    page: *mut PageHandle,
+    name: *const c_char,
+    wp_x: f64,
+    wp_y: f64,
+    wp_z: f64,
+    bp_x: f64,
+    bp_y: f64,
+    bp_z: f64,
+    range_amin: f64,
+    range_amax: f64,
+    range_bmin: f64,
+    range_bmax: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_color_space_lab");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in color space name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::{LabColorSpace, PageColorSpace};
+    let cs = LabColorSpace::new()
+        .with_white_point([wp_x, wp_y, wp_z])
+        .with_black_point([bp_x, bp_y, bp_z])
+        .with_range(range_amin, range_amax, range_bmin, range_bmax);
+    match (*page)
+        .inner
+        .add_color_space(name_str, PageColorSpace::from(&cs))
+    {
+        Ok(()) => ErrorCode::Success as c_int,
+        Err(e) => {
+            set_last_error(format!("add_color_space failed: {e}"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    }
+}
+
+#[cfg(test)]
+mod add_color_space_ffi_tests {
+    use super::*;
+
+    #[test]
+    fn add_color_space_cal_gray_null_page_returns_error() {
+        unsafe {
+            let name = std::ffi::CString::new("CS1").unwrap();
+            let result = oxidize_page_add_color_space_cal_gray(
+                std::ptr::null_mut(),
+                name.as_ptr(),
+                0.9505,
+                1.0,
+                1.0890,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn add_color_space_cal_gray_valid_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = std::ffi::CString::new("CS1").unwrap();
+            let result = oxidize_page_add_color_space_cal_gray(
+                page,
+                name.as_ptr(),
+                0.9505,
+                1.0,
+                1.0890,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
 }
