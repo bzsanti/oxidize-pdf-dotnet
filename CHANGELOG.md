@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — M3 Color Spaces
+- **GFX-014: CalGray and CalRGB calibrated color spaces** (hardcoded and named
+  variants). `PdfPage.SetFillColorCalGray` / `SetStrokeColorCalGray`,
+  `SetFillColorCalRgb` / `SetStrokeColorCalRgb`, `SetFillColorCalibratedNamed` /
+  `SetStrokeColorCalibratedNamed`, and `AddColorSpace(name, PageColorSpace.CalGray|CalRgb(cs))`.
+  C# types `CalGrayColorSpace`, `CalRgbColorSpace`, `CalibratedColor`.
+- **GFX-015: CIE L\*a\*b\* color space** (hardcoded and named variants).
+  `PdfPage.SetFillColorLab` / `SetStrokeColorLab`, `SetFillColorLabNamed` /
+  `SetStrokeColorLabNamed`, `AddColorSpace(name, PageColorSpace.Lab(cs))`.
+  C# types `LabColorSpace`, `LabColor`.
+- **GFX-019: ICC color profiles** (unblocked by oxidize-pdf 2.12.0).
+  Inline ICCBased path: `AddColorSpace(name, PageColorSpace.IccBased(n, alternate))`.
+  Embedded-profile path (.NET superset over the Python binding):
+  `AddIccColorSpace(name, IccProfile)`. Draw with `SetFillColorIcc` /
+  `SetStrokeColorIcc`. C# types `IccProfile`, `IccColorSpace`, `PageColorSpace`.
+  Empty ICC components / empty profile data are rejected in all builds.
+- Multiple named color spaces per page are now supported (the previous
+  one-calibrated-space-per-page limitation is removed via the upstream
+  `*_named` variants). API surface mirrors the `oxidize-python` bridge.
+
+### Note
+- The hardcoded calibrated/Lab setters (`SetFillColorCalGray`, `SetFillColorLab`, …)
+  emit a reference to the default `CalGray1` / `CalRGB1` / `Lab1` resource slot
+  without registering it (matching upstream / the Python binding). For a
+  self-contained, spec-valid resource dictionary use the named variants
+  (`AddColorSpace` + `SetFillColor*Named`).
+
 ## [0.10.0] - 2026-05-28
 
 ### Added
