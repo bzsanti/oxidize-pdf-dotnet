@@ -1,4 +1,3 @@
-using FluentAssertions;
 using OxidizePdf.NET.Graphics;
 using OxidizePdf.NET.Tests.TestHelpers;
 using Xunit;
@@ -12,7 +11,7 @@ public class PdfPageLabIntegrationTests
     public void SetFillColorLab_ReturnsSameInstance()
     {
         using var page = PdfPage.A4();
-        page.SetFillColorLab(new LabColor(50.0, 0.0, 0.0, LabColorSpace.D50())).Should().BeSameAs(page);
+        Assert.Same(page, page.SetFillColorLab(new LabColor(50.0, 0.0, 0.0, LabColorSpace.D50())));
     }
 
     [Fact]
@@ -20,7 +19,7 @@ public class PdfPageLabIntegrationTests
     public void SetStrokeColorLab_ReturnsSameInstance()
     {
         using var page = PdfPage.A4();
-        page.SetStrokeColorLab(new LabColor(50.0, 0.0, 0.0, LabColorSpace.D50())).Should().BeSameAs(page);
+        Assert.Same(page, page.SetStrokeColorLab(new LabColor(50.0, 0.0, 0.0, LabColorSpace.D50())));
     }
 
     [Fact]
@@ -28,7 +27,7 @@ public class PdfPageLabIntegrationTests
     public void SetFillColorLab_NullColor_Throws()
     {
         using var page = PdfPage.A4();
-        page.Invoking(p => p.SetFillColorLab(null!)).Should().Throw<ArgumentNullException>();
+        Assert.Throws<ArgumentNullException>(() => page.SetFillColorLab(null!));
     }
 
     [Fact]
@@ -39,7 +38,7 @@ public class PdfPageLabIntegrationTests
         // WhitePoint[1] != 1.0 is invalid per PDF spec
         var badCs = new LabColorSpace { WhitePoint = new double[] { 0.9642, 0.5, 0.8251 } };
         var color = new LabColor(50.0, 0.0, 0.0, badCs);
-        page.Invoking(p => p.SetFillColorLab(color)).Should().Throw<ArgumentException>();
+        Assert.Throws<ArgumentException>(() => page.SetFillColorLab(color));
     }
 
     [Fact]
@@ -53,13 +52,10 @@ public class PdfPageLabIntegrationTests
             .Fill();
         doc.AddPage(page);
         var pdfBytes = doc.SaveToBytes();
-        // The hardcoded-name variant embeds the Lab color space inline in the content
-        // stream (not as a named /Resources/ColorSpace entry). The color space name appears
-        // inside the compressed stream, so we assert on the decompressed content.
+        // The hardcoded-name variant emits a 'cs' operator referencing a fixed resource name (/CalGray1, /CalRGB1, /Lab1). That resource is NOT registered in /Resources/ColorSpace; for a spec-valid standalone PDF use AddColorSpace + the named draw methods. The name appears in the decompressed content stream via the cs operator.
         var stream = ContentStreamHelper.DecompressFirstContentStream(pdfBytes);
-        stream.Should().NotBeNull("a content stream must be present");
-        stream!.Should().Contain("Lab",
-            "the decompressed content stream must reference the Lab color space");
+        Assert.NotNull(stream);
+        Assert.Contains("Lab", stream);
     }
 
     [Fact]
@@ -73,8 +69,8 @@ public class PdfPageLabIntegrationTests
             .Fill();
         doc.AddPage(page);
         var stream = ContentStreamHelper.DecompressFirstContentStream(doc.SaveToBytes());
-        stream.Should().NotBeNull("a content stream must be present");
-        stream!.Should().Contain("cs", "content stream must contain the 'cs' set-colorspace operator");
-        stream.Should().Contain("sc", "content stream must contain the 'sc' set-color-components operator");
+        Assert.NotNull(stream);
+        Assert.Contains("/Lab1 cs", stream);
+        Assert.Contains("sc\n", stream);
     }
 }

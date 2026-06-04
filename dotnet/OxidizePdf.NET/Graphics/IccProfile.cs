@@ -27,10 +27,12 @@ public sealed class IccProfile
         ColorSpace = colorSpace;
     }
 
-    /// <summary>Validates the profile. Throws <see cref="ArgumentException"/> if data is empty.</summary>
+    /// <summary>Validates the profile. Throws <see cref="ArgumentException"/> if data is empty or the color space enum value is unknown.</summary>
     public void Validate()
     {
         if (Data.Length == 0)
             throw new ArgumentException("ICC profile data must not be empty.", "data");
+        if (!Enum.IsDefined(typeof(IccColorSpace), ColorSpace))
+            throw new ArgumentException($"Unknown ICC color space: {ColorSpace}.", "ColorSpace");
     }
 }

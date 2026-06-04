@@ -1,4 +1,3 @@
-using FluentAssertions;
 using OxidizePdf.NET.Graphics;
 using OxidizePdf.NET.Tests.TestHelpers;
 using Xunit;
@@ -17,9 +16,8 @@ public class PdfPageIccInlineIntegrationTests
     public void AddColorSpace_IccBased_ThenSetFillColorIcc_ReturnsSameInstance()
     {
         using var page = PdfPage.A4();
-        page.AddColorSpace("ICCRGB1", PageColorSpace.IccBased(3, "DeviceRGB"))
-            .SetFillColorIcc("ICCRGB1", new double[] { 0.5, 0.3, 0.8 })
-            .Should().BeSameAs(page);
+        Assert.Same(page, page.AddColorSpace("ICCRGB1", PageColorSpace.IccBased(3, "DeviceRGB"))
+            .SetFillColorIcc("ICCRGB1", new double[] { 0.5, 0.3, 0.8 }));
     }
 
     [Fact]
@@ -28,8 +26,8 @@ public class PdfPageIccInlineIntegrationTests
     {
         using var page = PdfPage.A4();
         page.AddColorSpace("ICCRGB1", PageColorSpace.IccBased(3, "DeviceRGB"));
-        page.Invoking(p => p.SetFillColorIcc("ICCRGB1", Array.Empty<double>()))
-            .Should().Throw<ArgumentException>().WithMessage("*empty*");
+        var ex = Assert.Throws<ArgumentException>(() => page.SetFillColorIcc("ICCRGB1", Array.Empty<double>()));
+        Assert.Contains("empty", ex.Message);
     }
 
     [Fact]
@@ -44,8 +42,7 @@ public class PdfPageIccInlineIntegrationTests
             .Fill();
         doc.AddPage(page);
         var pdfText = ContentStreamHelper.ToLatin1(doc.SaveToBytes());
-        pdfText.Should().Contain("ICCBased",
-            "the PDF resource dictionary must register an ICCBased color space");
+        Assert.Contains("ICCBased", pdfText);
     }
 
     [Fact]
@@ -60,8 +57,8 @@ public class PdfPageIccInlineIntegrationTests
             .Fill();
         doc.AddPage(page);
         var stream = ContentStreamHelper.DecompressFirstContentStream(doc.SaveToBytes());
-        stream.Should().NotBeNull();
-        stream!.Should().Contain("cs");
-        stream.Should().Contain("sc");
+        Assert.NotNull(stream);
+        Assert.Contains("/ICCRGB1 cs", stream);
+        Assert.Contains("sc\n", stream);
     }
 }

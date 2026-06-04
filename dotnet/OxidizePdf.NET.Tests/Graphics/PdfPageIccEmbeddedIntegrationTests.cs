@@ -1,4 +1,3 @@
-using FluentAssertions;
 using OxidizePdf.NET.Graphics;
 using OxidizePdf.NET.Tests.TestHelpers;
 using Xunit;
@@ -21,9 +20,8 @@ public class PdfPageIccEmbeddedIntegrationTests
     {
         using var page = PdfPage.A4();
         var profile = new IccProfile("EmbeddedRGB", MinimalIccData(), IccColorSpace.Rgb);
-        page.AddIccColorSpace("EmbeddedRGB", profile)
-            .SetFillColorIcc("EmbeddedRGB", new double[] { 0.5, 0.3, 0.8 })
-            .Should().BeSameAs(page);
+        Assert.Same(page, page.AddIccColorSpace("EmbeddedRGB", profile)
+            .SetFillColorIcc("EmbeddedRGB", new double[] { 0.5, 0.3, 0.8 }));
     }
 
     [Fact]
@@ -31,8 +29,7 @@ public class PdfPageIccEmbeddedIntegrationTests
     public void AddIccColorSpace_NullProfile_Throws()
     {
         using var page = PdfPage.A4();
-        page.Invoking(p => p.AddIccColorSpace("EmbeddedRGB", null!))
-            .Should().Throw<ArgumentNullException>();
+        Assert.Throws<ArgumentNullException>(() => page.AddIccColorSpace("EmbeddedRGB", null!));
     }
 
     [Fact]
@@ -48,8 +45,7 @@ public class PdfPageIccEmbeddedIntegrationTests
             .Fill();
         doc.AddPage(page);
         var pdfText = ContentStreamHelper.ToLatin1(doc.SaveToBytes());
-        pdfText.Should().Contain("ICCBased",
-            "the embedded profile must appear as /ICCBased in the resource dict");
+        Assert.Contains("ICCBased", pdfText);
     }
 
     [Fact]
@@ -73,16 +69,15 @@ public class PdfPageIccEmbeddedIntegrationTests
         {
             var candidate = ContentStreamHelper.DecompressContentStreamAt(pdfBytes, idx);
             if (candidate == null) break;
-            if (candidate.Contains("cs") && candidate.Contains("sc"))
+            if (candidate.Contains("/EmbeddedRGB cs") && candidate.Contains("sc\n"))
             {
                 contentStream = candidate;
                 break;
             }
         }
 
-        contentStream.Should().NotBeNull(
-            "a content stream containing 'cs' and 'sc' operators must be present");
-        contentStream!.Should().Contain("cs");
-        contentStream.Should().Contain("sc");
+        Assert.NotNull(contentStream);
+        Assert.Contains("/EmbeddedRGB cs", contentStream);
+        Assert.Contains("sc\n", contentStream);
     }
 }

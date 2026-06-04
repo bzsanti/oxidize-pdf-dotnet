@@ -1312,6 +1312,7 @@ public sealed class PdfPage : IDisposable
     }
 
     /// <summary>Sets fill color using a calibrated gray (CalGray) color space (hardcoded name "CalGray1").</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>CalGray1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
     public PdfPage SetFillColorCalGray(double value, Graphics.CalGrayColorSpace colorSpace)
     {
         ArgumentNullException.ThrowIfNull(colorSpace);
@@ -1326,6 +1327,7 @@ public sealed class PdfPage : IDisposable
     }
 
     /// <summary>Sets stroke color using a calibrated gray (CalGray) color space (hardcoded name "CalGray1").</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>CalGray1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
     public PdfPage SetStrokeColorCalGray(double value, Graphics.CalGrayColorSpace colorSpace)
     {
         ArgumentNullException.ThrowIfNull(colorSpace);
@@ -1340,6 +1342,7 @@ public sealed class PdfPage : IDisposable
     }
 
     /// <summary>Sets fill color using a calibrated RGB (CalRGB) color space (hardcoded name "CalRGB1").</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>CalRGB1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
     public PdfPage SetFillColorCalRgb(double r, double g, double b, Graphics.CalRgbColorSpace colorSpace)
     {
         ArgumentNullException.ThrowIfNull(colorSpace);
@@ -1358,6 +1361,7 @@ public sealed class PdfPage : IDisposable
     }
 
     /// <summary>Sets stroke color using a calibrated RGB (CalRGB) color space (hardcoded name "CalRGB1").</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>CalRGB1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
     public PdfPage SetStrokeColorCalRgb(double r, double g, double b, Graphics.CalRgbColorSpace colorSpace)
     {
         ArgumentNullException.ThrowIfNull(colorSpace);
@@ -1377,6 +1381,7 @@ public sealed class PdfPage : IDisposable
 
     /// <summary>Sets fill color using L*a*b* (hardcoded name "Lab1").
     /// Mirrors python <c>page.set_fill_color_lab(color)</c>.</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>Lab1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
     public PdfPage SetFillColorLab(Graphics.LabColor color)
     {
         ArgumentNullException.ThrowIfNull(color);
@@ -1394,6 +1399,7 @@ public sealed class PdfPage : IDisposable
 
     /// <summary>Sets stroke color using L*a*b* (hardcoded name "Lab1").
     /// Mirrors python <c>page.set_stroke_color_lab(color)</c>.</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>Lab1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
     public PdfPage SetStrokeColorLab(Graphics.LabColor color)
     {
         ArgumentNullException.ThrowIfNull(color);

@@ -1,4 +1,3 @@
-using FluentAssertions;
 using OxidizePdf.NET.Graphics;
 using Xunit;
 
@@ -12,65 +11,70 @@ public class IccProfileTests
     public void New_StoresNameDataAndColorSpace()
     {
         var profile = new IccProfile("MyRGB", MinimalData(), IccColorSpace.Rgb);
-        profile.Name.Should().Be("MyRGB");
-        profile.ColorSpace.Should().Be(IccColorSpace.Rgb);
-        profile.Data.Should().HaveCount(128);
+        Assert.Equal("MyRGB", profile.Name);
+        Assert.Equal(IccColorSpace.Rgb, profile.ColorSpace);
+        Assert.Equal(128, profile.Data.Length);
     }
 
     [Fact]
     public void New_NullName_Throws()
     {
-        Action act = () => new IccProfile(null!, MinimalData(), IccColorSpace.Rgb);
-        act.Should().Throw<ArgumentNullException>();
+        Assert.Throws<ArgumentNullException>(() => new IccProfile(null!, MinimalData(), IccColorSpace.Rgb));
     }
 
     [Fact]
     public void New_NullData_Throws()
     {
-        Action act = () => new IccProfile("MyRGB", null!, IccColorSpace.Rgb);
-        act.Should().Throw<ArgumentNullException>();
+        Assert.Throws<ArgumentNullException>(() => new IccProfile("MyRGB", null!, IccColorSpace.Rgb));
     }
 
     [Fact]
     public void Validate_EmptyData_Throws()
     {
         var profile = new IccProfile("MyRGB", Array.Empty<byte>(), IccColorSpace.Rgb);
-        profile.Invoking(x => x.Validate()).Should().Throw<ArgumentException>()
-            .WithMessage("*data*");
+        var ex = Assert.Throws<ArgumentException>(() => profile.Validate());
+        Assert.Contains("data", ex.Message);
     }
 
     [Fact]
     public void Validate_ValidProfile_DoesNotThrow()
     {
-        var profile = new IccProfile("MyRGB", MinimalData(), IccColorSpace.Rgb);
-        profile.Invoking(x => x.Validate()).Should().NotThrow();
+        // A throw here fails the test.
+        new IccProfile("MyRGB", MinimalData(), IccColorSpace.Rgb).Validate();
+    }
+
+    [Fact]
+    public void Validate_UnknownColorSpaceEnum_Throws()
+    {
+        var profile = new IccProfile("Bad", MinimalData(), (IccColorSpace)99);
+        Assert.Throws<ArgumentException>(() => profile.Validate());
     }
 
     [Fact]
     public void ComponentCount_Rgb_IsThree()
     {
-        IccColorSpace.Rgb.ComponentCount().Should().Be(3);
+        Assert.Equal(3, IccColorSpace.Rgb.ComponentCount());
     }
 
     [Fact]
     public void ComponentCount_Gray_IsOne()
     {
-        IccColorSpace.Gray.ComponentCount().Should().Be(1);
+        Assert.Equal(1, IccColorSpace.Gray.ComponentCount());
     }
 
     [Fact]
     public void ComponentCount_Cmyk_IsFour()
     {
-        IccColorSpace.Cmyk.ComponentCount().Should().Be(4);
+        Assert.Equal(4, IccColorSpace.Cmyk.ComponentCount());
     }
 
     [Fact]
     public void PageColorSpace_IccBased_StoresNAndAlternate()
     {
         var pcs = PageColorSpace.IccBased(3, "DeviceRGB");
-        pcs.Kind.Should().Be(PageColorSpaceKind.IccBased);
-        pcs.IccN.Should().Be(3);
-        pcs.IccAlternate.Should().Be("DeviceRGB");
+        Assert.Equal(PageColorSpaceKind.IccBased, pcs.Kind);
+        Assert.Equal(3, pcs.IccN);
+        Assert.Equal("DeviceRGB", pcs.IccAlternate);
     }
 
     [Fact]
@@ -78,7 +82,7 @@ public class IccProfileTests
     {
         var cs = CalGrayColorSpace.D65();
         var pcs = PageColorSpace.CalGray(cs);
-        pcs.Kind.Should().Be(PageColorSpaceKind.CalGray);
-        pcs.CalGrayCs.Should().BeSameAs(cs);
+        Assert.Equal(PageColorSpaceKind.CalGray, pcs.Kind);
+        Assert.Same(cs, pcs.CalGrayCs);
     }
 }

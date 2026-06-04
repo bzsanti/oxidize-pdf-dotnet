@@ -29,38 +29,8 @@ public static class ContentStreamHelper
     /// Returns null if no compressed stream is found (uncompressed PDFs are handled
     /// by returning the raw stream bytes as Latin-1 text instead).
     /// </summary>
-    public static string? DecompressFirstContentStream(byte[] pdfBytes)
-    {
-        var streamMarker = Encoding.ASCII.GetBytes("stream");
-        var endMarker = Encoding.ASCII.GetBytes("endstream");
-
-        int streamStart = IndexOf(pdfBytes, streamMarker, 0);
-        if (streamStart < 0) return null;
-
-        int dataStart = streamStart + streamMarker.Length;
-        if (dataStart < pdfBytes.Length && pdfBytes[dataStart] == '\r') dataStart++;
-        if (dataStart < pdfBytes.Length && pdfBytes[dataStart] == '\n') dataStart++;
-
-        int streamEnd = IndexOf(pdfBytes, endMarker, dataStart);
-        if (streamEnd < 0) return null;
-
-        int dataEnd = streamEnd;
-        while (dataEnd > dataStart && (pdfBytes[dataEnd - 1] == '\r' || pdfBytes[dataEnd - 1] == '\n'))
-            dataEnd--;
-
-        var streamBytes = pdfBytes[dataStart..dataEnd];
-
-        if (streamBytes.Length >= 2 && streamBytes[0] == 0x78)
-        {
-            using var compressed = new MemoryStream(streamBytes, 2, streamBytes.Length - 2);
-            using var deflate = new DeflateStream(compressed, CompressionMode.Decompress);
-            using var output = new MemoryStream();
-            deflate.CopyTo(output);
-            return Encoding.Latin1.GetString(output.ToArray());
-        }
-
-        return Encoding.Latin1.GetString(streamBytes);
-    }
+    public static string? DecompressFirstContentStream(byte[] pdfBytes) =>
+        DecompressStreamAt(pdfBytes, 0);
 
     /// <summary>
     /// Finds the Nth content stream (0-based) and returns its decompressed text.
@@ -68,7 +38,10 @@ public static class ContentStreamHelper
     /// the page content stream — the caller can skip those by specifying a higher index.
     /// Returns null if fewer than <paramref name="streamIndex"/> + 1 streams are present.
     /// </summary>
-    public static string? DecompressContentStreamAt(byte[] pdfBytes, int streamIndex)
+    public static string? DecompressContentStreamAt(byte[] pdfBytes, int streamIndex) =>
+        DecompressStreamAt(pdfBytes, streamIndex);
+
+    private static string? DecompressStreamAt(byte[] pdfBytes, int streamIndex)
     {
         var streamMarker = Encoding.ASCII.GetBytes("stream");
         var endMarker    = Encoding.ASCII.GetBytes("endstream");

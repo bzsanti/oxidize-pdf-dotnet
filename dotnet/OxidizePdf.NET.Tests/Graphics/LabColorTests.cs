@@ -1,4 +1,3 @@
-using FluentAssertions;
 using OxidizePdf.NET.Graphics;
 using Xunit;
 
@@ -11,16 +10,15 @@ public class LabColorTests
     {
         var cs = LabColorSpace.D50();
         var color = new LabColor(50.0, 10.0, -20.0, cs);
-        color.L.Should().Be(50.0);
-        color.A.Should().Be(10.0);
-        color.B.Should().Be(-20.0);
-        color.ColorSpace.Should().BeSameAs(cs);
+        Assert.Equal(50.0, color.L);
+        Assert.Equal(10.0, color.A);
+        Assert.Equal(-20.0, color.B);
+        Assert.Same(cs, color.ColorSpace);
     }
 
     [Fact]
     public void New_NullColorSpace_Throws()
     {
-        Action act = () => new LabColor(50.0, 0.0, 0.0, null!);
-        act.Should().Throw<ArgumentNullException>();
+        Assert.Throws<ArgumentNullException>(() => new LabColor(50.0, 0.0, 0.0, null!));
     }
 }

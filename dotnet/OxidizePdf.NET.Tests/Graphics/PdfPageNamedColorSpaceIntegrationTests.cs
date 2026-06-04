@@ -1,4 +1,3 @@
-using FluentAssertions;
 using OxidizePdf.NET.Graphics;
 using OxidizePdf.NET.Tests.TestHelpers;
 using Xunit;
@@ -32,10 +31,8 @@ public class PdfPageNamedColorSpaceIntegrationTests
         doc.AddPage(page);
 
         var pdfText = ContentStreamHelper.ToLatin1(doc.SaveToBytes());
-        pdfText.Should().Contain("SRgbSpace",
-            "first CalRGB space must be registered in the resource dict");
-        pdfText.Should().Contain("AdobeRgbSpace",
-            "second CalRGB space must also be registered — proves multi-space-per-page works");
+        Assert.Contains("SRgbSpace", pdfText);
+        Assert.Contains("AdobeRgbSpace", pdfText);
     }
 
     [Fact]
@@ -53,12 +50,12 @@ public class PdfPageNamedColorSpaceIntegrationTests
 
         var pdfBytes = doc.SaveToBytes();
         var pdfText = ContentStreamHelper.ToLatin1(pdfBytes);
-        pdfText.Should().Contain("MyGray");
+        Assert.Contains("MyGray", pdfText);
 
         var stream = ContentStreamHelper.DecompressFirstContentStream(pdfBytes);
-        stream.Should().NotBeNull();
-        stream!.Should().Contain("cs");
-        stream.Should().Contain("sc");
+        Assert.NotNull(stream);
+        Assert.Contains("/MyGray cs", stream);
+        Assert.Contains("sc\n", stream);
     }
 
     [Fact]
@@ -76,12 +73,12 @@ public class PdfPageNamedColorSpaceIntegrationTests
 
         var pdfBytes = doc.SaveToBytes();
         var pdfText = ContentStreamHelper.ToLatin1(pdfBytes);
-        pdfText.Should().Contain("PerceptualLab");
+        Assert.Contains("PerceptualLab", pdfText);
 
         var stream = ContentStreamHelper.DecompressFirstContentStream(pdfBytes);
-        stream.Should().NotBeNull();
-        stream!.Should().Contain("cs");
-        stream.Should().Contain("sc");
+        Assert.NotNull(stream);
+        Assert.Contains("/PerceptualLab cs", stream);
+        Assert.Contains("sc\n", stream);
     }
 }
 
@@ -130,21 +127,19 @@ public class OxidizePythonIssue57RegressionTests
         doc.AddPage(page);
 
         var stream = ContentStreamHelper.DecompressFirstContentStream(doc.SaveToBytes());
-        stream.Should().NotBeNull();
+        Assert.NotNull(stream);
 
         // Both colour operators must appear in the stream.
         // The native layer emits components with 3 decimal places, e.g. "1.000 0.000 0.000 rg".
         // Using Contains on the decompressed stream confirms the native side emits them
         // as separate instructions, proving the two state slots are independent.
-        stream!.Should().Contain("1.000 0.000 0.000 rg",
-            "the red shape fill color operator must appear in the content stream");
-        stream.Should().Contain("0.000 0.000 1.000 rg",
-            "the blue text color operator must appear in the content stream, distinct from shape fill");
+        Assert.Contains("1.000 0.000 0.000 rg", stream);
+        Assert.Contains("0.000 0.000 1.000 rg", stream);
 
         // The shape fill operator must come BEFORE the text fill operator, confirming ordering.
         var redPos  = stream!.IndexOf("1.000 0.000 0.000 rg", StringComparison.Ordinal);
         var bluePos = stream.IndexOf("0.000 0.000 1.000 rg", StringComparison.Ordinal);
-        redPos.Should().BeLessThan(bluePos,
+        Assert.True(redPos < bluePos,
             "shape fill color must be set before text color in the content stream");
     }
 }
