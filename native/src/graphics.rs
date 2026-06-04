@@ -766,3 +766,148 @@ mod cal_gray_ffi_tests {
         }
     }
 }
+
+// ── CalRGB color (hardcoded name "CalRGB1" via upstream) ─────────────────────
+
+/// Set the graphics fill color using a calibrated RGB color space.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_fill_color_cal_rgb(
+    page: *mut PageHandle,
+    r: f64,
+    g: f64,
+    b: f64,
+    wp_x: f64,
+    wp_y: f64,
+    wp_z: f64,
+    bp_x: f64,
+    bp_y: f64,
+    bp_z: f64,
+    gamma_r: f64,
+    gamma_g: f64,
+    gamma_b: f64,
+    m0: f64,
+    m1: f64,
+    m2: f64,
+    m3: f64,
+    m4: f64,
+    m5: f64,
+    m6: f64,
+    m7: f64,
+    m8: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_rgb");
+        return ErrorCode::NullPointer as c_int;
+    }
+    use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
+    let cs = CalRgbColorSpace::new()
+        .with_white_point([wp_x, wp_y, wp_z])
+        .with_black_point([bp_x, bp_y, bp_z])
+        .with_gamma([gamma_r, gamma_g, gamma_b])
+        .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
+    let color = CalibratedColor::cal_rgb([r, g, b], cs);
+    (*page).inner.graphics().set_fill_color_calibrated(color);
+    ErrorCode::Success as c_int
+}
+
+/// Set the graphics stroke color using a calibrated RGB color space.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_stroke_color_cal_rgb(
+    page: *mut PageHandle,
+    r: f64,
+    g: f64,
+    b: f64,
+    wp_x: f64,
+    wp_y: f64,
+    wp_z: f64,
+    bp_x: f64,
+    bp_y: f64,
+    bp_z: f64,
+    gamma_r: f64,
+    gamma_g: f64,
+    gamma_b: f64,
+    m0: f64,
+    m1: f64,
+    m2: f64,
+    m3: f64,
+    m4: f64,
+    m5: f64,
+    m6: f64,
+    m7: f64,
+    m8: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_rgb");
+        return ErrorCode::NullPointer as c_int;
+    }
+    use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
+    let cs = CalRgbColorSpace::new()
+        .with_white_point([wp_x, wp_y, wp_z])
+        .with_black_point([bp_x, bp_y, bp_z])
+        .with_gamma([gamma_r, gamma_g, gamma_b])
+        .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
+    let color = CalibratedColor::cal_rgb([r, g, b], cs);
+    (*page).inner.graphics().set_stroke_color_calibrated(color);
+    ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod cal_rgb_ffi_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+
+    #[test]
+    fn fill_cal_rgb_valid_params_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let result = oxidize_page_set_fill_color_cal_rgb(
+                page, 0.5, 0.3, 0.8, 0.9505, 1.0, 1.0890, 0.0, 0.0, 0.0, 2.2, 2.2, 2.2, 1.0, 0.0,
+                0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn stroke_cal_rgb_null_page_returns_null_pointer_error() {
+        unsafe {
+            let result = oxidize_page_set_stroke_color_cal_rgb(
+                std::ptr::null_mut(),
+                0.5,
+                0.3,
+                0.8,
+                0.9505,
+                1.0,
+                1.0890,
+                0.0,
+                0.0,
+                0.0,
+                2.2,
+                2.2,
+                2.2,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+}
