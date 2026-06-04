@@ -663,3 +663,106 @@ pub unsafe extern "C" fn oxidize_page_transform(
     (*page).inner.graphics().transform(a, b, c, d, e, f);
     ErrorCode::Success as c_int
 }
+
+// ── CalGray color (hardcoded name "CalGray1" via upstream) ────────────────────
+
+/// Set the graphics fill color using a calibrated gray color space.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_fill_color_cal_gray(
+    page: *mut PageHandle,
+    value: f64,
+    wp_x: f64,
+    wp_y: f64,
+    wp_z: f64,
+    bp_x: f64,
+    bp_y: f64,
+    bp_z: f64,
+    gamma: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_gray");
+        return ErrorCode::NullPointer as c_int;
+    }
+    use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
+    let cs = CalGrayColorSpace::new()
+        .with_white_point([wp_x, wp_y, wp_z])
+        .with_black_point([bp_x, bp_y, bp_z])
+        .with_gamma(gamma);
+    let color = CalibratedColor::cal_gray(value, cs);
+    (*page).inner.graphics().set_fill_color_calibrated(color);
+    ErrorCode::Success as c_int
+}
+
+/// Set the graphics stroke color using a calibrated gray color space.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_stroke_color_cal_gray(
+    page: *mut PageHandle,
+    value: f64,
+    wp_x: f64,
+    wp_y: f64,
+    wp_z: f64,
+    bp_x: f64,
+    bp_y: f64,
+    bp_z: f64,
+    gamma: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_gray");
+        return ErrorCode::NullPointer as c_int;
+    }
+    use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
+    let cs = CalGrayColorSpace::new()
+        .with_white_point([wp_x, wp_y, wp_z])
+        .with_black_point([bp_x, bp_y, bp_z])
+        .with_gamma(gamma);
+    let color = CalibratedColor::cal_gray(value, cs);
+    (*page).inner.graphics().set_stroke_color_calibrated(color);
+    ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod cal_gray_ffi_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+
+    #[test]
+    fn fill_cal_gray_valid_params_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let result = oxidize_page_set_fill_color_cal_gray(
+                page, 0.5, 0.9505, 1.0, 1.0890, 0.0, 0.0, 0.0, 1.0,
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn stroke_cal_gray_null_page_returns_null_pointer_error() {
+        unsafe {
+            let result = oxidize_page_set_stroke_color_cal_gray(
+                std::ptr::null_mut(),
+                0.5,
+                0.9505,
+                1.0,
+                1.0890,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+}
