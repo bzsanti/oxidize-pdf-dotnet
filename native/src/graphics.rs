@@ -767,6 +767,125 @@ mod cal_gray_ffi_tests {
     }
 }
 
+// ── Lab color (hardcoded name "Lab1" via upstream) ────────────────────────────
+
+/// Set the graphics fill color using a CIE L*a*b* color space.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_fill_color_lab(
+    page: *mut PageHandle,
+    l: f64,
+    a: f64,
+    b: f64,
+    wp_x: f64,
+    wp_y: f64,
+    wp_z: f64,
+    bp_x: f64,
+    bp_y: f64,
+    bp_z: f64,
+    range_amin: f64,
+    range_amax: f64,
+    range_bmin: f64,
+    range_bmax: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_fill_color_lab");
+        return ErrorCode::NullPointer as c_int;
+    }
+    use oxidize_pdf::graphics::{LabColor, LabColorSpace};
+    let cs = LabColorSpace::new()
+        .with_white_point([wp_x, wp_y, wp_z])
+        .with_black_point([bp_x, bp_y, bp_z])
+        .with_range(range_amin, range_amax, range_bmin, range_bmax);
+    let color = LabColor::new(l, a, b, cs);
+    (*page).inner.graphics().set_fill_color_lab(color);
+    ErrorCode::Success as c_int
+}
+
+/// Set the graphics stroke color using a CIE L*a*b* color space.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create` or
+///   `oxidize_page_create_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_stroke_color_lab(
+    page: *mut PageHandle,
+    l: f64,
+    a: f64,
+    b: f64,
+    wp_x: f64,
+    wp_y: f64,
+    wp_z: f64,
+    bp_x: f64,
+    bp_y: f64,
+    bp_z: f64,
+    range_amin: f64,
+    range_amax: f64,
+    range_bmin: f64,
+    range_bmax: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_lab");
+        return ErrorCode::NullPointer as c_int;
+    }
+    use oxidize_pdf::graphics::{LabColor, LabColorSpace};
+    let cs = LabColorSpace::new()
+        .with_white_point([wp_x, wp_y, wp_z])
+        .with_black_point([bp_x, bp_y, bp_z])
+        .with_range(range_amin, range_amax, range_bmin, range_bmax);
+    let color = LabColor::new(l, a, b, cs);
+    (*page).inner.graphics().set_stroke_color_lab(color);
+    ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod lab_ffi_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+
+    #[test]
+    fn fill_lab_valid_params_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let result = oxidize_page_set_fill_color_lab(
+                page, 50.0, 0.0, 0.0, 0.9642, 1.0, 0.8251, 0.0, 0.0, 0.0, -128.0, 127.0, -128.0,
+                127.0,
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn stroke_lab_null_page_returns_null_pointer_error() {
+        unsafe {
+            let result = oxidize_page_set_stroke_color_lab(
+                std::ptr::null_mut(),
+                50.0,
+                0.0,
+                0.0,
+                0.9642,
+                1.0,
+                0.8251,
+                0.0,
+                0.0,
+                0.0,
+                -128.0,
+                127.0,
+                -128.0,
+                127.0,
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+}
+
 // ── CalRGB color (hardcoded name "CalRGB1" via upstream) ─────────────────────
 
 /// Set the graphics fill color using a calibrated RGB color space.
