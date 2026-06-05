@@ -57,7 +57,7 @@ No upstream work required; pure FFI/.NET surface work.
 ```
 M1  v0.8.0  Document-level metadata       (5 features)  [small]   [shipped]
 M2  v0.9.0  Forms — write path            (3 features)  [medium]  [shipped]
-M3          Color spaces                  (3 features)  [medium]
+M3  v0.11.0 Color spaces                  (3 features)  [medium]  [shipped]
 M4          Patterns, gradients, xobjects (8 features)  [large]
 M5          Page editing & coord systems  (2 features)  [medium]
 M6          Accessibility + text advanced (5 features)  [large]
@@ -116,7 +116,7 @@ Dependencies:
 
 ---
 
-## M3 — Color spaces
+## M3 — Color spaces (v0.11.0) [shipped]
 
 **Rationale:** prerequisite for M4 (patterns/shadings need `PdfColor` to support Lab/CalRGB/ICC). Small surface, high precision-requirement use cases (print workflows, accessibility).
 
@@ -132,7 +132,7 @@ Dependencies:
 - FFI: extend `native/src/graphics.rs` with color-space constructors returning opaque `PdfColorHandle`.
 - .NET: extend `PdfColor` static factories; `PdfDocument.AddIccProfile`.
 - Tests: fill a rectangle with each color space; re-parse; assert color-space object in content stream.
-- Version: assigned at release time.
+- Version: `0.11.0` (shipped 2026-06-05).
 
 ---
 
@@ -207,8 +207,8 @@ Dependencies:
 ```
 shipped     v0.8.0  M1 Document metadata
 shipped     v0.9.0  M2 Forms write
-next        M3      Color spaces
-later       M4      Advanced graphics
+shipped     v0.11.0 M3 Color spaces
+next        M4      Advanced graphics
 later       M5      Page editing
 later       M6      Accessibility + text
 ```
@@ -216,8 +216,10 @@ later       M6      Accessibility + text
 Version labels are assigned per release (at the time a milestone is cut),
 not in advance — historical attempts to pre-bind milestone → version
 created collisions when an unrelated MINOR shipped between milestones.
-M1/M2 shown with their actual shipped versions; M3–M6 intentionally
-unbound.
+M3 illustrates exactly this: it was pre-bound to v0.10.0, but v0.10.0
+was consumed by an unrelated upstream bump (oxidize-pdf 2.10.0) and M3
+ultimately shipped as v0.11.0. M1/M2/M3 shown with their actual shipped
+versions; M4–M6 intentionally unbound.
 
 After M6 reaches 100% parity, the next bump is the stable-API major
 (v1.0). The exact MINOR labels for M3–M6 are decided when each is
@@ -242,4 +244,4 @@ Once decisions 1–4 are made, the next step is producing `2026-MM-DD-m1-documen
 - [x] **No placeholders in this roadmap** — this file is the index; detailed TDD steps deliberately deferred to per-milestone plans.
 - [x] **Upstream support verified** — every feature traced to a file in `oxidize-pdf 2.5.4`.
 - [x] **Dependency call-outs** — M3 → M4, M5 → M6(tagging existing PDFs).
-- [x] **Versioning policy** — milestone → version is no longer pre-bound; assigned at release time. Historical entries for M1 (v0.8.0) and M2 (v0.9.0) retained as facts.
+- [x] **Versioning policy** — milestone → version is no longer pre-bound; assigned at release time. Historical entries for M1 (v0.8.0), M2 (v0.9.0) and M3 (v0.11.0) retained as facts.
