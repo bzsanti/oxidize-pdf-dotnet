@@ -1548,3 +1548,236 @@ mod cal_gray_named_ffi_tests {
         }
     }
 }
+
+// ── Tiling patterns (GFX-016) ──────────────────────────────────────────────────
+
+/// Register a tiling pattern on the page under `name`.
+///
+/// `paint_type`: 1 = Colored, 2 = Uncolored.
+/// `tiling_type`: 1 = ConstantSpacing, 2 = NoDistortion, 3 = ConstantSpacingFaster.
+/// The pattern cell bounding box is given as position + size (`bbox_x`, `bbox_y`,
+/// `bbox_w`, `bbox_h`) and converted to the PDF `[x0 y0 x1 y1]` BBox internally.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+/// - `content`/`content_len` must describe a valid byte buffer (the tile's
+///   content-stream operators); `content` may be null only when `content_len` is 0.
+/// - `matrix` is nullable; if non-null it must point to exactly 6 `f64` values.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn oxidize_page_add_tiling_pattern(
+    page: *mut PageHandle,
+    name: *const c_char,
+    paint_type: c_int,
+    tiling_type: c_int,
+    bbox_x: f64,
+    bbox_y: f64,
+    bbox_w: f64,
+    bbox_h: f64,
+    x_step: f64,
+    y_step: f64,
+    content: *const u8,
+    content_len: usize,
+    matrix: *const f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_tiling_pattern");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in pattern name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::{PaintType, PatternMatrix, TilingPattern, TilingType};
+    let paint = match paint_type {
+        1 => PaintType::Colored,
+        2 => PaintType::Uncolored,
+        _ => {
+            set_last_error("Invalid paint_type (expected 1=Colored, 2=Uncolored)");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    let tiling = match tiling_type {
+        1 => TilingType::ConstantSpacing,
+        2 => TilingType::NoDistortion,
+        3 => TilingType::ConstantSpacingFaster,
+        _ => {
+            set_last_error("Invalid tiling_type (expected 1, 2, or 3)");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    if x_step <= 0.0 || y_step <= 0.0 {
+        set_last_error("Tiling pattern x_step and y_step must be positive");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+    let bbox = [bbox_x, bbox_y, bbox_x + bbox_w, bbox_y + bbox_h];
+    let content_vec = if content.is_null() || content_len == 0 {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(content, content_len).to_vec()
+    };
+    let mut pattern = TilingPattern::new(name_str.clone(), paint, tiling, bbox, x_step, y_step)
+        .with_content_stream(content_vec);
+    if !matrix.is_null() {
+        let m = std::slice::from_raw_parts(matrix, 6);
+        pattern = pattern.with_matrix(PatternMatrix {
+            matrix: [m[0], m[1], m[2], m[3], m[4], m[5]],
+        });
+    }
+    if let Err(e) = (*page).inner.add_pattern(name_str, pattern) {
+        set_last_error(format!("Failed to add tiling pattern: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Select a previously registered tiling pattern as the fill color.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string matching a
+///   pattern registered via `oxidize_page_add_tiling_pattern`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_fill_pattern(
+    page: *mut PageHandle,
+    name: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_fill_pattern");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in pattern name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::PatternGraphicsContext;
+    if let Err(e) = (*page).inner.graphics().set_fill_pattern(name_str) {
+        set_last_error(format!("Failed to set fill pattern: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Select a previously registered tiling pattern as the stroke color.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string matching a
+///   pattern registered via `oxidize_page_add_tiling_pattern`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_stroke_pattern(
+    page: *mut PageHandle,
+    name: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_stroke_pattern");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in pattern name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::PatternGraphicsContext;
+    if let Err(e) = (*page).inner.graphics().set_stroke_pattern(name_str) {
+        set_last_error(format!("Failed to set stroke pattern: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod tiling_pattern_ffi_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+    use std::ffi::CString;
+
+    #[test]
+    fn add_tiling_pattern_valid_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = CString::new("P1").unwrap();
+            let content = b"1.0 0.0 0.0 rg\n0 0 10 10 re\nf\n";
+            let result = oxidize_page_add_tiling_pattern(
+                page,
+                name.as_ptr(),
+                1,
+                1,
+                0.0,
+                0.0,
+                10.0,
+                10.0,
+                10.0,
+                10.0,
+                content.as_ptr(),
+                content.len(),
+                std::ptr::null(),
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            let sel = oxidize_page_set_fill_pattern(page, name.as_ptr());
+            assert_eq!(sel, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn add_tiling_pattern_null_page_returns_null_pointer_error() {
+        unsafe {
+            let name = CString::new("P1").unwrap();
+            let result = oxidize_page_add_tiling_pattern(
+                std::ptr::null_mut(),
+                name.as_ptr(),
+                1,
+                1,
+                0.0,
+                0.0,
+                10.0,
+                10.0,
+                10.0,
+                10.0,
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn add_tiling_pattern_invalid_paint_type_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let name = CString::new("P1").unwrap();
+            let result = oxidize_page_add_tiling_pattern(
+                page,
+                name.as_ptr(),
+                99,
+                1,
+                0.0,
+                0.0,
+                10.0,
+                10.0,
+                10.0,
+                10.0,
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+            );
+            assert_eq!(result, 9, "expected ErrorCode::InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+}

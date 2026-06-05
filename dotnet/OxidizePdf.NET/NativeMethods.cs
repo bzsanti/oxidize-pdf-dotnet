@@ -1600,6 +1600,34 @@ internal static class NativeMethods
         nuint dataLen,
         int colorSpaceKind);
 
+    // ── Tiling patterns (GFX-016) ─────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_tiling_pattern(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        int paintType,
+        int tilingType,
+        double bboxX,
+        double bboxY,
+        double bboxW,
+        double bboxH,
+        double xStep,
+        double yStep,
+        IntPtr content,
+        nuint contentLen,
+        IntPtr matrix);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_fill_pattern(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_stroke_pattern(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
     /// <summary>
     /// Gets the last error message from the native library and clears it
     /// </summary>

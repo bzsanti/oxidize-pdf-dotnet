@@ -1621,6 +1621,55 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    // ── Tiling patterns (GFX-016) ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Registers a tiling pattern (GFX-016) on this page. After registering, select it
+    /// as the paint colour with <see cref="SetFillPattern"/> or <see cref="SetStrokePattern"/>.
+    /// </summary>
+    public unsafe PdfPage AddTilingPattern(Graphics.PdfTilingPattern pattern)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        ThrowIfDisposed();
+        fixed (byte* contentPtr = pattern.ContentStream)
+        fixed (double* matrixPtr = pattern.Matrix)
+        {
+            ThrowIfError(NativeMethods.oxidize_page_add_tiling_pattern(
+                _handle,
+                pattern.Name,
+                (int)pattern.PaintType,
+                (int)pattern.TilingType,
+                pattern.BBoxX, pattern.BBoxY, pattern.BBoxWidth, pattern.BBoxHeight,
+                pattern.XStep, pattern.YStep,
+                (IntPtr)contentPtr, (nuint)pattern.ContentStream.Length,
+                (IntPtr)matrixPtr),
+                $"Failed to add tiling pattern '{pattern.Name}'");
+        }
+        return this;
+    }
+
+    /// <summary>Selects a registered tiling pattern as the fill colour (emits <c>/Pattern cs /name scn</c>).</summary>
+    public PdfPage SetFillPattern(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_set_fill_pattern(_handle, name),
+            $"Failed to set fill pattern '{name}'");
+        return this;
+    }
+
+    /// <summary>Selects a registered tiling pattern as the stroke colour (emits <c>/Pattern CS /name SCN</c>).</summary>
+    public PdfPage SetStrokePattern(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_set_stroke_pattern(_handle, name),
+            $"Failed to set stroke pattern '{name}'");
+        return this;
+    }
+
     /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
     ~PdfPage() => Dispose();
 

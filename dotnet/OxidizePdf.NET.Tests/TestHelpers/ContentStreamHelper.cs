@@ -41,6 +41,26 @@ public static class ContentStreamHelper
     public static string? DecompressContentStreamAt(byte[] pdfBytes, int streamIndex) =>
         DecompressStreamAt(pdfBytes, streamIndex);
 
+    /// <summary>
+    /// Decompresses every content stream in <paramref name="pdfBytes"/> and returns
+    /// them concatenated (newline-separated). Use this when the operator under test
+    /// lives in the page content stream but auxiliary streams (pattern cells, embedded
+    /// profiles, form XObjects) appear earlier in byte order, so the first stream is
+    /// not the page stream. Still a real content assertion — it inspects decompressed
+    /// operator bytes, not byte counts.
+    /// </summary>
+    public static string DecompressAllContentStreams(byte[] pdfBytes)
+    {
+        var sb = new StringBuilder();
+        for (int idx = 0; ; idx++)
+        {
+            var stream = DecompressStreamAt(pdfBytes, idx);
+            if (stream is null) break;
+            sb.Append(stream).Append('\n');
+        }
+        return sb.ToString();
+    }
+
     private static string? DecompressStreamAt(byte[] pdfBytes, int streamIndex)
     {
         var streamMarker = Encoding.ASCII.GetBytes("stream");
