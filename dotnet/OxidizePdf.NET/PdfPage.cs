@@ -1287,6 +1287,340 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    // ── Calibrated color spaces ───────────────────────────────────────────────
+
+    /// <summary>Sets fill color using a calibrated color space (hardcoded name).
+    /// Mirrors python <c>page.set_fill_color_calibrated(color)</c>.</summary>
+    public PdfPage SetFillColorCalibrated(Graphics.CalibratedColor color)
+    {
+        ArgumentNullException.ThrowIfNull(color);
+        ThrowIfDisposed();
+        return color.IsCalGray
+            ? SetFillColorCalGray(color.GrayValue, color.GrayColorSpace!)
+            : SetFillColorCalRgb(color.RgbValues![0], color.RgbValues[1], color.RgbValues[2], color.RgbColorSpace!);
+    }
+
+    /// <summary>Sets stroke color using a calibrated color space (hardcoded name).
+    /// Mirrors python <c>page.set_stroke_color_calibrated(color)</c>.</summary>
+    public PdfPage SetStrokeColorCalibrated(Graphics.CalibratedColor color)
+    {
+        ArgumentNullException.ThrowIfNull(color);
+        ThrowIfDisposed();
+        return color.IsCalGray
+            ? SetStrokeColorCalGray(color.GrayValue, color.GrayColorSpace!)
+            : SetStrokeColorCalRgb(color.RgbValues![0], color.RgbValues[1], color.RgbValues[2], color.RgbColorSpace!);
+    }
+
+    /// <summary>Sets fill color using a calibrated gray (CalGray) color space (hardcoded name "CalGray1").</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>CalGray1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
+    public PdfPage SetFillColorCalGray(double value, Graphics.CalGrayColorSpace colorSpace)
+    {
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        ThrowIfDisposed();
+        colorSpace.Validate();
+        ThrowIfError(NativeMethods.oxidize_page_set_fill_color_cal_gray(
+            _handle, value,
+            colorSpace.WhitePoint[0], colorSpace.WhitePoint[1], colorSpace.WhitePoint[2],
+            colorSpace.BlackPoint[0], colorSpace.BlackPoint[1], colorSpace.BlackPoint[2],
+            colorSpace.Gamma), "Failed to set fill color (CalGray)");
+        return this;
+    }
+
+    /// <summary>Sets stroke color using a calibrated gray (CalGray) color space (hardcoded name "CalGray1").</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>CalGray1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
+    public PdfPage SetStrokeColorCalGray(double value, Graphics.CalGrayColorSpace colorSpace)
+    {
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        ThrowIfDisposed();
+        colorSpace.Validate();
+        ThrowIfError(NativeMethods.oxidize_page_set_stroke_color_cal_gray(
+            _handle, value,
+            colorSpace.WhitePoint[0], colorSpace.WhitePoint[1], colorSpace.WhitePoint[2],
+            colorSpace.BlackPoint[0], colorSpace.BlackPoint[1], colorSpace.BlackPoint[2],
+            colorSpace.Gamma), "Failed to set stroke color (CalGray)");
+        return this;
+    }
+
+    /// <summary>Sets fill color using a calibrated RGB (CalRGB) color space (hardcoded name "CalRGB1").</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>CalRGB1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
+    public PdfPage SetFillColorCalRgb(double r, double g, double b, Graphics.CalRgbColorSpace colorSpace)
+    {
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        ThrowIfDisposed();
+        colorSpace.Validate();
+        ThrowIfError(NativeMethods.oxidize_page_set_fill_color_cal_rgb(
+            _handle, r, g, b,
+            colorSpace.WhitePoint[0], colorSpace.WhitePoint[1], colorSpace.WhitePoint[2],
+            colorSpace.BlackPoint[0], colorSpace.BlackPoint[1], colorSpace.BlackPoint[2],
+            colorSpace.Gamma.R, colorSpace.Gamma.G, colorSpace.Gamma.B,
+            colorSpace.Matrix[0], colorSpace.Matrix[1], colorSpace.Matrix[2],
+            colorSpace.Matrix[3], colorSpace.Matrix[4], colorSpace.Matrix[5],
+            colorSpace.Matrix[6], colorSpace.Matrix[7], colorSpace.Matrix[8]),
+            "Failed to set fill color (CalRGB)");
+        return this;
+    }
+
+    /// <summary>Sets stroke color using a calibrated RGB (CalRGB) color space (hardcoded name "CalRGB1").</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>CalRGB1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
+    public PdfPage SetStrokeColorCalRgb(double r, double g, double b, Graphics.CalRgbColorSpace colorSpace)
+    {
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        ThrowIfDisposed();
+        colorSpace.Validate();
+        ThrowIfError(NativeMethods.oxidize_page_set_stroke_color_cal_rgb(
+            _handle, r, g, b,
+            colorSpace.WhitePoint[0], colorSpace.WhitePoint[1], colorSpace.WhitePoint[2],
+            colorSpace.BlackPoint[0], colorSpace.BlackPoint[1], colorSpace.BlackPoint[2],
+            colorSpace.Gamma.R, colorSpace.Gamma.G, colorSpace.Gamma.B,
+            colorSpace.Matrix[0], colorSpace.Matrix[1], colorSpace.Matrix[2],
+            colorSpace.Matrix[3], colorSpace.Matrix[4], colorSpace.Matrix[5],
+            colorSpace.Matrix[6], colorSpace.Matrix[7], colorSpace.Matrix[8]),
+            "Failed to set stroke color (CalRGB)");
+        return this;
+    }
+
+    /// <summary>Sets fill color using L*a*b* (hardcoded name "Lab1").
+    /// Mirrors python <c>page.set_fill_color_lab(color)</c>.</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>Lab1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
+    public PdfPage SetFillColorLab(Graphics.LabColor color)
+    {
+        ArgumentNullException.ThrowIfNull(color);
+        ThrowIfDisposed();
+        color.ColorSpace.Validate();
+        ThrowIfError(NativeMethods.oxidize_page_set_fill_color_lab(
+            _handle, color.L, color.A, color.B,
+            color.ColorSpace.WhitePoint[0], color.ColorSpace.WhitePoint[1], color.ColorSpace.WhitePoint[2],
+            color.ColorSpace.BlackPoint[0], color.ColorSpace.BlackPoint[1], color.ColorSpace.BlackPoint[2],
+            color.ColorSpace.Range[0], color.ColorSpace.Range[1],
+            color.ColorSpace.Range[2], color.ColorSpace.Range[3]),
+            "Failed to set fill color (Lab)");
+        return this;
+    }
+
+    /// <summary>Sets stroke color using L*a*b* (hardcoded name "Lab1").
+    /// Mirrors python <c>page.set_stroke_color_lab(color)</c>.</summary>
+    /// <remarks>This emits a reference to the default resource slot (<c>Lab1</c>) without registering it in the page resource dictionary, so the resulting page is not self-contained. For a spec-valid standalone result, register the space with <see cref="AddColorSpace"/> and draw with the corresponding <c>*Named</c> method.</remarks>
+    public PdfPage SetStrokeColorLab(Graphics.LabColor color)
+    {
+        ArgumentNullException.ThrowIfNull(color);
+        ThrowIfDisposed();
+        color.ColorSpace.Validate();
+        ThrowIfError(NativeMethods.oxidize_page_set_stroke_color_lab(
+            _handle, color.L, color.A, color.B,
+            color.ColorSpace.WhitePoint[0], color.ColorSpace.WhitePoint[1], color.ColorSpace.WhitePoint[2],
+            color.ColorSpace.BlackPoint[0], color.ColorSpace.BlackPoint[1], color.ColorSpace.BlackPoint[2],
+            color.ColorSpace.Range[0], color.ColorSpace.Range[1],
+            color.ColorSpace.Range[2], color.ColorSpace.Range[3]),
+            "Failed to set stroke color (Lab)");
+        return this;
+    }
+
+    // ── Named variants + registration ─────────────────────────────────────────
+
+    /// <summary>Registers a color space under <paramref name="name"/> on this page.
+    /// Required before calling the *Named draw methods.
+    /// Mirrors python <c>page.add_color_space(name, cs)</c>.</summary>
+    public PdfPage AddColorSpace(string name, Graphics.PageColorSpace colorSpace)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        ThrowIfDisposed();
+        int result = colorSpace.Kind switch
+        {
+            Graphics.PageColorSpaceKind.CalGray => NativeMethods.oxidize_page_add_color_space_cal_gray(
+                _handle, name,
+                colorSpace.CalGrayCs!.WhitePoint[0], colorSpace.CalGrayCs.WhitePoint[1], colorSpace.CalGrayCs.WhitePoint[2],
+                colorSpace.CalGrayCs.BlackPoint[0], colorSpace.CalGrayCs.BlackPoint[1], colorSpace.CalGrayCs.BlackPoint[2],
+                colorSpace.CalGrayCs.Gamma),
+            Graphics.PageColorSpaceKind.CalRgb => NativeMethods.oxidize_page_add_color_space_cal_rgb(
+                _handle, name,
+                colorSpace.CalRgbCs!.WhitePoint[0], colorSpace.CalRgbCs.WhitePoint[1], colorSpace.CalRgbCs.WhitePoint[2],
+                colorSpace.CalRgbCs.BlackPoint[0], colorSpace.CalRgbCs.BlackPoint[1], colorSpace.CalRgbCs.BlackPoint[2],
+                colorSpace.CalRgbCs.Gamma.R, colorSpace.CalRgbCs.Gamma.G, colorSpace.CalRgbCs.Gamma.B,
+                colorSpace.CalRgbCs.Matrix[0], colorSpace.CalRgbCs.Matrix[1], colorSpace.CalRgbCs.Matrix[2],
+                colorSpace.CalRgbCs.Matrix[3], colorSpace.CalRgbCs.Matrix[4], colorSpace.CalRgbCs.Matrix[5],
+                colorSpace.CalRgbCs.Matrix[6], colorSpace.CalRgbCs.Matrix[7], colorSpace.CalRgbCs.Matrix[8]),
+            Graphics.PageColorSpaceKind.Lab => NativeMethods.oxidize_page_add_color_space_lab(
+                _handle, name,
+                colorSpace.LabCs!.WhitePoint[0], colorSpace.LabCs.WhitePoint[1], colorSpace.LabCs.WhitePoint[2],
+                colorSpace.LabCs.BlackPoint[0], colorSpace.LabCs.BlackPoint[1], colorSpace.LabCs.BlackPoint[2],
+                colorSpace.LabCs.Range[0], colorSpace.LabCs.Range[1],
+                colorSpace.LabCs.Range[2], colorSpace.LabCs.Range[3]),
+            Graphics.PageColorSpaceKind.IccBased => NativeMethods.oxidize_page_add_color_space_icc_based(
+                _handle, name, colorSpace.IccN, colorSpace.IccAlternate!),
+            _ => throw new ArgumentException($"Unsupported PageColorSpace kind: {colorSpace.Kind}", nameof(colorSpace)),
+        };
+        ThrowIfError(result, $"Failed to register color space '{name}'");
+        return this;
+    }
+
+    /// <summary>Sets fill color using a named calibrated color space.
+    /// Mirrors python <c>page.set_fill_color_calibrated_named(name, color)</c>.</summary>
+    public PdfPage SetFillColorCalibratedNamed(string name, Graphics.CalibratedColor color)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(color);
+        ThrowIfDisposed();
+        int result;
+        if (color.IsCalGray)
+        {
+            color.GrayColorSpace!.Validate();
+            result = NativeMethods.oxidize_page_set_fill_color_cal_gray_named(
+                _handle, name, color.GrayValue,
+                color.GrayColorSpace.WhitePoint[0], color.GrayColorSpace.WhitePoint[1], color.GrayColorSpace.WhitePoint[2],
+                color.GrayColorSpace.BlackPoint[0], color.GrayColorSpace.BlackPoint[1], color.GrayColorSpace.BlackPoint[2],
+                color.GrayColorSpace.Gamma);
+        }
+        else
+        {
+            color.RgbColorSpace!.Validate();
+            result = NativeMethods.oxidize_page_set_fill_color_cal_rgb_named(
+                _handle, name,
+                color.RgbValues![0], color.RgbValues[1], color.RgbValues[2],
+                color.RgbColorSpace.WhitePoint[0], color.RgbColorSpace.WhitePoint[1], color.RgbColorSpace.WhitePoint[2],
+                color.RgbColorSpace.BlackPoint[0], color.RgbColorSpace.BlackPoint[1], color.RgbColorSpace.BlackPoint[2],
+                color.RgbColorSpace.Gamma.R, color.RgbColorSpace.Gamma.G, color.RgbColorSpace.Gamma.B,
+                color.RgbColorSpace.Matrix[0], color.RgbColorSpace.Matrix[1], color.RgbColorSpace.Matrix[2],
+                color.RgbColorSpace.Matrix[3], color.RgbColorSpace.Matrix[4], color.RgbColorSpace.Matrix[5],
+                color.RgbColorSpace.Matrix[6], color.RgbColorSpace.Matrix[7], color.RgbColorSpace.Matrix[8]);
+        }
+        ThrowIfError(result, $"Failed to set fill color calibrated named '{name}'");
+        return this;
+    }
+
+    /// <summary>Sets stroke color using a named calibrated color space.
+    /// Mirrors python <c>page.set_stroke_color_calibrated_named(name, color)</c>.</summary>
+    public PdfPage SetStrokeColorCalibratedNamed(string name, Graphics.CalibratedColor color)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(color);
+        ThrowIfDisposed();
+        int result;
+        if (color.IsCalGray)
+        {
+            color.GrayColorSpace!.Validate();
+            result = NativeMethods.oxidize_page_set_stroke_color_cal_gray_named(
+                _handle, name, color.GrayValue,
+                color.GrayColorSpace.WhitePoint[0], color.GrayColorSpace.WhitePoint[1], color.GrayColorSpace.WhitePoint[2],
+                color.GrayColorSpace.BlackPoint[0], color.GrayColorSpace.BlackPoint[1], color.GrayColorSpace.BlackPoint[2],
+                color.GrayColorSpace.Gamma);
+        }
+        else
+        {
+            color.RgbColorSpace!.Validate();
+            result = NativeMethods.oxidize_page_set_stroke_color_cal_rgb_named(
+                _handle, name,
+                color.RgbValues![0], color.RgbValues[1], color.RgbValues[2],
+                color.RgbColorSpace.WhitePoint[0], color.RgbColorSpace.WhitePoint[1], color.RgbColorSpace.WhitePoint[2],
+                color.RgbColorSpace.BlackPoint[0], color.RgbColorSpace.BlackPoint[1], color.RgbColorSpace.BlackPoint[2],
+                color.RgbColorSpace.Gamma.R, color.RgbColorSpace.Gamma.G, color.RgbColorSpace.Gamma.B,
+                color.RgbColorSpace.Matrix[0], color.RgbColorSpace.Matrix[1], color.RgbColorSpace.Matrix[2],
+                color.RgbColorSpace.Matrix[3], color.RgbColorSpace.Matrix[4], color.RgbColorSpace.Matrix[5],
+                color.RgbColorSpace.Matrix[6], color.RgbColorSpace.Matrix[7], color.RgbColorSpace.Matrix[8]);
+        }
+        ThrowIfError(result, $"Failed to set stroke color calibrated named '{name}'");
+        return this;
+    }
+
+    /// <summary>Sets fill color using a named Lab color space.
+    /// Mirrors python <c>page.set_fill_color_lab_named(name, color)</c>.</summary>
+    public PdfPage SetFillColorLabNamed(string name, Graphics.LabColor color)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(color);
+        ThrowIfDisposed();
+        color.ColorSpace.Validate();
+        ThrowIfError(NativeMethods.oxidize_page_set_fill_color_lab_named(
+            _handle, name, color.L, color.A, color.B,
+            color.ColorSpace.WhitePoint[0], color.ColorSpace.WhitePoint[1], color.ColorSpace.WhitePoint[2],
+            color.ColorSpace.BlackPoint[0], color.ColorSpace.BlackPoint[1], color.ColorSpace.BlackPoint[2],
+            color.ColorSpace.Range[0], color.ColorSpace.Range[1],
+            color.ColorSpace.Range[2], color.ColorSpace.Range[3]),
+            $"Failed to set fill color Lab named '{name}'");
+        return this;
+    }
+
+    /// <summary>Sets stroke color using a named Lab color space.
+    /// Mirrors python <c>page.set_stroke_color_lab_named(name, color)</c>.</summary>
+    public PdfPage SetStrokeColorLabNamed(string name, Graphics.LabColor color)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(color);
+        ThrowIfDisposed();
+        color.ColorSpace.Validate();
+        ThrowIfError(NativeMethods.oxidize_page_set_stroke_color_lab_named(
+            _handle, name, color.L, color.A, color.B,
+            color.ColorSpace.WhitePoint[0], color.ColorSpace.WhitePoint[1], color.ColorSpace.WhitePoint[2],
+            color.ColorSpace.BlackPoint[0], color.ColorSpace.BlackPoint[1], color.ColorSpace.BlackPoint[2],
+            color.ColorSpace.Range[0], color.ColorSpace.Range[1],
+            color.ColorSpace.Range[2], color.ColorSpace.Range[3]),
+            $"Failed to set stroke color Lab named '{name}'");
+        return this;
+    }
+
+    /// <summary>Sets fill color using an ICC color space registered under <paramref name="name"/>.
+    /// <paramref name="components"/> must not be empty.
+    /// Mirrors python <c>page.set_fill_color_icc(name, components)</c>.</summary>
+    public unsafe PdfPage SetFillColorIcc(string name, double[] components)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(components);
+        if (components.Length == 0)
+            throw new ArgumentException("ICC fill color components must not be empty.", nameof(components));
+        ThrowIfDisposed();
+        fixed (double* ptr = components)
+        {
+            ThrowIfError(NativeMethods.oxidize_page_set_fill_color_icc(
+                _handle, name, (IntPtr)ptr, (nuint)components.Length),
+                $"Failed to set fill color ICC '{name}'");
+        }
+        return this;
+    }
+
+    /// <summary>Sets stroke color using an ICC color space registered under <paramref name="name"/>.
+    /// <paramref name="components"/> must not be empty.
+    /// Mirrors python <c>page.set_stroke_color_icc(name, components)</c>.</summary>
+    public unsafe PdfPage SetStrokeColorIcc(string name, double[] components)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(components);
+        if (components.Length == 0)
+            throw new ArgumentException("ICC stroke color components must not be empty.", nameof(components));
+        ThrowIfDisposed();
+        fixed (double* ptr = components)
+        {
+            ThrowIfError(NativeMethods.oxidize_page_set_stroke_color_icc(
+                _handle, name, (IntPtr)ptr, (nuint)components.Length),
+                $"Failed to set stroke color ICC '{name}'");
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an embedded ICC profile color space under <paramref name="name"/>.
+    /// This is a .NET superset not present in the Python bridge.
+    /// Use <see cref="AddColorSpace"/> with <see cref="Graphics.PageColorSpace.IccBased"/> for the
+    /// inline (no binary) variant that mirrors python.
+    /// </summary>
+    public unsafe PdfPage AddIccColorSpace(string name, Graphics.IccProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(profile);
+        ThrowIfDisposed();
+        profile.Validate();
+        int colorSpaceKind = (int)profile.ColorSpace;
+        // Remap Lab sentinel (33) to upstream component count 3 for the native layer.
+        // The native side maps 1=Gray, 3=Rgb, 4=Cmyk; Lab not separately handled — use Rgb count.
+        if (colorSpaceKind == 33) colorSpaceKind = 3;
+        fixed (byte* ptr = profile.Data)
+        {
+            ThrowIfError(NativeMethods.oxidize_page_add_icc_color_space(
+                _handle, name, (IntPtr)ptr, (nuint)profile.Data.Length, colorSpaceKind),
+                $"Failed to add ICC color space '{name}'");
+        }
+        return this;
+    }
+
     /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
     ~PdfPage() => Dispose();
 

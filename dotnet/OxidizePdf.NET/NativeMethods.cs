@@ -1411,6 +1411,195 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_builder_build(IntPtr handle, out IntPtr outDoc);
 
+    // ── Calibrated color spaces (CalGray / CalRGB / Lab) ─────────────────────────
+
+    // ── CalGray (hardcoded name) ──────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_fill_color_cal_gray(
+        IntPtr page, double value,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gamma);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_stroke_color_cal_gray(
+        IntPtr page, double value,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gamma);
+
+    // ── CalGray (named) ───────────────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_fill_color_cal_gray_named(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double value,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gamma);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_stroke_color_cal_gray_named(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double value,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gamma);
+
+    // ── CalRGB (hardcoded name) ───────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_fill_color_cal_rgb(
+        IntPtr page, double r, double g, double b,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gammaR, double gammaG, double gammaB,
+        double m0, double m1, double m2,
+        double m3, double m4, double m5,
+        double m6, double m7, double m8);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_stroke_color_cal_rgb(
+        IntPtr page, double r, double g, double b,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gammaR, double gammaG, double gammaB,
+        double m0, double m1, double m2,
+        double m3, double m4, double m5,
+        double m6, double m7, double m8);
+
+    // ── CalRGB (named) ────────────────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_fill_color_cal_rgb_named(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double r, double g, double b,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gammaR, double gammaG, double gammaB,
+        double m0, double m1, double m2,
+        double m3, double m4, double m5,
+        double m6, double m7, double m8);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_stroke_color_cal_rgb_named(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double r, double g, double b,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gammaR, double gammaG, double gammaB,
+        double m0, double m1, double m2,
+        double m3, double m4, double m5,
+        double m6, double m7, double m8);
+
+    // ── Lab (hardcoded name) ──────────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_fill_color_lab(
+        IntPtr page, double l, double a, double b,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double rangeAMin, double rangeAMax,
+        double rangeBMin, double rangeBMax);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_stroke_color_lab(
+        IntPtr page, double l, double a, double b,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double rangeAMin, double rangeAMax,
+        double rangeBMin, double rangeBMax);
+
+    // ── Lab (named) ───────────────────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_fill_color_lab_named(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double l, double a, double b,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double rangeAMin, double rangeAMax,
+        double rangeBMin, double rangeBMax);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_stroke_color_lab_named(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double l, double a, double b,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double rangeAMin, double rangeAMax,
+        double rangeBMin, double rangeBMax);
+
+    // ── Page color-space registration ─────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_color_space_cal_gray(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gamma);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_color_space_cal_rgb(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double gammaR, double gammaG, double gammaB,
+        double m0, double m1, double m2,
+        double m3, double m4, double m5,
+        double m6, double m7, double m8);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_color_space_lab(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double wpX, double wpY, double wpZ,
+        double bpX, double bpY, double bpZ,
+        double rangeAMin, double rangeAMax,
+        double rangeBMin, double rangeBMax);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_color_space_icc_based(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        int n,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string alternate);
+
+    // ── ICC draw ──────────────────────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_fill_color_icc(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr components,
+        nuint componentsLen);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_stroke_color_icc(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr components,
+        nuint componentsLen);
+
+    // ── ICC embedded profile registration ────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_icc_color_space(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr data,
+        nuint dataLen,
+        int colorSpaceKind);
+
     /// <summary>
     /// Gets the last error message from the native library and clears it
     /// </summary>
