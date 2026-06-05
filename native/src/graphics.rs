@@ -1781,3 +1781,150 @@ mod tiling_pattern_ffi_tests {
         }
     }
 }
+
+// ── Form XObjects (GFX-018) ─────────────────────────────────────────────────────
+
+/// Register a reusable Form XObject (template) on the page under `name`.
+///
+/// The form's bounding box is given as position + size (`x`, `y`, `width`, `height`).
+/// `content`/`content_len` is the form's content-stream operators.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+/// - `content` may be null only when `content_len` is 0.
+/// - `matrix` is nullable; if non-null it must point to exactly 6 `f64` values.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn oxidize_page_add_form_xobject(
+    page: *mut PageHandle,
+    name: *const c_char,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    content: *const u8,
+    content_len: usize,
+    matrix: *const f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_form_xobject");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in form XObject name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::FormXObject;
+    use oxidize_pdf::Rectangle;
+    let bbox = Rectangle::from_position_and_size(x, y, width, height);
+    let content_vec = if content.is_null() || content_len == 0 {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(content, content_len).to_vec()
+    };
+    let mut form = FormXObject::new(bbox).with_content(content_vec);
+    if !matrix.is_null() {
+        let m = std::slice::from_raw_parts(matrix, 6);
+        form = form.with_matrix([m[0], m[1], m[2], m[3], m[4], m[5]]);
+    }
+    if let Err(e) = (*page).inner.add_form_xobject(name_str, form) {
+        set_last_error(format!("Failed to add form XObject: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Invoke (paint) a previously registered Form XObject, emitting `/name Do`.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string matching a
+///   form registered via `oxidize_page_add_form_xobject`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_invoke_xobject(
+    page: *mut PageHandle,
+    name: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_invoke_xobject");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in form XObject name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    (*page)
+        .inner
+        .graphics()
+        .add_command(&format!("/{name_str} Do"));
+    ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod form_xobject_ffi_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+    use std::ffi::CString;
+
+    #[test]
+    fn add_form_xobject_valid_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = CString::new("Fm1").unwrap();
+            let content = b"0.0 0.0 1.0 rg\n0 0 50 50 re\nf\n";
+            let result = oxidize_page_add_form_xobject(
+                page,
+                name.as_ptr(),
+                0.0,
+                0.0,
+                50.0,
+                50.0,
+                content.as_ptr(),
+                content.len(),
+                std::ptr::null(),
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            let inv = oxidize_page_invoke_xobject(page, name.as_ptr());
+            assert_eq!(inv, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn add_form_xobject_null_page_returns_null_pointer_error() {
+        unsafe {
+            let name = CString::new("Fm1").unwrap();
+            let result = oxidize_page_add_form_xobject(
+                std::ptr::null_mut(),
+                name.as_ptr(),
+                0.0,
+                0.0,
+                50.0,
+                50.0,
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn invoke_xobject_null_page_returns_null_pointer_error() {
+        unsafe {
+            let name = CString::new("Fm1").unwrap();
+            let result = oxidize_page_invoke_xobject(std::ptr::null_mut(), name.as_ptr());
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+}
