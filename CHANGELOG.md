@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-05
+
 ### Added — M3 Color Spaces
 - **GFX-014: CalGray and CalRGB calibrated color spaces** (hardcoded and named
   variants). `PdfPage.SetFillColorCalGray` / `SetStrokeColorCalGray`,
