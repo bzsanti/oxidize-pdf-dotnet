@@ -44,7 +44,7 @@ public static class ContentStreamHelper
     private static string? DecompressStreamAt(byte[] pdfBytes, int streamIndex)
     {
         var streamMarker = Encoding.ASCII.GetBytes("stream");
-        var endMarker    = Encoding.ASCII.GetBytes("endstream");
+        var endMarker = Encoding.ASCII.GetBytes("endstream");
 
         int searchFrom = 0;
         for (int i = 0; i <= streamIndex; i++)
@@ -69,8 +69,8 @@ public static class ContentStreamHelper
                 if (streamBytes.Length >= 2 && streamBytes[0] == 0x78)
                 {
                     using var compressed = new MemoryStream(streamBytes, 2, streamBytes.Length - 2);
-                    using var deflate    = new DeflateStream(compressed, CompressionMode.Decompress);
-                    using var output     = new MemoryStream();
+                    using var deflate = new DeflateStream(compressed, CompressionMode.Decompress);
+                    using var output = new MemoryStream();
                     deflate.CopyTo(output);
                     return Encoding.Latin1.GetString(output.ToArray());
                 }

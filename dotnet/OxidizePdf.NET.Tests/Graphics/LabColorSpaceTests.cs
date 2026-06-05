@@ -25,9 +25,9 @@ public class LabColorSpaceTests
     {
         var cs = LabColorSpace.D50();
         Assert.Equal(-128.0, cs.Range[0]);  // a_min
-        Assert.Equal(127.0,  cs.Range[1]);  // a_max
+        Assert.Equal(127.0, cs.Range[1]);  // a_max
         Assert.Equal(-128.0, cs.Range[2]);  // b_min
-        Assert.Equal(127.0,  cs.Range[3]);  // b_max
+        Assert.Equal(127.0, cs.Range[3]);  // b_max
     }
 
     [Fact]

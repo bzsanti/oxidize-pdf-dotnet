@@ -114,7 +114,7 @@ public class OxidizePythonIssue57RegressionTests
         // Use values that are visually and numerically distinct so we can assert both
         // colour operators appear separately — not just that "rg" is present once.
         const double shapeR = 1.0, shapeG = 0.0, shapeB = 0.0;   // red fill
-        const double textR  = 0.0, textG  = 0.0, textB  = 1.0;   // blue text
+        const double textR = 0.0, textG = 0.0, textB = 1.0;   // blue text
 
         using var doc = new PdfDocument();
         using var page = PdfPage.A4();
@@ -137,7 +137,7 @@ public class OxidizePythonIssue57RegressionTests
         Assert.Contains("0.000 0.000 1.000 rg", stream);
 
         // The shape fill operator must come BEFORE the text fill operator, confirming ordering.
-        var redPos  = stream!.IndexOf("1.000 0.000 0.000 rg", StringComparison.Ordinal);
+        var redPos = stream!.IndexOf("1.000 0.000 0.000 rg", StringComparison.Ordinal);
         var bluePos = stream.IndexOf("0.000 0.000 1.000 rg", StringComparison.Ordinal);
         Assert.True(redPos < bluePos,
             "shape fill color must be set before text color in the content stream");
