@@ -1650,6 +1650,12 @@ internal static class NativeMethods
         IntPtr page,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_apply_soft_mask(
+        IntPtr page,
+        int maskType,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? groupRef);
+
     /// <summary>
     /// Gets the last error message from the native library and clears it
     /// </summary>

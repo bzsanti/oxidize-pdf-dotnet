@@ -1890,6 +1890,64 @@ pub unsafe extern "C" fn oxidize_page_invoke_xobject(
     ErrorCode::Success as c_int
 }
 
+/// Apply a soft mask (GFX-021) to the page via an ExtGState `/SMask` entry
+/// (ISO 32000-1 §11.6.4.3), emitting the corresponding `/GSx gs` operator.
+///
+/// `mask_type`: 0 = None (disable masking), 1 = Alpha, 2 = Luminosity.
+/// For Alpha/Luminosity, `group_ref` must be the name of a Form XObject
+/// registered on this page via `oxidize_page_add_form_xobject` — the writer
+/// resolves it to an indirect `/G` reference at save time. For None,
+/// `group_ref` is ignored and may be null.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `group_ref`, when required, must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_apply_soft_mask(
+    page: *mut PageHandle,
+    mask_type: c_int,
+    group_ref: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_apply_soft_mask");
+        return ErrorCode::NullPointer as c_int;
+    }
+    use oxidize_pdf::graphics::{ExtGState, SoftMask};
+    let mask = match mask_type {
+        0 => SoftMask::none(),
+        1 | 2 => {
+            if group_ref.is_null() {
+                set_last_error("Alpha/Luminosity soft mask requires a non-null group reference");
+                return ErrorCode::NullPointer as c_int;
+            }
+            let name = match CStr::from_ptr(group_ref).to_str() {
+                Ok(s) => s.to_owned(),
+                Err(_) => {
+                    set_last_error("Invalid UTF-8 in soft mask group reference");
+                    return ErrorCode::InvalidUtf8 as c_int;
+                }
+            };
+            if mask_type == 1 {
+                SoftMask::alpha(name)
+            } else {
+                SoftMask::luminosity(name)
+            }
+        }
+        _ => {
+            set_last_error("Invalid soft mask type (expected 0=None, 1=Alpha, 2=Luminosity)");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    let mut state = ExtGState::new();
+    state.set_soft_mask(mask);
+    if let Err(e) = (*page).inner.graphics().apply_extgstate(state) {
+        set_last_error(format!("Failed to apply soft mask: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
 #[cfg(test)]
 mod form_xobject_ffi_tests {
     use super::*;
@@ -1989,6 +2047,45 @@ mod form_xobject_ffi_tests {
         unsafe {
             let name = CString::new("Fm1").unwrap();
             let result = oxidize_page_invoke_xobject(std::ptr::null_mut(), name.as_ptr());
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn apply_soft_mask_luminosity_registers_extgstate_with_soft_mask() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let group = CString::new("Mask1").unwrap();
+            let result = oxidize_page_apply_soft_mask(page, 2, group.as_ptr());
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            // Real behavioural check: an ExtGState carrying a soft mask is now
+            // registered, so the writer will emit an `/SMask` entry for it.
+            let states = (*page)
+                .inner
+                .get_extgstate_resources()
+                .expect("page must expose ExtGState resources after apply_soft_mask");
+            assert!(
+                states.values().any(|s| s.soft_mask.is_some()),
+                "a registered ExtGState must carry a soft mask"
+            );
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn apply_soft_mask_invalid_type_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let result = oxidize_page_apply_soft_mask(page, 7, std::ptr::null());
+            assert_eq!(result, 9, "expected ErrorCode::InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn apply_soft_mask_null_page_returns_null_pointer_error() {
+        unsafe {
+            let result = oxidize_page_apply_soft_mask(std::ptr::null_mut(), 2, std::ptr::null());
             assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
         }
     }

@@ -1711,6 +1711,23 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Applies a soft mask (GFX-021) via an ExtGState <c>/SMask</c> entry, emitting the
+    /// corresponding <c>gs</c> operator. For <see cref="Graphics.SoftMaskKind.Alpha"/>/<see cref="Graphics.SoftMaskKind.Luminosity"/>
+    /// the mask's <see cref="Graphics.PdfSoftMask.GroupReference"/> must name a Form XObject registered
+    /// on this page (via <see cref="AddFormXObject"/>) before the document is saved.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="mask"/> is null.</exception>
+    public PdfPage ApplySoftMask(Graphics.PdfSoftMask mask)
+    {
+        ArgumentNullException.ThrowIfNull(mask);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_apply_soft_mask(_handle, (int)mask.Kind, mask.GroupReference),
+            "Failed to apply soft mask");
+        return this;
+    }
+
     /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
     ~PdfPage() => Dispose();
 
