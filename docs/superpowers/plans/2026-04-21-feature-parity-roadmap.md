@@ -58,7 +58,8 @@ No upstream work required; pure FFI/.NET surface work.
 M1  v0.8.0  Document-level metadata       (5 features)  [small]   [shipped]
 M2  v0.9.0  Forms — write path            (3 features)  [medium]  [shipped]
 M3  v0.11.0 Color spaces                  (3 features)  [medium]  [shipped]
-M4          Patterns, gradients, xobjects (8 features)  [large]
+M4a v0.12.0 Advanced graphics             (7 features)  [large]   [shipped]
+M4b         GFX-017 gradients             (1 feature)   [blocked: upstream #297]
 M5          Page editing & coord systems  (2 features)  [medium]
 M6          Accessibility + text advanced (5 features)  [large]
 ────────────────────────────────────────────────────────
@@ -140,26 +141,27 @@ Dependencies:
 
 **Rationale:** largest graphics block. Depends on M3 colors. High visual-fidelity value (charts, branded reports).
 
+**Split shipped:** M4a (7 features) released as **v0.12.0** (2026-06-06, issue #23 closed). GFX-017 gradients carved out to **M4b** (downstream issue #40) — blocked by an upstream gap (placeholder `/Function` + missing `sh` operator in oxidize-pdf 2.12.0, upstream bzsanti/oxidizePdf#297).
+
 **Features (8):**
 
-| ID | Feature |
-|---|---|
-| GFX-016 | Tiling patterns |
-| GFX-017 | Axial / radial shadings (gradients) |
-| GFX-018 | FormXObject / templates |
-| GFX-020 | Transparency groups |
-| GFX-021 | Soft masks |
-| GFX-022 | Draw text from graphics context |
-| GFX-023 | Draw image from graphics context |
-| GFX-024 | Clip ellipse / arbitrary path |
+| ID | Feature | Status |
+|---|---|---|
+| GFX-016 | Tiling patterns | shipped v0.12.0 |
+| GFX-017 | Axial / radial shadings (gradients) | M4b — blocked (upstream #297) |
+| GFX-018 | FormXObject / templates | shipped v0.12.0 |
+| GFX-020 | Transparency groups | shipped v0.12.0 |
+| GFX-021 | Soft masks | shipped v0.12.0 |
+| GFX-022 | Draw text from graphics context | shipped v0.12.0 |
+| GFX-023 | Draw image from graphics context | shipped v0.12.0 |
+| GFX-024 | Clip ellipse / arbitrary path | shipped v0.12.0 (clip ellipse) |
 
-**Artifacts:**
-- FFI: new `native/src/graphics_advanced.rs` module; 15+ exports.
-- .NET: `Graphics/PdfPattern.cs`, `PdfShading.cs`, `PdfFormXObject.cs`, `PdfTransparencyGroup.cs`, `PdfSoftMask.cs`; extend `PdfGraphicsContext` with `DrawText`, `DrawImage`, `ClipEllipse`, `ClipPath`.
-- Tests: render each pattern/gradient; FormXObject reuse scenario; transparency + soft mask combined; visually-verifiable assertions via content-stream inspection.
-- Version: assigned at release time.
+**Delivered (v0.12.0):**
+- FFI: extensions in `native/src/graphics.rs` and `native/src/image.rs` (tiling, form xobject + transparency group, soft mask, draw text, draw image w/ transparency, clip ellipse).
+- .NET: `Graphics/PdfTilingPattern.cs`, `PdfFormXObject.cs`, `PdfTransparencyGroup.cs`, `PdfSoftMask.cs`; `PdfPage` methods `AddTilingPattern`/`SetFill|StrokePattern`, `AddFormXObject`/`InvokeXObject`, `ApplySoftMask`, `DrawTextAt`, `DrawImageWithTransparency`, `ClipEllipse`.
+- Tests: content-stream inspection asserting real operators/dicts/indirect refs (no smoke tests). Rust 127, .NET 771.
 
-**Risk flag:** this is the largest milestone — allow split into M4a (patterns + shadings + xobjects) and M4b (transparency + soft mask + gfx context helpers) if implementation cost exceeds estimate.
+**M4b pending:** GFX-017 gradients once upstream ships real PDF Function objects (Type 2/3) + the `sh` operator.
 
 ---
 
@@ -208,8 +210,9 @@ Dependencies:
 shipped     v0.8.0  M1 Document metadata
 shipped     v0.9.0  M2 Forms write
 shipped     v0.11.0 M3 Color spaces
-next        M4      Advanced graphics
-later       M5      Page editing
+shipped     v0.12.0 M4a Advanced graphics (7 features)
+blocked     M4b     GFX-017 gradients (upstream #297, issue #40)
+next        M5      Page editing
 later       M6      Accessibility + text
 ```
 
