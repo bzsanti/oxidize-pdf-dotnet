@@ -1670,6 +1670,44 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    // ── Form XObjects (GFX-018) ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Registers a reusable Form XObject (GFX-018) on this page under <paramref name="name"/>.
+    /// After registering, paint it one or more times with <see cref="InvokeXObject"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="form"/> is null.</exception>
+    public unsafe PdfPage AddFormXObject(string name, Graphics.PdfFormXObject form)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(form);
+        ThrowIfDisposed();
+        fixed (byte* contentPtr = form.Content)
+        fixed (double* matrixPtr = form.Matrix)
+        {
+            ThrowIfError(NativeMethods.oxidize_page_add_form_xobject(
+                _handle,
+                name,
+                form.X, form.Y, form.Width, form.Height,
+                (IntPtr)contentPtr, (nuint)form.Content.Length,
+                (IntPtr)matrixPtr),
+                $"Failed to add form XObject '{name}'");
+        }
+        return this;
+    }
+
+    /// <summary>Paints a registered Form XObject by emitting the <c>/name Do</c> operator.</summary>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    public PdfPage InvokeXObject(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_invoke_xobject(_handle, name),
+            $"Failed to invoke form XObject '{name}'");
+        return this;
+    }
+
     /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
     ~PdfPage() => Dispose();
 

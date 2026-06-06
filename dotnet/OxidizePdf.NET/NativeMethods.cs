@@ -1628,6 +1628,25 @@ internal static class NativeMethods
         IntPtr page,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
 
+    // ── Form XObjects (GFX-018) ───────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_form_xobject(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double x,
+        double y,
+        double width,
+        double height,
+        IntPtr content,
+        nuint contentLen,
+        IntPtr matrix);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_invoke_xobject(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
     /// <summary>
     /// Gets the last error message from the native library and clears it
     /// </summary>
