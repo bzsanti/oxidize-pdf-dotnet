@@ -1794,6 +1794,9 @@ mod tiling_pattern_ffi_tests {
 /// - `name` must be a valid non-null, null-terminated UTF-8 C string.
 /// - `content` may be null only when `content_len` is 0.
 /// - `matrix` is nullable; if non-null it must point to exactly 6 `f64` values.
+/// - `group_color_space` is nullable; non-null attaches a transparency group
+///   (GFX-020) with the given colour space and the `isolated`/`knockout` flags
+///   (0 = false, non-zero = true). Null means no transparency group.
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn oxidize_page_add_form_xobject(
@@ -1806,6 +1809,9 @@ pub unsafe extern "C" fn oxidize_page_add_form_xobject(
     content: *const u8,
     content_len: usize,
     matrix: *const f64,
+    group_color_space: *const c_char,
+    isolated: c_int,
+    knockout: c_int,
 ) -> c_int {
     clear_last_error();
     if page.is_null() || name.is_null() {
@@ -1831,6 +1837,21 @@ pub unsafe extern "C" fn oxidize_page_add_form_xobject(
     if !matrix.is_null() {
         let m = std::slice::from_raw_parts(matrix, 6);
         form = form.with_matrix([m[0], m[1], m[2], m[3], m[4], m[5]]);
+    }
+    if !group_color_space.is_null() {
+        let cs = match CStr::from_ptr(group_color_space).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in transparency group color space");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::FormTransparencyGroup;
+        form = form.with_transparency_group(FormTransparencyGroup {
+            color_space: cs,
+            isolated: isolated != 0,
+            knockout: knockout != 0,
+        });
     }
     if let Err(e) = (*page).inner.add_form_xobject(name_str, form) {
         set_last_error(format!("Failed to add form XObject: {e}"));
@@ -1892,10 +1913,51 @@ mod form_xobject_ffi_tests {
                 content.as_ptr(),
                 content.len(),
                 std::ptr::null(),
+                std::ptr::null(),
+                0,
+                0,
             );
             assert_eq!(result, 0, "expected ErrorCode::Success (0)");
             let inv = oxidize_page_invoke_xobject(page, name.as_ptr());
             assert_eq!(inv, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn add_form_xobject_with_transparency_group_marks_form_as_transparent() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = CString::new("Fm1").unwrap();
+            let cs = CString::new("DeviceRGB").unwrap();
+            let content = b"0.0 0.0 1.0 rg\n0 0 50 50 re\nf\n";
+            let result = oxidize_page_add_form_xobject(
+                page,
+                name.as_ptr(),
+                0.0,
+                0.0,
+                50.0,
+                50.0,
+                content.as_ptr(),
+                content.len(),
+                std::ptr::null(),
+                cs.as_ptr(),
+                1, // isolated
+                1, // knockout
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            // Real behavioural check: the registered form carries a transparency
+            // group, so to_stream() will emit a `/Group /S /Transparency` dict.
+            let form = (*page)
+                .inner
+                .form_xobjects()
+                .get("Fm1")
+                .expect("form Fm1 must be registered");
+            assert!(
+                form.has_transparency(),
+                "form must carry a transparency group when one was supplied"
+            );
             oxidize_page_free(page);
         }
     }
@@ -1914,6 +1976,9 @@ mod form_xobject_ffi_tests {
                 std::ptr::null(),
                 0,
                 std::ptr::null(),
+                std::ptr::null(),
+                0,
+                0,
             );
             assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
         }

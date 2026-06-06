@@ -1640,7 +1640,10 @@ internal static class NativeMethods
         double height,
         IntPtr content,
         nuint contentLen,
-        IntPtr matrix);
+        IntPtr matrix,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? groupColorSpace,
+        int isolated,
+        int knockout);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_invoke_xobject(

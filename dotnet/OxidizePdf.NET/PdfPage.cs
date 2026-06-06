@@ -1690,7 +1690,10 @@ public sealed class PdfPage : IDisposable
                 name,
                 form.X, form.Y, form.Width, form.Height,
                 (IntPtr)contentPtr, (nuint)form.Content.Length,
-                (IntPtr)matrixPtr),
+                (IntPtr)matrixPtr,
+                form.Group?.ColorSpace,
+                form.Group is { Isolated: true } ? 1 : 0,
+                form.Group is { Knockout: true } ? 1 : 0),
                 $"Failed to add form XObject '{name}'");
         }
         return this;

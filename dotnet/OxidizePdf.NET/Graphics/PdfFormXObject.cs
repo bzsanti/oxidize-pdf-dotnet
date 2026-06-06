@@ -26,6 +26,12 @@ public sealed class PdfFormXObject
     /// <summary>Optional 6-element form matrix [a b c d e f]; null means identity.</summary>
     public double[]? Matrix { get; }
 
+    /// <summary>
+    /// Optional transparency group (GFX-020). When set, the form is written with a
+    /// <c>/Group &lt;&lt; /S /Transparency … &gt;&gt;</c> entry (ISO 32000-1 §11.4.5); null means none.
+    /// </summary>
+    public PdfTransparencyGroup? Group { get; }
+
     /// <summary>Creates a Form XObject definition.</summary>
     /// <exception cref="ArgumentNullException"><paramref name="content"/> is null.</exception>
     /// <exception cref="ArgumentException"><paramref name="matrix"/> is not exactly 6 elements.</exception>
@@ -35,7 +41,8 @@ public sealed class PdfFormXObject
         double width,
         double height,
         byte[] content,
-        double[]? matrix = null)
+        double[]? matrix = null,
+        PdfTransparencyGroup? group = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         if (matrix is not null && matrix.Length != 6)
@@ -47,5 +54,6 @@ public sealed class PdfFormXObject
         Height = height;
         Content = content;
         Matrix = matrix;
+        Group = group;
     }
 }
