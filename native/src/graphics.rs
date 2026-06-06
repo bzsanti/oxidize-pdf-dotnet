@@ -1990,6 +1990,37 @@ pub unsafe extern "C" fn oxidize_page_draw_text_at(
     ErrorCode::Success as c_int
 }
 
+/// Intersect the current clipping region with an ellipse (GFX-024), emitting the
+/// path construction (`m`, four `c` Bézier quarters, `h`) followed by `W n`.
+/// The ellipse is centred at (`cx`, `cy`) with horizontal radius `rx` and
+/// vertical radius `ry`; both radii must be strictly positive.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_clip_ellipse(
+    page: *mut PageHandle,
+    cx: f64,
+    cy: f64,
+    rx: f64,
+    ry: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_clip_ellipse");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if rx <= 0.0 || ry <= 0.0 || rx.is_nan() || ry.is_nan() {
+        set_last_error("Ellipse radii (rx, ry) must be strictly positive");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+    if let Err(e) = (*page).inner.graphics().clip_ellipse(cx, cy, rx, ry) {
+        set_last_error(format!("Failed to set elliptical clip: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
 #[cfg(test)]
 mod form_xobject_ffi_tests {
     use super::*;
@@ -2175,6 +2206,50 @@ mod form_xobject_ffi_tests {
             );
             assert_eq!(rc, 1, "expected ErrorCode::NullPointer (1)");
             oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn clip_ellipse_emits_path_and_clip_operators() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let rc = oxidize_page_clip_ellipse(page, 300.0, 400.0, 100.0, 50.0);
+            assert_eq!(rc, 0, "expected ErrorCode::Success (0)");
+            let ops = (*page).inner.graphics().operations();
+            // Path starts at the top of the ellipse (cy + ry = 450).
+            assert!(ops.contains("300.000 450.000 m"), "expected MoveTo\n{ops}");
+            assert!(ops.contains(" c\n"), "expected Bézier curves\n{ops}");
+            assert!(ops.contains("W\n"), "expected clip operator W\n{ops}");
+            assert!(ops.contains("n\n"), "expected end-path operator n\n{ops}");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn clip_ellipse_zero_radius_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let rc = oxidize_page_clip_ellipse(page, 300.0, 400.0, 0.0, 50.0);
+            assert_eq!(rc, 9, "expected ErrorCode::InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn clip_ellipse_negative_radius_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let rc = oxidize_page_clip_ellipse(page, 300.0, 400.0, 100.0, -5.0);
+            assert_eq!(rc, 9, "expected ErrorCode::InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn clip_ellipse_null_page_returns_null_pointer_error() {
+        unsafe {
+            let rc = oxidize_page_clip_ellipse(std::ptr::null_mut(), 0.0, 0.0, 10.0, 10.0);
+            assert_eq!(rc, 1, "expected ErrorCode::NullPointer (1)");
         }
     }
 }

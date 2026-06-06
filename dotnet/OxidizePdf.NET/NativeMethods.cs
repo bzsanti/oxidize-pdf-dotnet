@@ -1672,6 +1672,14 @@ internal static class NativeMethods
         double y,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string text);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_clip_ellipse(
+        IntPtr page,
+        double cx,
+        double cy,
+        double rx,
+        double ry);
+
     /// <summary>
     /// Gets the last error message from the native library and clears it
     /// </summary>

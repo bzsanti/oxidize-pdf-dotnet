@@ -1776,6 +1776,24 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Intersects the current clipping region with an ellipse (GFX-024), emitting the
+    /// path (<c>m</c>, four <c>c</c> Bézier quarters, <c>h</c>) followed by <c>W n</c>.
+    /// Subsequent drawing is confined to the ellipse centred at (<paramref name="cx"/>,
+    /// <paramref name="cy"/>) with radii <paramref name="rx"/>/<paramref name="ry"/>.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="rx"/> or <paramref name="ry"/> is not strictly positive.</exception>
+    public PdfPage ClipEllipse(double cx, double cy, double rx, double ry)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(rx);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(ry);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_clip_ellipse(_handle, cx, cy, rx, ry),
+            "Failed to set elliptical clip");
+        return this;
+    }
+
     /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
     ~PdfPage() => Dispose();
 
