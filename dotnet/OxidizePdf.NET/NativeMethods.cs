@@ -778,6 +778,13 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
         double x, double y, double width, double height);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_draw_image_with_transparency(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string imageName,
+        double x, double y, double width, double height,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? maskName);
+
     // ── Security ──────────────────────────────────────────────────────────────
 
     /// <summary>Encrypt a document with user and owner passwords using default permissions</summary>
@@ -1599,6 +1606,79 @@ internal static class NativeMethods
         IntPtr data,
         nuint dataLen,
         int colorSpaceKind);
+
+    // ── Tiling patterns (GFX-016) ─────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_tiling_pattern(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        int paintType,
+        int tilingType,
+        double bboxX,
+        double bboxY,
+        double bboxW,
+        double bboxH,
+        double xStep,
+        double yStep,
+        IntPtr content,
+        nuint contentLen,
+        IntPtr matrix);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_fill_pattern(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_set_stroke_pattern(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
+    // ── Form XObjects (GFX-018) ───────────────────────────────────────────────
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_form_xobject(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        double x,
+        double y,
+        double width,
+        double height,
+        IntPtr content,
+        nuint contentLen,
+        IntPtr matrix,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? groupColorSpace,
+        int isolated,
+        int knockout);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_invoke_xobject(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_apply_soft_mask(
+        IntPtr page,
+        int maskType,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? groupRef);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_draw_text_at(
+        IntPtr page,
+        StandardFont font,
+        double size,
+        double x,
+        double y,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_clip_ellipse(
+        IntPtr page,
+        double cx,
+        double cy,
+        double rx,
+        double ry);
 
     /// <summary>
     /// Gets the last error message from the native library and clears it

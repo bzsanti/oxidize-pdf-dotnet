@@ -2,7 +2,7 @@ use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 
 use crate::page::PageHandle;
-use crate::types::{BlendMode, LineCap, LineJoin};
+use crate::types::{BlendMode, LineCap, LineJoin, StandardFont};
 use crate::{clear_last_error, set_last_error, ErrorCode};
 
 // ── Fill color ────────────────────────────────────────────────────────────────
@@ -1545,6 +1545,711 @@ mod cal_gray_named_ffi_tests {
             );
             assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
             oxidize_page_free(page);
+        }
+    }
+}
+
+// ── Tiling patterns (GFX-016) ──────────────────────────────────────────────────
+
+/// Register a tiling pattern on the page under `name`.
+///
+/// `paint_type`: 1 = Colored, 2 = Uncolored.
+/// `tiling_type`: 1 = ConstantSpacing, 2 = NoDistortion, 3 = ConstantSpacingFaster.
+/// The pattern cell bounding box is given as position + size (`bbox_x`, `bbox_y`,
+/// `bbox_w`, `bbox_h`) and converted to the PDF `[x0 y0 x1 y1]` BBox internally.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+/// - `content`/`content_len` must describe a valid byte buffer (the tile's
+///   content-stream operators); `content` may be null only when `content_len` is 0.
+/// - `matrix` is nullable; if non-null it must point to exactly 6 `f64` values.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn oxidize_page_add_tiling_pattern(
+    page: *mut PageHandle,
+    name: *const c_char,
+    paint_type: c_int,
+    tiling_type: c_int,
+    bbox_x: f64,
+    bbox_y: f64,
+    bbox_w: f64,
+    bbox_h: f64,
+    x_step: f64,
+    y_step: f64,
+    content: *const u8,
+    content_len: usize,
+    matrix: *const f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_tiling_pattern");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in pattern name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::{PaintType, PatternMatrix, TilingPattern, TilingType};
+    let paint = match paint_type {
+        1 => PaintType::Colored,
+        2 => PaintType::Uncolored,
+        _ => {
+            set_last_error("Invalid paint_type (expected 1=Colored, 2=Uncolored)");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    let tiling = match tiling_type {
+        1 => TilingType::ConstantSpacing,
+        2 => TilingType::NoDistortion,
+        3 => TilingType::ConstantSpacingFaster,
+        _ => {
+            set_last_error("Invalid tiling_type (expected 1, 2, or 3)");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    if x_step <= 0.0 || y_step <= 0.0 {
+        set_last_error("Tiling pattern x_step and y_step must be positive");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+    let bbox = [bbox_x, bbox_y, bbox_x + bbox_w, bbox_y + bbox_h];
+    let content_vec = if content.is_null() || content_len == 0 {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(content, content_len).to_vec()
+    };
+    let mut pattern = TilingPattern::new(name_str.clone(), paint, tiling, bbox, x_step, y_step)
+        .with_content_stream(content_vec);
+    if !matrix.is_null() {
+        let m = std::slice::from_raw_parts(matrix, 6);
+        pattern = pattern.with_matrix(PatternMatrix {
+            matrix: [m[0], m[1], m[2], m[3], m[4], m[5]],
+        });
+    }
+    if let Err(e) = (*page).inner.add_pattern(name_str, pattern) {
+        set_last_error(format!("Failed to add tiling pattern: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Select a previously registered tiling pattern as the fill color.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string matching a
+///   pattern registered via `oxidize_page_add_tiling_pattern`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_fill_pattern(
+    page: *mut PageHandle,
+    name: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_fill_pattern");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in pattern name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::PatternGraphicsContext;
+    if let Err(e) = (*page).inner.graphics().set_fill_pattern(name_str) {
+        set_last_error(format!("Failed to set fill pattern: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Select a previously registered tiling pattern as the stroke color.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string matching a
+///   pattern registered via `oxidize_page_add_tiling_pattern`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_set_stroke_pattern(
+    page: *mut PageHandle,
+    name: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_set_stroke_pattern");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in pattern name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::PatternGraphicsContext;
+    if let Err(e) = (*page).inner.graphics().set_stroke_pattern(name_str) {
+        set_last_error(format!("Failed to set stroke pattern: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod tiling_pattern_ffi_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+    use std::ffi::CString;
+
+    #[test]
+    fn add_tiling_pattern_valid_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = CString::new("P1").unwrap();
+            let content = b"1.0 0.0 0.0 rg\n0 0 10 10 re\nf\n";
+            let result = oxidize_page_add_tiling_pattern(
+                page,
+                name.as_ptr(),
+                1,
+                1,
+                0.0,
+                0.0,
+                10.0,
+                10.0,
+                10.0,
+                10.0,
+                content.as_ptr(),
+                content.len(),
+                std::ptr::null(),
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            let sel = oxidize_page_set_fill_pattern(page, name.as_ptr());
+            assert_eq!(sel, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn add_tiling_pattern_null_page_returns_null_pointer_error() {
+        unsafe {
+            let name = CString::new("P1").unwrap();
+            let result = oxidize_page_add_tiling_pattern(
+                std::ptr::null_mut(),
+                name.as_ptr(),
+                1,
+                1,
+                0.0,
+                0.0,
+                10.0,
+                10.0,
+                10.0,
+                10.0,
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn add_tiling_pattern_invalid_paint_type_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let name = CString::new("P1").unwrap();
+            let result = oxidize_page_add_tiling_pattern(
+                page,
+                name.as_ptr(),
+                99,
+                1,
+                0.0,
+                0.0,
+                10.0,
+                10.0,
+                10.0,
+                10.0,
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+            );
+            assert_eq!(result, 9, "expected ErrorCode::InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+}
+
+// ── Form XObjects (GFX-018) ─────────────────────────────────────────────────────
+
+/// Register a reusable Form XObject (template) on the page under `name`.
+///
+/// The form's bounding box is given as position + size (`x`, `y`, `width`, `height`).
+/// `content`/`content_len` is the form's content-stream operators.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string.
+/// - `content` may be null only when `content_len` is 0.
+/// - `matrix` is nullable; if non-null it must point to exactly 6 `f64` values.
+/// - `group_color_space` is nullable; non-null attaches a transparency group
+///   (GFX-020) with the given colour space and the `isolated`/`knockout` flags
+///   (0 = false, non-zero = true). Null means no transparency group.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn oxidize_page_add_form_xobject(
+    page: *mut PageHandle,
+    name: *const c_char,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    content: *const u8,
+    content_len: usize,
+    matrix: *const f64,
+    group_color_space: *const c_char,
+    isolated: c_int,
+    knockout: c_int,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_form_xobject");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in form XObject name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    use oxidize_pdf::graphics::FormXObject;
+    use oxidize_pdf::Rectangle;
+    let bbox = Rectangle::from_position_and_size(x, y, width, height);
+    let content_vec = if content.is_null() || content_len == 0 {
+        Vec::new()
+    } else {
+        std::slice::from_raw_parts(content, content_len).to_vec()
+    };
+    let mut form = FormXObject::new(bbox).with_content(content_vec);
+    if !matrix.is_null() {
+        let m = std::slice::from_raw_parts(matrix, 6);
+        form = form.with_matrix([m[0], m[1], m[2], m[3], m[4], m[5]]);
+    }
+    if !group_color_space.is_null() {
+        let cs = match CStr::from_ptr(group_color_space).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in transparency group color space");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::FormTransparencyGroup;
+        form = form.with_transparency_group(FormTransparencyGroup {
+            color_space: cs,
+            isolated: isolated != 0,
+            knockout: knockout != 0,
+        });
+    }
+    if let Err(e) = (*page).inner.add_form_xobject(name_str, form) {
+        set_last_error(format!("Failed to add form XObject: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Invoke (paint) a previously registered Form XObject, emitting `/name Do`.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid non-null, null-terminated UTF-8 C string matching a
+///   form registered via `oxidize_page_add_form_xobject`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_invoke_xobject(
+    page: *mut PageHandle,
+    name: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_invoke_xobject");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in form XObject name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    (*page)
+        .inner
+        .graphics()
+        .add_command(&format!("/{name_str} Do"));
+    ErrorCode::Success as c_int
+}
+
+/// Apply a soft mask (GFX-021) to the page via an ExtGState `/SMask` entry
+/// (ISO 32000-1 §11.6.4.3), emitting the corresponding `/GSx gs` operator.
+///
+/// `mask_type`: 0 = None (disable masking), 1 = Alpha, 2 = Luminosity.
+/// For Alpha/Luminosity, `group_ref` must be the name of a Form XObject
+/// registered on this page via `oxidize_page_add_form_xobject` — the writer
+/// resolves it to an indirect `/G` reference at save time. For None,
+/// `group_ref` is ignored and may be null.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `group_ref`, when required, must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_apply_soft_mask(
+    page: *mut PageHandle,
+    mask_type: c_int,
+    group_ref: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_apply_soft_mask");
+        return ErrorCode::NullPointer as c_int;
+    }
+    use oxidize_pdf::graphics::{ExtGState, SoftMask};
+    let mask = match mask_type {
+        0 => SoftMask::none(),
+        1 | 2 => {
+            if group_ref.is_null() {
+                set_last_error("Alpha/Luminosity soft mask requires a non-null group reference");
+                return ErrorCode::NullPointer as c_int;
+            }
+            let name = match CStr::from_ptr(group_ref).to_str() {
+                Ok(s) => s.to_owned(),
+                Err(_) => {
+                    set_last_error("Invalid UTF-8 in soft mask group reference");
+                    return ErrorCode::InvalidUtf8 as c_int;
+                }
+            };
+            if mask_type == 1 {
+                SoftMask::alpha(name)
+            } else {
+                SoftMask::luminosity(name)
+            }
+        }
+        _ => {
+            set_last_error("Invalid soft mask type (expected 0=None, 1=Alpha, 2=Luminosity)");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    let mut state = ExtGState::new();
+    state.set_soft_mask(mask);
+    if let Err(e) = (*page).inner.graphics().apply_extgstate(state) {
+        set_last_error(format!("Failed to apply soft mask: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Draw text through the page's graphics context (GFX-022), emitting a
+/// `BT /Font size Tf x y Td (text) Tj ET` sequence. Unlike the text-layout
+/// entry point (`oxidize_page_text_at`), this participates in the graphics
+/// state stack — fill colour, clipping paths, soft masks, transparency groups
+/// and the CTM set on the graphics context all apply to the drawn text.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `text` must be a valid non-null, null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_draw_text_at(
+    page: *mut PageHandle,
+    font: StandardFont,
+    size: f64,
+    x: f64,
+    y: f64,
+    text: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || text.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_draw_text_at");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let text_str = match CStr::from_ptr(text).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in text");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let result = (*page)
+        .inner
+        .graphics()
+        .set_font(font.to_oxidize(), size)
+        .draw_text(text_str, x, y);
+    if let Err(e) = result {
+        set_last_error(format!("Failed to draw text: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Intersect the current clipping region with an ellipse (GFX-024), emitting the
+/// path construction (`m`, four `c` Bézier quarters, `h`) followed by `W n`.
+/// The ellipse is centred at (`cx`, `cy`) with horizontal radius `rx` and
+/// vertical radius `ry`; both radii must be strictly positive.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_clip_ellipse(
+    page: *mut PageHandle,
+    cx: f64,
+    cy: f64,
+    rx: f64,
+    ry: f64,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_clip_ellipse");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if rx <= 0.0 || ry <= 0.0 || rx.is_nan() || ry.is_nan() {
+        set_last_error("Ellipse radii (rx, ry) must be strictly positive");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+    if let Err(e) = (*page).inner.graphics().clip_ellipse(cx, cy, rx, ry) {
+        set_last_error(format!("Failed to set elliptical clip: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod form_xobject_ffi_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+    use std::ffi::CString;
+
+    #[test]
+    fn add_form_xobject_valid_returns_success() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = CString::new("Fm1").unwrap();
+            let content = b"0.0 0.0 1.0 rg\n0 0 50 50 re\nf\n";
+            let result = oxidize_page_add_form_xobject(
+                page,
+                name.as_ptr(),
+                0.0,
+                0.0,
+                50.0,
+                50.0,
+                content.as_ptr(),
+                content.len(),
+                std::ptr::null(),
+                std::ptr::null(),
+                0,
+                0,
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            let inv = oxidize_page_invoke_xobject(page, name.as_ptr());
+            assert_eq!(inv, 0, "expected ErrorCode::Success (0)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn add_form_xobject_with_transparency_group_marks_form_as_transparent() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            assert!(!page.is_null());
+            let name = CString::new("Fm1").unwrap();
+            let cs = CString::new("DeviceRGB").unwrap();
+            let content = b"0.0 0.0 1.0 rg\n0 0 50 50 re\nf\n";
+            let result = oxidize_page_add_form_xobject(
+                page,
+                name.as_ptr(),
+                0.0,
+                0.0,
+                50.0,
+                50.0,
+                content.as_ptr(),
+                content.len(),
+                std::ptr::null(),
+                cs.as_ptr(),
+                1, // isolated
+                1, // knockout
+            );
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            // Real behavioural check: the registered form carries a transparency
+            // group, so to_stream() will emit a `/Group /S /Transparency` dict.
+            let form = (*page)
+                .inner
+                .form_xobjects()
+                .get("Fm1")
+                .expect("form Fm1 must be registered");
+            assert!(
+                form.has_transparency(),
+                "form must carry a transparency group when one was supplied"
+            );
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn add_form_xobject_null_page_returns_null_pointer_error() {
+        unsafe {
+            let name = CString::new("Fm1").unwrap();
+            let result = oxidize_page_add_form_xobject(
+                std::ptr::null_mut(),
+                name.as_ptr(),
+                0.0,
+                0.0,
+                50.0,
+                50.0,
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+                std::ptr::null(),
+                0,
+                0,
+            );
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn invoke_xobject_null_page_returns_null_pointer_error() {
+        unsafe {
+            let name = CString::new("Fm1").unwrap();
+            let result = oxidize_page_invoke_xobject(std::ptr::null_mut(), name.as_ptr());
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn apply_soft_mask_luminosity_registers_extgstate_with_soft_mask() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let group = CString::new("Mask1").unwrap();
+            let result = oxidize_page_apply_soft_mask(page, 2, group.as_ptr());
+            assert_eq!(result, 0, "expected ErrorCode::Success (0)");
+            // Real behavioural check: an ExtGState carrying a soft mask is now
+            // registered, so the writer will emit an `/SMask` entry for it.
+            let states = (*page)
+                .inner
+                .get_extgstate_resources()
+                .expect("page must expose ExtGState resources after apply_soft_mask");
+            assert!(
+                states.values().any(|s| s.soft_mask.is_some()),
+                "a registered ExtGState must carry a soft mask"
+            );
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn apply_soft_mask_invalid_type_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let result = oxidize_page_apply_soft_mask(page, 7, std::ptr::null());
+            assert_eq!(result, 9, "expected ErrorCode::InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn apply_soft_mask_null_page_returns_null_pointer_error() {
+        unsafe {
+            let result = oxidize_page_apply_soft_mask(std::ptr::null_mut(), 2, std::ptr::null());
+            assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn draw_text_at_emits_text_operators_in_graphics_content() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let text = CString::new("Hello").unwrap();
+            let rc = oxidize_page_draw_text_at(
+                page,
+                StandardFont::Helvetica,
+                14.0,
+                72.0,
+                700.0,
+                text.as_ptr(),
+            );
+            assert_eq!(rc, 0, "expected ErrorCode::Success (0)");
+            // Real behavioural check on the graphics-context content stream.
+            let ops = (*page).inner.graphics().operations();
+            assert!(ops.contains("BT"), "expected BeginText (BT)\n{ops}");
+            assert!(ops.contains("ET"), "expected EndText (ET)\n{ops}");
+            assert!(
+                ops.contains("Tj"),
+                "expected show-text operator (Tj)\n{ops}"
+            );
+            assert!(ops.contains("Tf"), "expected set-font operator (Tf)\n{ops}");
+            assert!(ops.contains("Helvetica"), "expected font name\n{ops}");
+            assert!(ops.contains("Hello"), "expected literal text\n{ops}");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn draw_text_at_null_text_returns_null_pointer_error() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let rc = oxidize_page_draw_text_at(
+                page,
+                StandardFont::Helvetica,
+                14.0,
+                0.0,
+                0.0,
+                std::ptr::null(),
+            );
+            assert_eq!(rc, 1, "expected ErrorCode::NullPointer (1)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn clip_ellipse_emits_path_and_clip_operators() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let rc = oxidize_page_clip_ellipse(page, 300.0, 400.0, 100.0, 50.0);
+            assert_eq!(rc, 0, "expected ErrorCode::Success (0)");
+            let ops = (*page).inner.graphics().operations();
+            // Path starts at the top of the ellipse (cy + ry = 450).
+            assert!(ops.contains("300.000 450.000 m"), "expected MoveTo\n{ops}");
+            assert!(ops.contains(" c\n"), "expected Bézier curves\n{ops}");
+            assert!(ops.contains("W\n"), "expected clip operator W\n{ops}");
+            assert!(ops.contains("n\n"), "expected end-path operator n\n{ops}");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn clip_ellipse_zero_radius_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let rc = oxidize_page_clip_ellipse(page, 300.0, 400.0, 0.0, 50.0);
+            assert_eq!(rc, 9, "expected ErrorCode::InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn clip_ellipse_negative_radius_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let rc = oxidize_page_clip_ellipse(page, 300.0, 400.0, 100.0, -5.0);
+            assert_eq!(rc, 9, "expected ErrorCode::InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn clip_ellipse_null_page_returns_null_pointer_error() {
+        unsafe {
+            let rc = oxidize_page_clip_ellipse(std::ptr::null_mut(), 0.0, 0.0, 10.0, 10.0);
+            assert_eq!(rc, 1, "expected ErrorCode::NullPointer (1)");
         }
     }
 }
