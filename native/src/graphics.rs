@@ -2,7 +2,7 @@ use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 
 use crate::page::PageHandle;
-use crate::types::{BlendMode, LineCap, LineJoin};
+use crate::types::{BlendMode, LineCap, LineJoin, StandardFont};
 use crate::{clear_last_error, set_last_error, ErrorCode};
 
 // ── Fill color ────────────────────────────────────────────────────────────────
@@ -1948,6 +1948,48 @@ pub unsafe extern "C" fn oxidize_page_apply_soft_mask(
     ErrorCode::Success as c_int
 }
 
+/// Draw text through the page's graphics context (GFX-022), emitting a
+/// `BT /Font size Tf x y Td (text) Tj ET` sequence. Unlike the text-layout
+/// entry point (`oxidize_page_text_at`), this participates in the graphics
+/// state stack — fill colour, clipping paths, soft masks, transparency groups
+/// and the CTM set on the graphics context all apply to the drawn text.
+///
+/// # Safety
+/// - `page` must be a valid pointer returned by `oxidize_page_create`/`_preset`.
+/// - `text` must be a valid non-null, null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_draw_text_at(
+    page: *mut PageHandle,
+    font: StandardFont,
+    size: f64,
+    x: f64,
+    y: f64,
+    text: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || text.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_draw_text_at");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let text_str = match CStr::from_ptr(text).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in text");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let result = (*page)
+        .inner
+        .graphics()
+        .set_font(font.to_oxidize(), size)
+        .draw_text(text_str, x, y);
+    if let Err(e) = result {
+        set_last_error(format!("Failed to draw text: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
 #[cfg(test)]
 mod form_xobject_ffi_tests {
     use super::*;
@@ -2087,6 +2129,52 @@ mod form_xobject_ffi_tests {
         unsafe {
             let result = oxidize_page_apply_soft_mask(std::ptr::null_mut(), 2, std::ptr::null());
             assert_eq!(result, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn draw_text_at_emits_text_operators_in_graphics_content() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let text = CString::new("Hello").unwrap();
+            let rc = oxidize_page_draw_text_at(
+                page,
+                StandardFont::Helvetica,
+                14.0,
+                72.0,
+                700.0,
+                text.as_ptr(),
+            );
+            assert_eq!(rc, 0, "expected ErrorCode::Success (0)");
+            // Real behavioural check on the graphics-context content stream.
+            let ops = (*page).inner.graphics().operations();
+            assert!(ops.contains("BT"), "expected BeginText (BT)\n{ops}");
+            assert!(ops.contains("ET"), "expected EndText (ET)\n{ops}");
+            assert!(
+                ops.contains("Tj"),
+                "expected show-text operator (Tj)\n{ops}"
+            );
+            assert!(ops.contains("Tf"), "expected set-font operator (Tf)\n{ops}");
+            assert!(ops.contains("Helvetica"), "expected font name\n{ops}");
+            assert!(ops.contains("Hello"), "expected literal text\n{ops}");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn draw_text_at_null_text_returns_null_pointer_error() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let rc = oxidize_page_draw_text_at(
+                page,
+                StandardFont::Helvetica,
+                14.0,
+                0.0,
+                0.0,
+                std::ptr::null(),
+            );
+            assert_eq!(rc, 1, "expected ErrorCode::NullPointer (1)");
+            oxidize_page_free(page);
         }
     }
 }

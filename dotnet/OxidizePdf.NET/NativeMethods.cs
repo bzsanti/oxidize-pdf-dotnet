@@ -1656,6 +1656,15 @@ internal static class NativeMethods
         int maskType,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string? groupRef);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_draw_text_at(
+        IntPtr page,
+        StandardFont font,
+        double size,
+        double x,
+        double y,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text);
+
     /// <summary>
     /// Gets the last error message from the native library and clears it
     /// </summary>

@@ -1728,6 +1728,25 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Draws text through the graphics context (GFX-022), emitting a
+    /// <c>BT … Tf … Td (text) Tj ET</c> sequence. Unlike <see cref="TextAt"/> (text-layout
+    /// flow), the drawn text participates in the graphics-state stack: the fill colour,
+    /// clipping paths, soft masks, transparency groups and transforms set on this page's
+    /// graphics context all apply to it.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="text"/> is null.</exception>
+    public PdfPage DrawTextAt(StandardFont font, double size, double x, double y, string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_draw_text_at(
+                _handle, (NativeMethods.StandardFont)(int)font, size, x, y, text),
+            "Failed to draw text");
+        return this;
+    }
+
     /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
     ~PdfPage() => Dispose();
 
