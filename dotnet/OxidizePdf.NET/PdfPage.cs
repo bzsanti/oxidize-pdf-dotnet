@@ -1146,6 +1146,35 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Draws a previously registered image through the graphics context (GFX-023),
+    /// bracketed by <c>q</c>/<c>Q</c> with a placement matrix and an optional luminosity
+    /// soft mask. When <paramref name="maskName"/> is given, the image is masked by the
+    /// Form XObject registered under that name (its alpha/luminosity becomes the mask);
+    /// the writer resolves it to an indirect <c>/SMask /G</c> reference.
+    /// </summary>
+    /// <param name="imageName">Name the image was registered under via <see cref="AddImage"/>.</param>
+    /// <param name="x">Left edge in PDF points.</param>
+    /// <param name="y">Bottom edge in PDF points.</param>
+    /// <param name="width">Display width in PDF points.</param>
+    /// <param name="height">Display height in PDF points.</param>
+    /// <param name="maskName">
+    /// Name of a Form XObject (registered via <see cref="AddFormXObject"/>) to use as the
+    /// soft-mask source, or null for no mask. Must be registered before the document is saved.
+    /// </param>
+    /// <exception cref="ArgumentNullException">If <paramref name="imageName"/> is null.</exception>
+    public PdfPage DrawImageWithTransparency(
+        string imageName, double x, double y, double width, double height, string? maskName = null)
+    {
+        ArgumentNullException.ThrowIfNull(imageName);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_draw_image_with_transparency(
+                _handle, imageName, x, y, width, height, maskName),
+            "Failed to draw image with transparency");
+        return this;
+    }
+
     // ── IDisposable ───────────────────────────────────────────────────────────
 
     /// <inheritdoc/>
@@ -1618,6 +1647,150 @@ public sealed class PdfPage : IDisposable
                 _handle, name, (IntPtr)ptr, (nuint)profile.Data.Length, colorSpaceKind),
                 $"Failed to add ICC color space '{name}'");
         }
+        return this;
+    }
+
+    // ── Tiling patterns (GFX-016) ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Registers a tiling pattern (GFX-016) on this page. After registering, select it
+    /// as the paint colour with <see cref="SetFillPattern"/> or <see cref="SetStrokePattern"/>.
+    /// </summary>
+    public unsafe PdfPage AddTilingPattern(Graphics.PdfTilingPattern pattern)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        ThrowIfDisposed();
+        fixed (byte* contentPtr = pattern.ContentStream)
+        fixed (double* matrixPtr = pattern.Matrix)
+        {
+            ThrowIfError(NativeMethods.oxidize_page_add_tiling_pattern(
+                _handle,
+                pattern.Name,
+                (int)pattern.PaintType,
+                (int)pattern.TilingType,
+                pattern.BBoxX, pattern.BBoxY, pattern.BBoxWidth, pattern.BBoxHeight,
+                pattern.XStep, pattern.YStep,
+                (IntPtr)contentPtr, (nuint)pattern.ContentStream.Length,
+                (IntPtr)matrixPtr),
+                $"Failed to add tiling pattern '{pattern.Name}'");
+        }
+        return this;
+    }
+
+    /// <summary>Selects a registered tiling pattern as the fill colour (emits <c>/Pattern cs /name scn</c>).</summary>
+    public PdfPage SetFillPattern(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_set_fill_pattern(_handle, name),
+            $"Failed to set fill pattern '{name}'");
+        return this;
+    }
+
+    /// <summary>Selects a registered tiling pattern as the stroke colour (emits <c>/Pattern CS /name SCN</c>).</summary>
+    public PdfPage SetStrokePattern(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_set_stroke_pattern(_handle, name),
+            $"Failed to set stroke pattern '{name}'");
+        return this;
+    }
+
+    // ── Form XObjects (GFX-018) ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Registers a reusable Form XObject (GFX-018) on this page under <paramref name="name"/>.
+    /// After registering, paint it one or more times with <see cref="InvokeXObject"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="form"/> is null.</exception>
+    public unsafe PdfPage AddFormXObject(string name, Graphics.PdfFormXObject form)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(form);
+        ThrowIfDisposed();
+        fixed (byte* contentPtr = form.Content)
+        fixed (double* matrixPtr = form.Matrix)
+        {
+            ThrowIfError(NativeMethods.oxidize_page_add_form_xobject(
+                _handle,
+                name,
+                form.X, form.Y, form.Width, form.Height,
+                (IntPtr)contentPtr, (nuint)form.Content.Length,
+                (IntPtr)matrixPtr,
+                form.Group?.ColorSpace,
+                form.Group is { Isolated: true } ? 1 : 0,
+                form.Group is { Knockout: true } ? 1 : 0),
+                $"Failed to add form XObject '{name}'");
+        }
+        return this;
+    }
+
+    /// <summary>Paints a registered Form XObject by emitting the <c>/name Do</c> operator.</summary>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    public PdfPage InvokeXObject(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_invoke_xobject(_handle, name),
+            $"Failed to invoke form XObject '{name}'");
+        return this;
+    }
+
+    /// <summary>
+    /// Applies a soft mask (GFX-021) via an ExtGState <c>/SMask</c> entry, emitting the
+    /// corresponding <c>gs</c> operator. For <see cref="Graphics.SoftMaskKind.Alpha"/>/<see cref="Graphics.SoftMaskKind.Luminosity"/>
+    /// the mask's <see cref="Graphics.PdfSoftMask.GroupReference"/> must name a Form XObject registered
+    /// on this page (via <see cref="AddFormXObject"/>) before the document is saved.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="mask"/> is null.</exception>
+    public PdfPage ApplySoftMask(Graphics.PdfSoftMask mask)
+    {
+        ArgumentNullException.ThrowIfNull(mask);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_apply_soft_mask(_handle, (int)mask.Kind, mask.GroupReference),
+            "Failed to apply soft mask");
+        return this;
+    }
+
+    /// <summary>
+    /// Draws text through the graphics context (GFX-022), emitting a
+    /// <c>BT … Tf … Td (text) Tj ET</c> sequence. Unlike <see cref="TextAt"/> (text-layout
+    /// flow), the drawn text participates in the graphics-state stack: the fill colour,
+    /// clipping paths, soft masks, transparency groups and transforms set on this page's
+    /// graphics context all apply to it.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="text"/> is null.</exception>
+    public PdfPage DrawTextAt(StandardFont font, double size, double x, double y, string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_draw_text_at(
+                _handle, (NativeMethods.StandardFont)(int)font, size, x, y, text),
+            "Failed to draw text");
+        return this;
+    }
+
+    /// <summary>
+    /// Intersects the current clipping region with an ellipse (GFX-024), emitting the
+    /// path (<c>m</c>, four <c>c</c> Bézier quarters, <c>h</c>) followed by <c>W n</c>.
+    /// Subsequent drawing is confined to the ellipse centred at (<paramref name="cx"/>,
+    /// <paramref name="cy"/>) with radii <paramref name="rx"/>/<paramref name="ry"/>.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="rx"/> or <paramref name="ry"/> is not strictly positive.</exception>
+    public PdfPage ClipEllipse(double cx, double cy, double rx, double ry)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(rx);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(ry);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_clip_ellipse(_handle, cx, cy, rx, ry),
+            "Failed to set elliptical clip");
         return this;
     }
 

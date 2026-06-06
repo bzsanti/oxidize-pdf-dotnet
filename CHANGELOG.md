@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-06-06
+
+### Added — M4a Advanced Graphics
+- **GFX-016: Tiling patterns.** `PdfPage.AddTilingPattern` + `SetFillPattern` /
+  `SetStrokePattern`; C# types `PdfTilingPattern`, `PaintType`, `TilingType`.
+- **GFX-018: Form XObjects.** Reusable content streams via `PdfPage.AddFormXObject` /
+  `InvokeXObject` (`/name Do`); C# type `PdfFormXObject` (bbox, content, optional matrix).
+- **GFX-020: Transparency groups.** `PdfFormXObject` accepts an optional
+  `PdfTransparencyGroup` (`colorSpace`, `isolated`, `knockout`), emitting a real
+  `/Group << /S /Transparency … >>` dictionary (ISO 32000-1 §11.4.5).
+- **GFX-021: Soft masks.** `PdfPage.ApplySoftMask` with `PdfSoftMask.None()` /
+  `Alpha(group)` / `Luminosity(group)`; emits an ExtGState `/SMask` whose `/G`
+  resolves to a registered Form XObject (§11.6.4.3).
+- **GFX-022: Draw text from the graphics context.** `PdfPage.DrawTextAt(font, size,
+  x, y, text)` emits `BT … Tf … Td (text) Tj ET` integrated with the graphics-state
+  stack (fill colour, clipping, soft masks, transforms) — distinct from `TextAt`.
+- **GFX-023: Draw image with transparency.** `PdfPage.DrawImageWithTransparency(image,
+  x, y, w, h, mask?)` — placement matrix + `Do`, optionally soft-masked by a Form XObject.
+- **GFX-024: Elliptical clipping.** `PdfPage.ClipEllipse(cx, cy, rx, ry)` emits the
+  ellipse path + `W n`; non-positive radii are rejected.
+
+### Note
+- **GFX-017 (axial/radial gradients) is not included.** oxidize-pdf 2.12.0 emits a
+  placeholder `/Function` for shadings and has no `sh` painting operator, so gradients
+  do not render. Tracked upstream as bzsanti/oxidizePdf#297; deferred to a later milestone.
+
 ## [0.11.0] - 2026-06-05
 
 ### Added — M3 Color Spaces

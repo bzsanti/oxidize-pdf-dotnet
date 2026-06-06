@@ -55,12 +55,12 @@ No upstream work required; pure FFI/.NET surface work.
 ## Milestone map
 
 ```
-M1  v0.8.0  Document-level metadata       (5 features)  [small]
-M2  v0.9.0  Forms — write path            (3 features)  [medium]
-M3  v0.10.0 Color spaces                  (3 features)  [medium]
-M4  v0.11.0 Patterns, gradients, xobjects (8 features)  [large]
-M5  v0.12.0 Page editing & coord systems  (2 features)  [medium]
-M6  v0.13.0 Accessibility + text advanced (5 features)  [large]
+M1  v0.8.0  Document-level metadata       (5 features)  [small]   [shipped]
+M2  v0.9.0  Forms — write path            (3 features)  [medium]  [shipped]
+M3  v0.11.0 Color spaces                  (3 features)  [medium]  [shipped]
+M4          Patterns, gradients, xobjects (8 features)  [large]
+M5          Page editing & coord systems  (2 features)  [medium]
+M6          Accessibility + text advanced (5 features)  [large]
 ────────────────────────────────────────────────────────
 Total                                     26 features
 ```
@@ -116,7 +116,7 @@ Dependencies:
 
 ---
 
-## M3 — Color spaces (v0.10.0)
+## M3 — Color spaces (v0.11.0) [shipped]
 
 **Rationale:** prerequisite for M4 (patterns/shadings need `PdfColor` to support Lab/CalRGB/ICC). Small surface, high precision-requirement use cases (print workflows, accessibility).
 
@@ -132,11 +132,11 @@ Dependencies:
 - FFI: extend `native/src/graphics.rs` with color-space constructors returning opaque `PdfColorHandle`.
 - .NET: extend `PdfColor` static factories; `PdfDocument.AddIccProfile`.
 - Tests: fill a rectangle with each color space; re-parse; assert color-space object in content stream.
-- Version: `0.10.0`.
+- Version: `0.11.0` (shipped 2026-06-05).
 
 ---
 
-## M4 — Patterns, gradients, transparency, xobjects (v0.11.0)
+## M4 — Patterns, gradients, transparency, xobjects
 
 **Rationale:** largest graphics block. Depends on M3 colors. High visual-fidelity value (charts, branded reports).
 
@@ -157,13 +157,13 @@ Dependencies:
 - FFI: new `native/src/graphics_advanced.rs` module; 15+ exports.
 - .NET: `Graphics/PdfPattern.cs`, `PdfShading.cs`, `PdfFormXObject.cs`, `PdfTransparencyGroup.cs`, `PdfSoftMask.cs`; extend `PdfGraphicsContext` with `DrawText`, `DrawImage`, `ClipEllipse`, `ClipPath`.
 - Tests: render each pattern/gradient; FormXObject reuse scenario; transparency + soft mask combined; visually-verifiable assertions via content-stream inspection.
-- Version: `0.11.0`.
+- Version: assigned at release time.
 
 **Risk flag:** this is the largest milestone — allow split into M4a (patterns + shadings + xobjects) and M4b (transparency + soft mask + gfx context helpers) if implementation cost exceeds estimate.
 
 ---
 
-## M5 — Page editing and custom coordinate systems (v0.12.0)
+## M5 — Page editing and custom coordinate systems
 
 **Rationale:** unlocks editing existing PDFs (massive user ask) and is prerequisite for tagging existing PDFs in M6.
 
@@ -178,11 +178,11 @@ Dependencies:
 - FFI: `native/src/page_edit.rs` — roundtrip parsed page to editable, apply edits, save.
 - .NET: `PdfPage.FromExisting`, `PdfCoordinateOrigin` enum (TopLeft, BottomLeft, Custom), unit scale.
 - Tests: open real PDF → add overlay text → save → re-parse → verify both original content and overlay.
-- Version: `0.12.0`.
+- Version: assigned at release time.
 
 ---
 
-## M6 — Accessibility, semantic, text advanced (v0.13.0)
+## M6 — Accessibility, semantic, text advanced
 
 **Rationale:** lowest immediate ROI, highest complexity; defer to last. Completes PDF/UA path.
 
@@ -198,25 +198,32 @@ Dependencies:
 
 **Artifacts:** new `Accessibility/` namespace in .NET; extend layout; add validation report type.
 
-**Ship criteria:** PDF/UA conformance verifiable on a sample tagged doc. Version: `0.13.0`.
+**Ship criteria:** PDF/UA conformance verifiable on a sample tagged doc. Version: assigned at release time.
 
 ---
 
-## Sequencing and version cadence
+## Sequencing
 
 ```
-now         v0.7.2 (released today)
-+2–3 weeks  v0.8.0  M1 Document metadata
-+3–5 weeks  v0.9.0  M2 Forms write
-+2–3 weeks  v0.10.0 M3 Color spaces
-+6–8 weeks  v0.11.0 M4 Advanced graphics
-+3–4 weeks  v0.12.0 M5 Page editing
-+4–6 weeks  v0.13.0 M6 Accessibility + text
+shipped     v0.8.0  M1 Document metadata
+shipped     v0.9.0  M2 Forms write
+shipped     v0.11.0 M3 Color spaces
+next        M4      Advanced graphics
+later       M5      Page editing
+later       M6      Accessibility + text
 ```
 
-Rough total: **5–7 months calendar**, assuming single-dev pace and current TDD discipline.
+Version labels are assigned per release (at the time a milestone is cut),
+not in advance — historical attempts to pre-bind milestone → version
+created collisions when an unrelated MINOR shipped between milestones.
+M3 illustrates exactly this: it was pre-bound to v0.10.0, but v0.10.0
+was consumed by an unrelated upstream bump (oxidize-pdf 2.10.0) and M3
+ultimately shipped as v0.11.0. M1/M2/M3 shown with their actual shipped
+versions; M4–M6 intentionally unbound.
 
-After M6 reaches 100% parity, bump to **v1.0.0** signaling stable API.
+After M6 reaches 100% parity, the next bump is the stable-API major
+(v1.0). The exact MINOR labels for M3–M6 are decided when each is
+released.
 
 ---
 
@@ -237,4 +244,4 @@ Once decisions 1–4 are made, the next step is producing `2026-MM-DD-m1-documen
 - [x] **No placeholders in this roadmap** — this file is the index; detailed TDD steps deliberately deferred to per-milestone plans.
 - [x] **Upstream support verified** — every feature traced to a file in `oxidize-pdf 2.5.4`.
 - [x] **Dependency call-outs** — M3 → M4, M5 → M6(tagging existing PDFs).
-- [x] **Versioning consistent** — 0.8.0 → 0.13.0 → 1.0.0, monotonic.
+- [x] **Versioning policy** — milestone → version is no longer pre-bound; assigned at release time. Historical entries for M1 (v0.8.0), M2 (v0.9.0) and M3 (v0.11.0) retained as facts.
