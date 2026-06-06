@@ -778,6 +778,13 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
         double x, double y, double width, double height);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_draw_image_with_transparency(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string imageName,
+        double x, double y, double width, double height,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? maskName);
+
     // ── Security ──────────────────────────────────────────────────────────────
 
     /// <summary>Encrypt a document with user and owner passwords using default permissions</summary>

@@ -1146,6 +1146,35 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Draws a previously registered image through the graphics context (GFX-023),
+    /// bracketed by <c>q</c>/<c>Q</c> with a placement matrix and an optional luminosity
+    /// soft mask. When <paramref name="maskName"/> is given, the image is masked by the
+    /// Form XObject registered under that name (its alpha/luminosity becomes the mask);
+    /// the writer resolves it to an indirect <c>/SMask /G</c> reference.
+    /// </summary>
+    /// <param name="imageName">Name the image was registered under via <see cref="AddImage"/>.</param>
+    /// <param name="x">Left edge in PDF points.</param>
+    /// <param name="y">Bottom edge in PDF points.</param>
+    /// <param name="width">Display width in PDF points.</param>
+    /// <param name="height">Display height in PDF points.</param>
+    /// <param name="maskName">
+    /// Name of a Form XObject (registered via <see cref="AddFormXObject"/>) to use as the
+    /// soft-mask source, or null for no mask. Must be registered before the document is saved.
+    /// </param>
+    /// <exception cref="ArgumentNullException">If <paramref name="imageName"/> is null.</exception>
+    public PdfPage DrawImageWithTransparency(
+        string imageName, double x, double y, double width, double height, string? maskName = null)
+    {
+        ArgumentNullException.ThrowIfNull(imageName);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_draw_image_with_transparency(
+                _handle, imageName, x, y, width, height, maskName),
+            "Failed to draw image with transparency");
+        return this;
+    }
+
     // ── IDisposable ───────────────────────────────────────────────────────────
 
     /// <inheritdoc/>

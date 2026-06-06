@@ -231,3 +231,141 @@ pub unsafe extern "C" fn oxidize_page_draw_image(
     }
     ErrorCode::Success as c_int
 }
+
+/// Draw a previously added image through the graphics context (GFX-023),
+/// optionally masked by a soft mask. Emits `q`, a `width 0 0 height x y cm`
+/// placement matrix, `/image_name Do`, and `Q`. When `mask_name` is non-null it
+/// also brackets the draw with a luminosity-soft-mask ExtGState (`/GSx gs` …
+/// reset to `/None`); the writer resolves the mask name to the indirect `/G`
+/// reference of a Form XObject registered on the page via
+/// `oxidize_page_add_form_xobject`.
+///
+/// The image must already be registered with `oxidize_page_add_image` and the
+/// mask form (when given) with `oxidize_page_add_form_xobject`, before saving.
+///
+/// # Safety
+/// - `page` must be a valid page handle.
+/// - `image_name` must be a valid non-null, null-terminated UTF-8 C string
+///   matching a previously added image.
+/// - `mask_name` is nullable; when non-null it must be a valid null-terminated
+///   UTF-8 C string naming a Form XObject registered on the page.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_draw_image_with_transparency(
+    page: *mut PageHandle,
+    image_name: *const c_char,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    mask_name: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || image_name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_draw_image_with_transparency");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let image = match CStr::from_ptr(image_name).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in image name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let mask: Option<String> = if mask_name.is_null() {
+        None
+    } else {
+        match CStr::from_ptr(mask_name).to_str() {
+            Ok(v) => Some(v.to_owned()),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in soft mask name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        }
+    };
+    (*page).inner.graphics().draw_image_with_transparency(
+        image,
+        x,
+        y,
+        width,
+        height,
+        mask.as_deref(),
+    );
+    ErrorCode::Success as c_int
+}
+
+#[cfg(test)]
+mod image_transparency_ffi_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+    use std::ffi::CString;
+
+    #[test]
+    fn draw_image_with_transparency_with_mask_emits_cm_do_and_gs() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let img = CString::new("Img1").unwrap();
+            let mask = CString::new("Mask1").unwrap();
+            let rc = oxidize_page_draw_image_with_transparency(
+                page,
+                img.as_ptr(),
+                50.0,
+                600.0,
+                200.0,
+                100.0,
+                mask.as_ptr(),
+            );
+            assert_eq!(rc, 0, "expected ErrorCode::Success (0)");
+            let ops = (*page).inner.graphics().operations();
+            assert!(
+                ops.contains("200.00 0.00 0.00 100.00 50.00 600.00 cm"),
+                "expected image placement matrix\n{ops}"
+            );
+            assert!(ops.contains("/Img1 Do"), "expected image invocation\n{ops}");
+            assert!(ops.contains(" gs"), "expected soft-mask gs operator\n{ops}");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn draw_image_with_transparency_no_mask_emits_cm_do_without_gs() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let img = CString::new("Img1").unwrap();
+            let rc = oxidize_page_draw_image_with_transparency(
+                page,
+                img.as_ptr(),
+                0.0,
+                0.0,
+                10.0,
+                10.0,
+                std::ptr::null(),
+            );
+            assert_eq!(rc, 0, "expected ErrorCode::Success (0)");
+            let ops = (*page).inner.graphics().operations();
+            assert!(ops.contains("/Img1 Do"), "expected image invocation\n{ops}");
+            assert!(
+                !ops.contains(" gs"),
+                "no mask supplied → no soft-mask gs operator\n{ops}"
+            );
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn draw_image_with_transparency_null_image_returns_null_pointer_error() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let rc = oxidize_page_draw_image_with_transparency(
+                page,
+                std::ptr::null(),
+                0.0,
+                0.0,
+                10.0,
+                10.0,
+                std::ptr::null(),
+            );
+            assert_eq!(rc, 1, "expected ErrorCode::NullPointer (1)");
+            oxidize_page_free(page);
+        }
+    }
+}
