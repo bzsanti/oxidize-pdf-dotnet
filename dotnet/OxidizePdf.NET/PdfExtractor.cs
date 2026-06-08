@@ -5,6 +5,10 @@ using OxidizePdf.NET.Ai;
 using OxidizePdf.NET.Models;
 using OxidizePdf.NET.Pipeline;
 
+// PdfExtractor's chunk APIs predate the 2.13.0 ai::DocumentChunk and operate on
+// the per-page Models.DocumentChunk; bind the unqualified name accordingly.
+using DocumentChunk = OxidizePdf.NET.Models.DocumentChunk;
+
 namespace OxidizePdf.NET;
 
 /// <summary>

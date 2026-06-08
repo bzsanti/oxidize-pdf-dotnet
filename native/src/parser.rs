@@ -18,7 +18,7 @@ use crate::{clear_last_error, find_char_boundary, set_last_error, ErrorCode};
 /// recovery, and other compatibility mechanisms required for real-world PDFs.
 /// This is the only way to create a PdfReader in this module — all FFI
 /// functions must use this helper instead of `PdfReader::new()`.
-fn open_lenient(bytes: &[u8]) -> Result<PdfReader<Cursor<&[u8]>>, String> {
+pub(crate) fn open_lenient(bytes: &[u8]) -> Result<PdfReader<Cursor<&[u8]>>, String> {
     let cursor = Cursor::new(bytes);
     PdfReader::new_with_options(cursor, ParseOptions::lenient())
         .map_err(|e| format!("Failed to parse PDF: {e}"))

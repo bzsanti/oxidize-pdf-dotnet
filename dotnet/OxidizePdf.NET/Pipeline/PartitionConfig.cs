@@ -55,6 +55,15 @@ public class PartitionConfig
     [JsonPropertyName("min_table_confidence")]
     public double MinTableConfidence { get; set; } = 0.5;
 
+    /// <summary>
+    /// Prefer the ruling-based (vector-grid) table detector for bordered tables,
+    /// falling back to the spatial detector for the rest. When <c>false</c>, only the
+    /// spatial detector runs and no page graphics are extracted. Default <c>true</c>.
+    /// Mirrors <c>PartitionConfig::prefer_ruling_tables</c> (added upstream in 2.13.0).
+    /// </summary>
+    [JsonPropertyName("prefer_ruling_tables")]
+    public bool PreferRulingTables { get; set; } = true;
+
     /// <summary>Disable table detection.</summary>
     public PartitionConfig WithoutTables() { DetectTables = false; return this; }
 
@@ -66,6 +75,12 @@ public class PartitionConfig
 
     /// <summary>Set the minimum table-confidence threshold.</summary>
     public PartitionConfig WithMinTableConfidence(double threshold) { MinTableConfidence = threshold; return this; }
+
+    /// <summary>
+    /// Disable the ruling-based table detector, leaving only the spatial detector
+    /// (and skipping page-graphics extraction).
+    /// </summary>
+    public PartitionConfig WithoutRulingTables() { PreferRulingTables = false; return this; }
 
     /// <summary>Set the reading-order strategy.</summary>
     /// <exception cref="ArgumentNullException">If <paramref name="strategy"/> is null.</exception>
