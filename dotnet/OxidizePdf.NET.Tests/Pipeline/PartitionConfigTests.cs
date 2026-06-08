@@ -108,6 +108,7 @@ public class PartitionConfigTests
             FooterZone = 0.08,
             MinTableConfidence = 0.85,
             ReadingOrder = ReadingOrderStrategy.XyCut(22.5),
+            PreferRulingTables = false,
         };
 
         var json = original.ToJson();
@@ -122,6 +123,7 @@ public class PartitionConfigTests
         Assert.Equal(0.85, back.MinTableConfidence);
         Assert.Equal(ReadingOrderKind.XyCut, back.ReadingOrder.Kind);
         Assert.Equal(22.5, back.ReadingOrder.MinGap);
+        Assert.False(back.PreferRulingTables);
     }
 
     [Fact]
@@ -136,5 +138,22 @@ public class PartitionConfigTests
         Assert.Contains("\"footer_zone\"", json);
         Assert.Contains("\"reading_order\"", json);
         Assert.Contains("\"min_table_confidence\"", json);
+        Assert.Contains("\"prefer_ruling_tables\"", json);
+    }
+
+    [Fact]
+    public void PreferRulingTables_defaults_to_true()
+    {
+        Assert.True(new PartitionConfig().PreferRulingTables);
+    }
+
+    [Fact]
+    public void WithoutRulingTables_disables_the_flag_and_serializes_false()
+    {
+        var c = new PartitionConfig().WithoutRulingTables();
+        Assert.False(c.PreferRulingTables);
+
+        using var doc = JsonDocument.Parse(c.ToJson());
+        Assert.False(doc.RootElement.GetProperty("prefer_ruling_tables").GetBoolean());
     }
 }

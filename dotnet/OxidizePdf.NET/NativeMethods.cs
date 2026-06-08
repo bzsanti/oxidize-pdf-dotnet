@@ -1037,6 +1037,48 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
         out nuint outCount);
 
+    // ── ai — chunking, language detection, token-efficient export (2.13.0) ──────
+
+    /// <summary>
+    /// Chunk a PDF into <c>DocumentChunk</c> records via the core
+    /// <c>DocumentChunker</c>. When <paramref name="detectLanguage"/> is non-zero,
+    /// per-chunk language detection populates each chunk's
+    /// <c>metadata.language</c>. Returns a <c>DocumentChunkDto[]</c> JSON array.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_chunk_pdf(
+        IntPtr pdfBytes, nuint pdfLen,
+        nuint chunkSize, nuint overlap, byte detectLanguage,
+        out IntPtr outJson);
+
+    /// <summary>
+    /// Compute the dominant language across a <c>DocumentChunkDto[]</c> JSON set
+    /// that already carries per-chunk languages. Emits a
+    /// <c>DetectedLanguageDto</c> JSON object, or the literal <c>null</c>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_language(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string chunksJson,
+        out IntPtr outJson);
+
+    /// <summary>
+    /// Serialize a <c>DocumentChunkDto[]</c> JSON set into the token-efficient
+    /// TOON-style payload (<c>TokenEfficientExporter::export_chunks</c>).
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_export_chunks_token_efficient(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string chunksJson,
+        out IntPtr outStr);
+
+    /// <summary>
+    /// Parse a token-efficient payload back into a <c>DocumentChunkDto[]</c> JSON
+    /// array (inverse of <see cref="oxidize_export_chunks_token_efficient"/>).
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_parse_chunks_token_efficient(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string input,
+        out IntPtr outJson);
+
     // ── Parser — extraction options ────────────────────────────────────────────
 
     /// <summary>

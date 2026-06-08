@@ -55,6 +55,17 @@ pub struct PartitionConfigDto {
     pub footer_zone: f64,
     pub reading_order: ReadingOrderDto,
     pub min_table_confidence: f64,
+    /// Prefer the ruling-based (vector-grid) table detector for bordered tables,
+    /// falling back to the spatial detector for the rest. Mirrors
+    /// `PartitionConfig::prefer_ruling_tables` (added upstream in 2.13.0).
+    /// Defaults to `true` so JSON emitted by older callers that omit the field
+    /// keeps the upstream default behaviour.
+    #[serde(default = "default_prefer_ruling_tables")]
+    pub prefer_ruling_tables: bool,
+}
+
+fn default_prefer_ruling_tables() -> bool {
+    true
 }
 
 impl From<PartitionConfigDto> for RustPartition {
@@ -67,6 +78,7 @@ impl From<PartitionConfigDto> for RustPartition {
             footer_zone: d.footer_zone,
             reading_order: d.reading_order.into(),
             min_table_confidence: d.min_table_confidence,
+            prefer_ruling_tables: d.prefer_ruling_tables,
         }
     }
 }
@@ -180,6 +192,25 @@ mod tests {
         assert_eq!(cfg.title_min_font_ratio, 1.4);
         assert_eq!(cfg.min_table_confidence, 0.6);
         assert!(matches!(cfg.reading_order, RustReadingOrder::Simple));
+        // Field omitted above → serde default must reproduce the upstream default.
+        assert!(cfg.prefer_ruling_tables);
+    }
+
+    #[test]
+    fn partition_config_prefer_ruling_tables_explicit_false_is_honored() {
+        let json = r#"{
+            "detect_tables": true,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": "Simple",
+            "min_table_confidence": 0.5,
+            "prefer_ruling_tables": false
+        }"#;
+        let dto: PartitionConfigDto = serde_json::from_str(json).unwrap();
+        let cfg: RustPartition = dto.into();
+        assert!(!cfg.prefer_ruling_tables);
     }
 
     #[test]
