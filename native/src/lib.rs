@@ -6,6 +6,7 @@ use std::ptr;
 // ── Sub-modules ───────────────────────────────────────────────────────────────
 
 pub mod annotations;
+pub mod chunking;
 pub mod document;
 pub mod graphics;
 pub mod header_footer;
