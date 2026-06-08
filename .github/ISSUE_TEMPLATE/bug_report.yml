@@ -1,0 +1,50 @@
+name: Bug report
+description: Report incorrect behavior in the OxidizePdf.NET binding
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please provide a minimal
+        reproduction and verify the actual behavior — not just an exception message.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you observe, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A short C# snippet that reproduces the issue. Attach the input PDF if relevant.
+      render: csharp
+      placeholder: |
+        using OxidizePdf;
+        // ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: OxidizePdf.NET version
+      description: The NuGet package version.
+      placeholder: "0.12.0"
+    validations:
+      required: true
+  - type: input
+    id: dotnet-version
+    attributes:
+      label: .NET version
+      description: Output of `dotnet --version`.
+      placeholder: "8.0.x"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Ubuntu 24.04 / macOS 14 / Windows 11"
+    validations:
+      required: true
