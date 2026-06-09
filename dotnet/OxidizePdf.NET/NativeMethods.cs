@@ -249,6 +249,43 @@ internal static class NativeMethods
         out IntPtr outBytes,
         out nuint outLen);
 
+    // ── document metadata — M1 (DOC-014/015/017/018/020) ───────────────────────
+
+    /// <summary>Set the document open action (GoTo/URI) from a JSON payload.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_open_action_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Set the document viewer preferences from a JSON payload.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_viewer_preferences_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Register a named destination (name → destination) from a JSON payload.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_add_named_destination_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Set the document page-label ranges from a JSON payload.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_page_labels_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Serialize the document with an explicit WriterConfig (version, xref/object streams, compression).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_save_to_bytes_with_config(
+        IntPtr handle,
+        int useXrefStreams,
+        int useObjectStreams,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string pdfVersion,
+        int compressStreams,
+        out IntPtr outBytes,
+        out nuint outLen);
+
     /// <summary>Get the number of pages in the document</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_page_count(IntPtr handle, out nuint outCount);

@@ -405,6 +405,133 @@ public sealed class PdfDocument : IDisposable
     }
 
     /// <summary>
+    /// Serializes the document to PDF bytes using explicit writer options
+    /// (PDF version, xref/object streams, stream compression).
+    /// </summary>
+    /// <param name="options">Writer configuration. See <see cref="PdfSaveOptions"/>.</param>
+    /// <returns>The serialized PDF bytes.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="options"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If serialization fails.</exception>
+    public byte[] SaveToBytes(PdfSaveOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ThrowIfDisposed();
+
+        ThrowIfError(
+            NativeMethods.oxidize_document_save_to_bytes_with_config(
+                _handle,
+                options.UseXrefStreams ? 1 : 0,
+                options.UseObjectStreams ? 1 : 0,
+                options.PdfVersion,
+                options.CompressStreams ? 1 : 0,
+                out var nativePtr,
+                out var nativeLen),
+            "Failed to save document to bytes with config");
+
+        try
+        {
+            var length = checked((int)nativeLen);
+            var result = new byte[length];
+            Marshal.Copy(nativePtr, result, 0, length);
+            return result;
+        }
+        finally
+        {
+            if (nativePtr != IntPtr.Zero)
+                NativeMethods.oxidize_free_bytes(nativePtr, nativeLen);
+        }
+    }
+
+    /// <summary>
+    /// Sets the action triggered when the document is opened (navigate to a
+    /// destination, or open a URI). Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="action">The open action to embed.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="action"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument SetOpenAction(PdfOpenAction action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        ThrowIfDisposed();
+        string json = System.Text.Json.JsonSerializer.Serialize(action);
+        ThrowIfError(
+            NativeMethods.oxidize_document_set_open_action_json(_handle, json),
+            "Failed to set document open action");
+        return this;
+    }
+
+    /// <summary>
+    /// Applies viewer preferences (toolbar/menu visibility, window behaviour,
+    /// page layout, print scaling, duplex mode, etc.). Unset properties are
+    /// omitted from the PDF. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="preferences">Viewer preferences to apply.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="preferences"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument SetViewerPreferences(PdfViewerPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+        ThrowIfDisposed();
+        string json = System.Text.Json.JsonSerializer.Serialize(preferences);
+        ThrowIfError(
+            NativeMethods.oxidize_document_set_viewer_preferences_json(_handle, json),
+            "Failed to set document viewer preferences");
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a named destination — a symbolic label that outlines or link
+    /// annotations can reference instead of a hard-coded page. Re-adding an
+    /// existing name overwrites it. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="name">Destination name (non-empty, non-whitespace).</param>
+    /// <param name="destination">Target location inside the document.</param>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null, empty, or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">If <paramref name="destination"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument AddNamedDestination(string name, PdfDestination destination)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(destination);
+        ThrowIfDisposed();
+        string json = System.Text.Json.JsonSerializer.Serialize(new NamedDestinationPayload(name, destination));
+        ThrowIfError(
+            NativeMethods.oxidize_document_add_named_destination_json(_handle, json),
+            "Failed to add named destination");
+        return this;
+    }
+
+    private sealed record NamedDestinationPayload(
+        [property: System.Text.Json.Serialization.JsonPropertyName("name")] string Name,
+        [property: System.Text.Json.Serialization.JsonPropertyName("destination")] PdfDestination Destination);
+
+    /// <summary>
+    /// Applies a custom page-numbering scheme (page labels). Returns <c>this</c>
+    /// for fluent chaining.
+    /// </summary>
+    /// <param name="labels">The page-label ranges; must contain at least one range.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="labels"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="labels"/> has no ranges.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument SetPageLabels(PdfPageLabels labels)
+    {
+        ArgumentNullException.ThrowIfNull(labels);
+        if (labels.Ranges.Count == 0)
+            throw new ArgumentException("Page labels require at least one range", nameof(labels));
+        ThrowIfDisposed();
+        string json = System.Text.Json.JsonSerializer.Serialize(labels);
+        ThrowIfError(
+            NativeMethods.oxidize_document_set_page_labels_json(_handle, json),
+            "Failed to set page labels");
+        return this;
+    }
+
+    /// <summary>
     /// Saves the document to a file at the specified path.
     /// </summary>
     /// <param name="path">The file path to write the PDF to.</param>
