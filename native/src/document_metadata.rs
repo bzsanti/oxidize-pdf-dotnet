@@ -641,11 +641,16 @@ mod tests {
             );
             let s = String::from_utf8_lossy(&to_bytes(handle)).into_owned();
             crate::document::oxidize_document_free(handle);
+            // Anchor on the full destination array (`/XYZ l t z`) rather than bare
+            // integers, which can collide with xref offsets / object IDs.
             assert!(
-                !s.contains("111"),
-                "first write's coordinate must be overwritten"
+                !s.contains("/XYZ 111 222 3.5"),
+                "first write's destination must be overwritten"
             );
-            assert!(s.contains("333"), "last write's coordinate must be present");
+            assert!(
+                s.contains("/XYZ 333 444 4.5"),
+                "last write's destination must be present"
+            );
         }
     }
 

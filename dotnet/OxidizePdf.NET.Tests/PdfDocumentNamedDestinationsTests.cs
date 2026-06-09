@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace OxidizePdf.NET.Tests;
 
@@ -35,13 +34,12 @@ public class PdfDocumentNamedDestinationsTests
 
         string text = Encoding.Latin1.GetString(doc.SaveToBytes());
 
-        // The first write's distinguishable values must be gone; only the second write persists.
-        Assert.DoesNotContain("111", text);
-        Assert.DoesNotContain("222", text);
-        Assert.DoesNotContain("3.5", text);
-        Assert.Contains("333", text);
-        Assert.Contains("444", text);
-        Assert.Contains("4.5", text);
+        // Anchor on the full destination array (`/XYZ l t z`). Bare integers like
+        // "111"/"222" collide with platform-dependent xref byte offsets and the
+        // file ID (this fails on Windows but not Linux/macOS). The destination
+        // array is the semantic unit that must reflect last-write-wins.
+        Assert.DoesNotContain("/XYZ 111 222 3.5", text);
+        Assert.Contains("/XYZ 333 444 4.5", text);
     }
 
     [Fact]
