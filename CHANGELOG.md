@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Upstream `oxidize-pdf` 2.12.0 → 2.13.0.** Enables the `language-detection`
+  core feature (`whatlang`).
+
+### Added — AI chunking (oxidize-pdf 2.13.0)
+- **Language detection.** `DocumentChunker.WithLanguageDetection(bool)` enables
+  per-chunk detection; `DocumentChunker.ChunkPdf(byte[])` returns full-fidelity
+  `OxidizePdf.NET.Ai.DocumentChunk` records (with `ChunkMetadata` /
+  `ChunkPosition` / `DetectedLanguage`); static
+  `DocumentChunker.DocumentLanguage(IEnumerable<DocumentChunk>)` returns the
+  length-weighted dominant language.
+- **Token-efficient chunk export.** `OxidizePdf.NET.Ai.TokenEfficientExporter`
+  with `Export(IEnumerable<DocumentChunk>)` / `Parse(string)` — a TOON-style
+  tabular serialization (~64% fewer tokens than JSON on a representative corpus),
+  round-trippable except for per-chunk `Language`.
+- **Ruling-based table detection toggle.** `PartitionConfig.PreferRulingTables`
+  (default `true`) + `WithoutRulingTables()`, mirroring the new
+  `PartitionConfig::prefer_ruling_tables` core field.
+
+### Note
+- `OxidizePdf.NET.Ai.DocumentChunk` (RAG chunk) is distinct from the existing
+  `OxidizePdf.NET.Models.DocumentChunk` (per-page chunk). Consumers importing
+  both namespaces must qualify the unqualified name.
+
 ## [0.12.0] - 2026-06-06
 
 ### Added — M4a Advanced Graphics
