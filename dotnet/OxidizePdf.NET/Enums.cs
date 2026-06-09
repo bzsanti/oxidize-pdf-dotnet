@@ -254,3 +254,104 @@ public enum StampType
     /// <summary>For Public Release</summary>
     ForPublicRelease = 13,
 }
+
+/// <summary>
+/// Page layout preference used when opening the document.
+/// </summary>
+public enum PdfPageLayout
+{
+    /// <summary>Display one page at a time.</summary>
+    SinglePage = 0,
+    /// <summary>Display pages in a continuous single column.</summary>
+    OneColumn = 1,
+    /// <summary>Two-column layout, odd pages on the left.</summary>
+    TwoColumnLeft = 2,
+    /// <summary>Two-column layout, odd pages on the right.</summary>
+    TwoColumnRight = 3,
+    /// <summary>Two-up layout with cover alone, odd pages on the left.</summary>
+    TwoPageLeft = 4,
+    /// <summary>Two-up layout with cover alone, odd pages on the right.</summary>
+    TwoPageRight = 5,
+}
+
+/// <summary>
+/// Page mode — which side panel is visible when the document opens.
+/// </summary>
+public enum PdfPageMode
+{
+    /// <summary>No outline or thumbnail panel visible (default).</summary>
+    UseNone = 0,
+    /// <summary>Document outline (bookmarks) visible.</summary>
+    UseOutlines = 1,
+    /// <summary>Thumbnail images panel visible.</summary>
+    UseThumbs = 2,
+    /// <summary>Full-screen mode — hide all UI chrome.</summary>
+    FullScreen = 3,
+    /// <summary>Optional-content (layer) panel visible.</summary>
+    UseOC = 4,
+    /// <summary>Attachments panel visible.</summary>
+    UseAttachments = 5,
+}
+
+/// <summary>
+/// Print-scaling preference.
+/// </summary>
+public enum PdfPrintScaling
+{
+    /// <summary>Use viewer default (usually shrink-to-fit).</summary>
+    AppDefault = 0,
+    /// <summary>No scaling — print at 100% even if clipping occurs.</summary>
+    None = 1,
+}
+
+/// <summary>
+/// Duplex printing preference.
+/// </summary>
+public enum PdfDuplex
+{
+    /// <summary>Single-sided printing.</summary>
+    Simplex = 0,
+    /// <summary>Double-sided — flip on short edge (landscape-style).</summary>
+    DuplexFlipShortEdge = 1,
+    /// <summary>Double-sided — flip on long edge (book-style).</summary>
+    DuplexFlipLongEdge = 2,
+}
+
+/// <summary>
+/// PDF destination fit mode for open actions and named destinations.
+/// </summary>
+public enum PdfDestinationFit
+{
+    /// <summary>Position at specific coordinates with optional zoom (XYZ).</summary>
+    Xyz = 0,
+    /// <summary>Fit entire page in window.</summary>
+    Fit = 1,
+    /// <summary>Fit page width, optional top coordinate.</summary>
+    FitH = 2,
+    /// <summary>Fit page height, optional left coordinate.</summary>
+    FitV = 3,
+    /// <summary>Fit rectangle.</summary>
+    FitR = 4,
+    /// <summary>Fit bounding box of page contents.</summary>
+    FitB = 5,
+}
+
+/// <summary>
+/// Page-label numbering style (custom page numbering). Discriminants match the
+/// FFI contract consumed by <c>oxidize_document_set_page_labels_json</c>.
+/// </summary>
+public enum PdfPageLabelStyle
+{
+    /// <summary>Decimal arabic numerals (1, 2, 3, …). Emits <c>/S /D</c>.</summary>
+    DecimalArabic = 0,
+    /// <summary>Lowercase roman numerals (i, ii, iii, …). Emits <c>/S /r</c>.</summary>
+    LowercaseRoman = 1,
+    /// <summary>Uppercase roman numerals (I, II, III, …). Emits <c>/S /R</c>.</summary>
+    UppercaseRoman = 2,
+    /// <summary>Lowercase letters (a, b, c, …). Emits <c>/S /a</c>.</summary>
+    LowercaseLetters = 3,
+    /// <summary>Uppercase letters (A, B, C, …). Emits <c>/S /A</c>.</summary>
+    UppercaseLetters = 4,
+    /// <summary>No numeric portion (prefix only, or blank). Omits <c>/S</c>.</summary>
+    None = 5,
+}

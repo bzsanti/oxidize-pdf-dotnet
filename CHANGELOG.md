@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — M1 Document metadata (#20)
+- **DOC-014: Open action.** `PdfDocument.SetOpenAction(PdfOpenAction)` —
+  `PdfOpenAction.GoTo(pageIndex, PdfDestination?)` or `.Uri(string)`;
+  `PdfDestination.Fit/Xyz/FitH/FitV` with `PdfDestinationFit`.
+- **DOC-015: Viewer preferences.** `PdfDocument.SetViewerPreferences(PdfViewerPreferences)`
+  (toolbar/menu visibility, window behaviour, `PdfPageLayout`, `PdfPageMode`,
+  `PdfPrintScaling`, `PdfDuplex`, copies, tray).
+- **DOC-017: Named destinations.** `PdfDocument.AddNamedDestination(name, PdfDestination)`
+  (name tree; re-adding a name overwrites it).
+- **DOC-018: Page labels.** `PdfDocument.SetPageLabels(PdfPageLabels)` —
+  fluent `PdfPageLabels.Create().AddRange(startPage, PdfPageLabelStyle, prefix?, startAt?)`
+  (decimal / roman / letters, optional prefix and starting value).
+- **DOC-020: Save with writer options.** `PdfDocument.SaveToBytes(PdfSaveOptions)`
+  controlling PDF version, xref/object streams, and stream compression
+  (`PdfSaveOptions.Default()` / `.Modern()` / `.Legacy()`).
+
 ### Changed
 - **Upstream `oxidize-pdf` 2.12.0 → 2.13.0.** Enables the `language-detection`
   core feature (`whatlang`).
