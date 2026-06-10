@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Upstream `oxidize-pdf` 2.12.0 → 2.13.0.** Enables the `language-detection`
   core feature (`whatlang`).
+- **Upstream `oxidize-pdf` 2.13.0 → 2.14.0.** Adds the `sh` shading-paint
+  operator, unblocking gradient rendering (GFX-017, core issue #297).
 
 ### Added — AI chunking (oxidize-pdf 2.13.0)
 - **Language detection.** `DocumentChunker.WithLanguageDetection(bool)` enables
@@ -46,6 +48,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OxidizePdf.NET.Ai.DocumentChunk` (RAG chunk) is distinct from the existing
   `OxidizePdf.NET.Models.DocumentChunk` (per-page chunk). Consumers importing
   both namespaces must qualify the unqualified name.
+
+### Added — GFX-017 Gradients (oxidize-pdf 2.14.0)
+- **Axial (linear) gradients.** `PdfPage.AddAxialShading(name, x1, y1, x2, y2,
+  IEnumerable<GradientStop>, extendStart?, extendEnd?)` registers a Type 2
+  shading; `GradientStop(position, r, g, b)` carries RGB color stops.
+- **Radial gradients.** `PdfPage.AddRadialShading(name, startCenterX, startCenterY,
+  startRadius, endCenterX, endCenterY, endRadius, IEnumerable<GradientStop>,
+  extendStart?, extendEnd?)` registers a Type 3 shading.
+- **Paint + clip primitives.** `PdfPage.PaintShading(name)` emits the `sh`
+  operator; `PdfPage.EndPath()` emits the `n` path-terminator. Bound a gradient
+  with `SaveGraphicsState().ClipRect(..).PaintShading(name).RestoreGraphicsState()`.
 
 ## [0.12.0] - 2026-06-06
 
