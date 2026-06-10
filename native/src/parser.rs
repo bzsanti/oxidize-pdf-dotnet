@@ -2985,28 +2985,67 @@ fn pdf_obj_to_string(obj: &oxidize_pdf::parser::objects::PdfObject) -> Option<St
     None
 }
 
+/// Walk the `/Parent` chain of a widget annotation, returning the widget dict
+/// followed by each ancestor field dictionary (nearest first).
+///
+/// AcroForm widgets created as separate objects (ISO 32000-1 §12.7.3.1 — the
+/// form produced by Adobe Acrobat and by this crate's own write-path) carry
+/// only `/Rect`, `/Subtype /Widget` and `/Parent`; the field attributes
+/// (`/FT`, `/T`, `/V`, …) live on the parent field object and are inherited.
+/// This collects the resolution chain so [`classify_form_field`] can read an
+/// attribute from the nearest ancestor that defines it. A depth cap guards
+/// against malformed cyclic `/Parent` references.
+fn collect_field_chain<R: std::io::Read + std::io::Seek>(
+    document: &PdfDocument<R>,
+    widget: &PdfDictionary,
+) -> Vec<PdfDictionary> {
+    let mut chain = vec![widget.clone()];
+    let mut current = widget.clone();
+    for _ in 0..16 {
+        let Some((num, gen)) = current.get("Parent").and_then(|o| o.as_reference()) else {
+            break;
+        };
+        let Ok(obj) = document.get_object(num, gen) else {
+            break;
+        };
+        let Some(parent) = obj.as_dict() else {
+            break;
+        };
+        chain.push(parent.clone());
+        current = parent.clone();
+    }
+    chain
+}
+
 /// Classify a Widget annotation dictionary as a form field.
-/// Returns None if it's not a Widget or has no FT entry.
-fn classify_form_field(dict: &PdfDictionary, page_number: u32) -> Option<FormFieldResult> {
-    // Must be Widget subtype
+///
+/// Returns None if it's not a Widget or if neither the widget nor any of its
+/// `/Parent` ancestors carry an `/FT` entry. Field attributes are resolved by
+/// walking the `/Parent` chain (nearest-first) so both forms are supported:
+/// the *merged* form (FT directly on the widget) and the *separate-object*
+/// form (FT on a parent field object, widget linked via `/Parent`).
+/// See ISO 32000-1 §12.7.3.1 "Field Dictionaries".
+fn classify_form_field<R: std::io::Read + std::io::Seek>(
+    document: &PdfDocument<R>,
+    dict: &PdfDictionary,
+    page_number: u32,
+) -> Option<FormFieldResult> {
+    // Must be Widget subtype (checked on the annotation itself, not ancestors).
     let subtype = dict.get("Subtype").and_then(|o| o.as_name())?;
     if subtype.as_str() != "Widget" {
         return None;
     }
 
-    // Must have FT (field type).
-    // NOTE: AcroForm fields can inherit FT from a parent field dictionary.
-    // Child widget annotations that omit FT are silently dropped here.
-    // Full AcroForm tree traversal (following /Parent chains) would be
-    // required to resolve inherited FT values. PDFs produced by Adobe
-    // Acrobat often use this structure, so some fields may be missed.
-    // See: PDF spec ISO 32000 section 12.7.3.1 "Field Dictionaries".
-    let ft = dict.get("FT").and_then(|o| o.as_name())?;
+    // Build the widget→ancestors chain and look attributes up nearest-first.
+    let chain = collect_field_chain(document, dict);
+    let inherited = |key: &str| chain.iter().find_map(|d| d.get(key));
+
+    // Must resolve FT (field type) on the widget or some ancestor.
+    let ft = inherited("FT").and_then(|o| o.as_name())?;
     let ft_str = ft.as_str();
 
     // Field flags
-    let ff = dict
-        .get("Ff")
+    let ff = inherited("Ff")
         .and_then(|o| o.as_integer())
         .map(|v| v.max(0) as u32)
         .unwrap_or(0);
@@ -3040,21 +3079,19 @@ fn classify_form_field(dict: &PdfDictionary, page_number: u32) -> Option<FormFie
         _ => "unknown",
     };
 
-    let field_name = dict
-        .get("T")
+    let field_name = inherited("T")
         .and_then(|o| o.as_string())
         .and_then(|s| s.as_str().ok())
         .map(|s| s.to_string())
         .unwrap_or_default();
 
-    let value = dict.get("V").and_then(pdf_obj_to_string);
-    let default_value = dict.get("DV").and_then(pdf_obj_to_string);
+    let value = inherited("V").and_then(pdf_obj_to_string);
+    let default_value = inherited("DV").and_then(pdf_obj_to_string);
 
-    let max_length = dict.get("MaxLen").and_then(|o| o.as_integer());
+    let max_length = inherited("MaxLen").and_then(|o| o.as_integer());
 
     // Parse Opt array for choice fields
-    let options = dict
-        .get("Opt")
+    let options = inherited("Opt")
         .and_then(|o| o.as_array())
         .map(|arr| {
             arr.0
@@ -3161,7 +3198,7 @@ pub unsafe extern "C" fn oxidize_has_form_fields(
 
     for (page_index, dicts) in &all_annots {
         for dict in dicts {
-            if classify_form_field(dict, page_index.saturating_add(1)).is_some() {
+            if classify_form_field(&document, dict, page_index.saturating_add(1)).is_some() {
                 *out_has = true;
                 return ErrorCode::Success as c_int;
             }
@@ -3215,9 +3252,21 @@ pub unsafe extern "C" fn oxidize_get_form_fields(
     };
 
     let mut fields: Vec<FormFieldResult> = Vec::new();
+    // A field with several widgets (e.g. a radio group) appears once per
+    // widget annotation, each resolving to the same `/Parent` field object.
+    // Dedup by that parent reference so the group is reported as one field;
+    // widgets carrying their own `/FT` (merged/standalone fields) have no
+    // `/Parent` and are never collapsed.
+    let mut seen_parents: std::collections::HashSet<(u32, u16)> = std::collections::HashSet::new();
     for (page_index, dicts) in &all_annots {
         for dict in dicts {
-            if let Some(field) = classify_form_field(dict, page_index.saturating_add(1)) {
+            if let Some(field) = classify_form_field(&document, dict, page_index.saturating_add(1))
+            {
+                if let Some(parent_ref) = dict.get("Parent").and_then(|o| o.as_reference()) {
+                    if !seen_parents.insert(parent_ref) {
+                        continue;
+                    }
+                }
                 fields.push(field);
             }
         }
