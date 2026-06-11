@@ -1,5 +1,9 @@
 use std::ffi::CStr;
+use std::io::Cursor;
 use std::os::raw::{c_char, c_int};
+use std::slice;
+
+use oxidize_pdf::parser::PdfDocument;
 
 use crate::types::PagePreset;
 use crate::{clear_last_error, set_last_error, ErrorCode};
@@ -7,6 +11,70 @@ use crate::{clear_last_error, set_last_error, ErrorCode};
 /// Opaque handle wrapping an `oxidize_pdf::Page`.
 pub struct PageHandle {
     pub(crate) inner: oxidize_pdf::Page,
+}
+
+/// PAGE-010 — Convert a parsed page of an existing PDF into a writable page.
+///
+/// Opens `bytes` (lenient parse), takes the page at `page_index` (zero-based),
+/// and builds an editable [`oxidize_pdf::Page`] that **preserves the original
+/// content streams and resources** (fonts resolved/embedded) via
+/// `Page::from_parsed_with_content`. The returned handle can then be drawn on
+/// with any `oxidize_page_*` draw function and added to a document with
+/// `oxidize_document_add_page`; the overlay is emitted alongside the preserved
+/// original content (the original is appended after the overlay ops by the
+/// page writer, so both survive a re-parse).
+///
+/// Returns a heap-allocated `PageHandle` pointer, or null on error (inspect
+/// `oxidize_last_error`).
+///
+/// # Safety
+/// - `bytes` must point to `bytes_len` readable bytes and stay live for the
+///   duration of this call (the parser borrows the slice internally).
+/// - The returned pointer must be freed with `oxidize_page_free`, or handed to
+///   `oxidize_document_add_page` (which takes its own copy).
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_from_parsed_bytes(
+    bytes: *const u8,
+    bytes_len: usize,
+    page_index: u32,
+) -> *mut PageHandle {
+    clear_last_error();
+    if bytes.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_from_parsed_bytes");
+        return std::ptr::null_mut();
+    }
+
+    let slice = slice::from_raw_parts(bytes, bytes_len);
+    let reader = match crate::parser::open_lenient(slice) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(format!("oxidize_page_from_parsed_bytes: {e}"));
+            return std::ptr::null_mut();
+        }
+    };
+    let document: PdfDocument<Cursor<&[u8]>> = PdfDocument::new(reader);
+
+    let parsed = match document.get_page(page_index) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!(
+                "oxidize_page_from_parsed_bytes: page {page_index} not found: {e}"
+            ));
+            return std::ptr::null_mut();
+        }
+    };
+
+    let page = match oxidize_pdf::Page::from_parsed_with_content(&parsed, &document) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!(
+                "oxidize_page_from_parsed_bytes: from_parsed_with_content failed: {e}"
+            ));
+            return std::ptr::null_mut();
+        }
+    };
+
+    Box::into_raw(Box::new(PageHandle { inner: page }))
 }
 
 /// Create a new page with explicit dimensions (in PDF points).
@@ -39,6 +107,48 @@ pub unsafe extern "C" fn oxidize_page_create_preset(preset: PagePreset) -> *mut 
     };
     let handle = Box::new(PageHandle { inner: page });
     Box::into_raw(handle)
+}
+
+/// PAGE-011 — Switch this page to a screen-space coordinate system.
+///
+/// Emits a single transformation matrix (`cm`) at the head of the page's
+/// graphics stream that maps a top-left origin (Y grows downward) onto the PDF
+/// standard bottom-left origin, optionally applying a uniform `scale` factor
+/// (1.0 = 1 user unit per PDF point). After this call, every subsequent draw
+/// operation on the page is interpreted in screen-space coordinates.
+///
+/// The matrix for a page of height `h` is `[scale 0 0 -scale 0 h*scale]`: a
+/// user point `(x, y)` maps to the PDF point `(scale·x, scale·(h − y))`.
+///
+/// NOTE: the Y-flip (`d = -scale`) also mirrors text glyphs vertically, so this
+/// is intended for shape/line/path draw operations. Text drawn after this call
+/// renders upside-down unless a compensating per-text transform is applied.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by an `oxidize_page_*`
+///   constructor (including `oxidize_page_from_parsed_bytes`).
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_begin_screen_space(
+    handle: *mut PageHandle,
+    scale: f64,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_begin_screen_space");
+        return ErrorCode::NullPointer as c_int;
+    }
+    if !scale.is_finite() || scale == 0.0 {
+        set_last_error(format!(
+            "oxidize_page_begin_screen_space: scale must be finite and non-zero (got {scale})"
+        ));
+        return ErrorCode::InvalidArgument as c_int;
+    }
+    let height = (*handle).inner.height();
+    (*handle)
+        .inner
+        .graphics()
+        .transform(scale, 0.0, 0.0, -scale, 0.0, height * scale);
+    ErrorCode::Success as c_int
 }
 
 /// Free a page handle previously created by `oxidize_page_create` or
@@ -476,6 +586,179 @@ pub unsafe extern "C" fn oxidize_page_add_color_space_icc_based(
         Err(e) => {
             set_last_error(format!("add_color_space (icc_based) failed: {e}"));
             ErrorCode::InvalidArgument as c_int
+        }
+    }
+}
+
+#[cfg(test)]
+mod page_editing_ffi_tests {
+    use super::*;
+    use oxidize_pdf::text::Font;
+    use oxidize_pdf::{Document, Page};
+
+    /// Build a single-page source PDF with distinctive (non-default) dimensions
+    /// and an extractable marker string, returned as serialized bytes.
+    fn build_source_pdf(width: f64, height: f64, marker: &str) -> Vec<u8> {
+        let mut page = Page::new(width, height);
+        page.text()
+            .set_font(Font::Helvetica, 12.0)
+            .at(72.0, height - 72.0)
+            .write(marker)
+            .unwrap();
+        let mut doc = Document::new();
+        doc.add_page(page);
+        doc.to_bytes().unwrap()
+    }
+
+    #[test]
+    fn from_parsed_bytes_null_returns_null() {
+        unsafe {
+            let result = oxidize_page_from_parsed_bytes(std::ptr::null(), 0, 0);
+            assert!(result.is_null(), "null bytes must return a null handle");
+        }
+    }
+
+    #[test]
+    fn from_parsed_bytes_out_of_range_index_returns_null() {
+        let pdf = build_source_pdf(333.0, 444.0, "ORIGINAL_MARKER");
+        unsafe {
+            // Source has exactly one page; index 5 must fail.
+            let result = oxidize_page_from_parsed_bytes(pdf.as_ptr(), pdf.len(), 5);
+            assert!(
+                result.is_null(),
+                "out-of-range page index must return a null handle"
+            );
+        }
+    }
+
+    #[test]
+    fn from_parsed_bytes_preserves_page_geometry() {
+        // Distinctive dimensions so a blank-default page (would be 0/595/842)
+        // cannot accidentally pass: proves geometry came from the parsed page.
+        let pdf = build_source_pdf(333.0, 444.0, "ORIGINAL_MARKER");
+        unsafe {
+            let handle = oxidize_page_from_parsed_bytes(pdf.as_ptr(), pdf.len(), 0);
+            assert!(!handle.is_null(), "valid PDF must yield a non-null handle");
+
+            let mut w = 0.0;
+            let mut h = 0.0;
+            assert_eq!(oxidize_page_get_width(handle, &mut w), 0);
+            assert_eq!(oxidize_page_get_height(handle, &mut h), 0);
+            assert!(
+                (w - 333.0).abs() < 0.01,
+                "width preserved from source (got {w})"
+            );
+            assert!(
+                (h - 444.0).abs() < 0.01,
+                "height preserved from source (got {h})"
+            );
+
+            oxidize_page_free(handle);
+        }
+    }
+
+    #[test]
+    fn from_parsed_bytes_overlay_roundtrip_keeps_both_markers() {
+        // Full behavioral round-trip at the Rust level: original + overlay both
+        // present in the re-serialized (uncompressed) content stream.
+        let pdf = build_source_pdf(400.0, 500.0, "ORIGINAL_MARKER");
+        unsafe {
+            let handle = oxidize_page_from_parsed_bytes(pdf.as_ptr(), pdf.len(), 0);
+            assert!(!handle.is_null());
+
+            // Draw overlay text on the editable page.
+            (*handle)
+                .inner
+                .text()
+                .set_font(Font::Helvetica, 14.0)
+                .at(50.0, 50.0)
+                .write("OVERLAY_MARKER")
+                .unwrap();
+
+            // Re-serialize uncompressed so text operands are greppable.
+            let page = std::mem::replace(&mut (*handle).inner, Page::new(1.0, 1.0));
+            let mut doc = Document::new();
+            doc.set_compress(false);
+            doc.add_page(page);
+            let out = doc.to_bytes().unwrap();
+            oxidize_page_free(handle);
+
+            let content = String::from_utf8_lossy(&out);
+            assert!(
+                content.contains("ORIGINAL_MARKER"),
+                "preserved original content must survive round-trip"
+            );
+            assert!(
+                content.contains("OVERLAY_MARKER"),
+                "overlay content must be present after round-trip"
+            );
+        }
+    }
+
+    #[test]
+    fn begin_screen_space_null_returns_null_pointer() {
+        unsafe {
+            let result = oxidize_page_begin_screen_space(std::ptr::null_mut(), 1.0);
+            assert_eq!(result, 1, "null handle must return NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn begin_screen_space_zero_scale_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(200.0, 300.0);
+            let result = oxidize_page_begin_screen_space(page, 0.0);
+            assert_eq!(result, 9, "zero scale must return InvalidArgument (9)");
+            oxidize_page_free(page);
+        }
+    }
+
+    #[test]
+    fn begin_screen_space_emits_yflip_cm_for_page_height() {
+        // 300-high page, scale 1.0 → cm matrix "1.00 0.00 0.00 -1.00 0.00 300.00".
+        unsafe {
+            let handle = oxidize_page_create(200.0, 300.0);
+            assert_eq!(oxidize_page_begin_screen_space(handle, 1.0), 0);
+
+            // Draw a rectangle so there is something after the CTM.
+            (*handle).inner.graphics().rect(10.0, 20.0, 100.0, 50.0);
+
+            let page = std::mem::replace(&mut (*handle).inner, Page::new(1.0, 1.0));
+            let mut doc = Document::new();
+            doc.set_compress(false);
+            doc.add_page(page);
+            let out = doc.to_bytes().unwrap();
+            oxidize_page_free(handle);
+
+            let content = String::from_utf8_lossy(&out);
+            assert!(
+                content.contains("1.00 0.00 0.00 -1.00 0.00 300.00 cm"),
+                "expected Y-flip CTM for a 300-high page; content was:\n{content}"
+            );
+            // The transform must precede the rectangle draw op.
+            let cm_pos = content.find(" cm").expect("cm operator present");
+            let re_pos = content.find(" re").expect("re operator present");
+            assert!(cm_pos < re_pos, "CTM must be emitted before draw ops");
+        }
+    }
+
+    #[test]
+    fn begin_screen_space_scale_factor_applies_to_height_offset() {
+        // scale 2.0 on a 100-high page → f component = 200.00.
+        unsafe {
+            let handle = oxidize_page_create(100.0, 100.0);
+            assert_eq!(oxidize_page_begin_screen_space(handle, 2.0), 0);
+            let page = std::mem::replace(&mut (*handle).inner, Page::new(1.0, 1.0));
+            let mut doc = Document::new();
+            doc.set_compress(false);
+            doc.add_page(page);
+            let out = doc.to_bytes().unwrap();
+            oxidize_page_free(handle);
+            let content = String::from_utf8_lossy(&out);
+            assert!(
+                content.contains("2.00 0.00 0.00 -2.00 0.00 200.00 cm"),
+                "scale=2 must scale both axes and the height offset; content was:\n{content}"
+            );
         }
     }
 }
