@@ -50,6 +50,80 @@ public sealed class PdfPage : IDisposable
             throw new PdfExtractionException("Failed to create page from preset");
     }
 
+    /// <summary>
+    /// PAGE-010: Opens an existing PDF and converts the page at
+    /// <paramref name="pageIndex"/> into a writable page that preserves the
+    /// original content streams and resources (fonts resolved/embedded). New
+    /// content drawn on the returned page is overlaid alongside the original;
+    /// after saving and re-parsing, both the original and the overlay are
+    /// present in the document.
+    /// </summary>
+    /// <param name="pdfBytes">Raw bytes of the source PDF.</param>
+    /// <param name="pageIndex">Zero-based index of the page to edit.</param>
+    /// <returns>A writable <see cref="PdfPage"/> seeded with the original content.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">If <paramref name="pageIndex"/> is negative.</exception>
+    /// <exception cref="PdfExtractionException">If the PDF cannot be parsed or the page does not exist.</exception>
+    public static PdfPage FromParsedBytes(byte[] pdfBytes, int pageIndex)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pageIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(pageIndex), pageIndex, "Page index must be non-negative.");
+
+        IntPtr pdfPtr = IntPtr.Zero;
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var handle = NativeMethods.oxidize_page_from_parsed_bytes(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                (uint)pageIndex);
+
+            if (handle == IntPtr.Zero)
+            {
+                var rustError = NativeMethods.GetLastError();
+                var detail = !string.IsNullOrEmpty(rustError) ? rustError : "unknown error";
+                throw new PdfExtractionException(
+                    $"Failed to create editable page {pageIndex} from PDF: {detail}");
+            }
+
+            return new PdfPage(handle);
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(pdfPtr);
+        }
+    }
+
+    /// <summary>
+    /// PAGE-011: Switches this page to a screen-space coordinate system: the
+    /// origin moves to the top-left corner and Y grows downward, with an
+    /// optional uniform <paramref name="scale"/> (1.0 = 1 unit per PDF point).
+    /// Emits a single transformation matrix at the head of the page's graphics
+    /// stream, so all subsequent draw operations use screen-space coordinates.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="scale">Uniform scale factor; must be finite and non-zero.</param>
+    /// <remarks>
+    /// The Y-flip also mirrors text glyphs vertically, so this is intended for
+    /// shape, line, and path draw operations. Text drawn after
+    /// <see cref="BeginScreenSpace"/> renders upside-down unless a compensating
+    /// per-text transform is applied.
+    /// </remarks>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage BeginScreenSpace(double scale = 1.0)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_begin_screen_space(_handle, scale),
+            "Failed to switch page to screen-space coordinates");
+        return this;
+    }
+
     // ── Static factory methods for page presets ───────────────────────────────
 
     /// <summary>Creates an A4 page (595 x 842 points).</summary>

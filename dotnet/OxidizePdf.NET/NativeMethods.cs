@@ -348,6 +348,26 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern IntPtr oxidize_page_create_preset(PagePreset preset);
 
+    /// <summary>
+    /// PAGE-010: Build a writable page from a parsed page of an existing PDF,
+    /// preserving original content and resources. Returns a page handle (or
+    /// IntPtr.Zero on error) that must be freed with <c>oxidize_page_free</c>
+    /// or handed to <c>oxidize_document_add_page</c>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr oxidize_page_from_parsed_bytes(
+        IntPtr bytes,
+        nuint bytesLen,
+        uint pageIndex);
+
+    /// <summary>
+    /// PAGE-011: Switch the page to a screen-space (top-left origin) coordinate
+    /// system with a uniform scale, emitting a Y-flip CTM at the head of the
+    /// page's graphics stream.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_begin_screen_space(IntPtr handle, double scale);
+
     /// <summary>Free a page handle</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void oxidize_page_free(IntPtr handle);

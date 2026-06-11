@@ -60,6 +60,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operator; `PdfPage.EndPath()` emits the `n` path-terminator. Bound a gradient
   with `SaveGraphicsState().ClipRect(..).PaintShading(name).RestoreGraphicsState()`.
 
+### Added — M5 Page editing and coordinate systems (#24)
+- **PAGE-010: Edit an existing page.** `PdfPage.FromParsedBytes(byte[] pdf, int pageIndex)`
+  opens an existing PDF and returns a writable page that preserves the original
+  content streams and resources (fonts resolved/embedded). New content drawn on
+  the page is overlaid alongside the original; after saving and re-parsing, both
+  the original and the overlay are present.
+- **PAGE-011: Screen-space coordinates.** `PdfPage.BeginScreenSpace(double scale = 1.0)`
+  switches the page to a top-left origin (Y grows downward) with a uniform scale,
+  emitting a single Y-flip transformation matrix so subsequent draw operations
+  use screen-space coordinates. Intended for shape/line/path ops; text drawn
+  after the switch is mirrored vertically (documented caveat).
+
 ## [0.12.0] - 2026-06-06
 
 ### Added — M4a Advanced Graphics
