@@ -2021,6 +2021,206 @@ pub unsafe extern "C" fn oxidize_page_clip_ellipse(
     ErrorCode::Success as c_int
 }
 
+// ── Shadings / gradients (GFX-017, upstream `sh` operator added in 2.14.0) ─────
+
+/// One gradient color stop: a position in `[0.0, 1.0]` and an RGB color
+/// (components in `[0.0, 1.0]`).
+#[derive(serde::Deserialize)]
+struct ShadingStopJson {
+    position: f64,
+    /// RGB color components `[r, g, b]`, each in `[0.0, 1.0]`.
+    color: [f64; 3],
+}
+
+/// Axial or radial shading definition. `kind` selects the geometry fields:
+/// `axial` uses `start`/`end`; `radial` uses `start_center`/`start_radius`/
+/// `end_center`/`end_radius`. Both use `stops` (≥2) and the `extend_*` flags.
+#[derive(serde::Deserialize)]
+struct ShadingJson {
+    kind: String,
+    // axial
+    start: Option<[f64; 2]>,
+    end: Option<[f64; 2]>,
+    // radial
+    start_center: Option<[f64; 2]>,
+    start_radius: Option<f64>,
+    end_center: Option<[f64; 2]>,
+    end_radius: Option<f64>,
+    // both
+    stops: Vec<ShadingStopJson>,
+    #[serde(default)]
+    extend_start: bool,
+    #[serde(default)]
+    extend_end: bool,
+}
+
+fn color_stops_from(stops: &[ShadingStopJson]) -> Vec<oxidize_pdf::graphics::ColorStop> {
+    use oxidize_pdf::graphics::{Color, ColorStop};
+    stops
+        .iter()
+        .map(|s| ColorStop::new(s.position, Color::Rgb(s.color[0], s.color[1], s.color[2])))
+        .collect()
+}
+
+/// Register an axial (linear) or radial gradient shading on the page under
+/// `name`, from a JSON definition. The writer emits it as an indirect
+/// dictionary under `/Resources/Shading/<name>`; paint it with
+/// [`oxidize_page_paint_shading`].
+///
+/// JSON shapes:
+/// - axial:  `{"kind":"axial","start":[x,y],"end":[x,y],"stops":[{"position":p,"color":[r,g,b]}],"extend_start":bool,"extend_end":bool}`
+/// - radial: `{"kind":"radial","start_center":[x,y],"start_radius":r0,"end_center":[x,y],"end_radius":r1,"stops":[...]}`
+///
+/// Requires at least two color stops.
+///
+/// # Safety
+/// - `page` must be a valid pointer from `oxidize_page_create`/`_preset`.
+/// - `name` and `json` must be valid null-terminated UTF-8 C strings.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_add_shading_json(
+    page: *mut PageHandle,
+    name: *const c_char,
+    json: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() || json.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_add_shading_json");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in shading name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let json_str = match CStr::from_ptr(json).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in shading JSON");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let dto: ShadingJson = match serde_json::from_str(json_str) {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("Invalid shading JSON: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+    if dto.stops.len() < 2 {
+        set_last_error("Shading requires at least two color stops");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+
+    use oxidize_pdf::graphics::{
+        AxialShading, Point as ShadingPoint, RadialShading, ShadingDefinition,
+    };
+    let stops = color_stops_from(&dto.stops);
+
+    let definition = match dto.kind.as_str() {
+        "axial" => {
+            let (Some(start), Some(end)) = (dto.start, dto.end) else {
+                set_last_error("axial shading requires 'start' and 'end'");
+                return ErrorCode::InvalidArgument as c_int;
+            };
+            let shading = AxialShading::new(
+                name_str.clone(),
+                ShadingPoint::new(start[0], start[1]),
+                ShadingPoint::new(end[0], end[1]),
+                stops,
+            )
+            .with_extend(dto.extend_start, dto.extend_end);
+            ShadingDefinition::Axial(shading)
+        }
+        "radial" => {
+            let (Some(sc), Some(sr), Some(ec), Some(er)) = (
+                dto.start_center,
+                dto.start_radius,
+                dto.end_center,
+                dto.end_radius,
+            ) else {
+                set_last_error(
+                    "radial shading requires 'start_center', 'start_radius', \
+                     'end_center', 'end_radius'",
+                );
+                return ErrorCode::InvalidArgument as c_int;
+            };
+            let shading = RadialShading::new(
+                name_str.clone(),
+                ShadingPoint::new(sc[0], sc[1]),
+                sr,
+                ShadingPoint::new(ec[0], ec[1]),
+                er,
+                stops,
+            )
+            .with_extend(dto.extend_start, dto.extend_end);
+            ShadingDefinition::Radial(shading)
+        }
+        other => {
+            set_last_error(format!("Unknown shading kind: {other}"));
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+
+    if let Err(e) = (*page).inner.add_shading(name_str, definition) {
+        set_last_error(format!("Failed to add shading: {e}"));
+        return ErrorCode::PdfParseError as c_int;
+    }
+    ErrorCode::Success as c_int
+}
+
+/// Paint a registered shading with the `sh` operator (ISO 32000-1 §8.7.4.2).
+///
+/// `name` must match a shading registered via [`oxidize_page_add_shading_json`].
+/// `sh` fills the current clip region (the whole page if unclipped), so callers
+/// typically wrap it as `save_state → clip_rect → paint_shading → restore_state`
+/// to bound the gradient.
+///
+/// # Safety
+/// - `page` must be a valid pointer from `oxidize_page_create`/`_preset`.
+/// - `name` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_paint_shading(
+    page: *mut PageHandle,
+    name: *const c_char,
+) -> c_int {
+    clear_last_error();
+    if page.is_null() || name.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_paint_shading");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in shading name");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    (*page).inner.graphics().paint_shading(name_str);
+    ErrorCode::Success as c_int
+}
+
+/// End the current path without filling or stroking (the `n` operator).
+///
+/// Required to terminate a manually constructed clipping path: the canonical
+/// sequence is `<path> W n` (ISO 32000-1 §8.5.4) before painting a shading into
+/// the clipped region. For rectangular clips, prefer `oxidize_page_clip_rect`,
+/// which emits the whole `re W n` sequence.
+///
+/// # Safety
+/// - `page` must be a valid pointer from `oxidize_page_create`/`_preset`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_end_path(page: *mut PageHandle) -> c_int {
+    clear_last_error();
+    if page.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_end_path");
+        return ErrorCode::NullPointer as c_int;
+    }
+    (*page).inner.graphics().end_path();
+    ErrorCode::Success as c_int
+}
+
 #[cfg(test)]
 mod form_xobject_ffi_tests {
     use super::*;
@@ -2250,6 +2450,192 @@ mod form_xobject_ffi_tests {
         unsafe {
             let rc = oxidize_page_clip_ellipse(std::ptr::null_mut(), 0.0, 0.0, 10.0, 10.0);
             assert_eq!(rc, 1, "expected ErrorCode::NullPointer (1)");
+        }
+    }
+}
+
+#[cfg(test)]
+mod shading_ffi_tests {
+    use super::*;
+    use crate::document::{
+        oxidize_document_add_page, oxidize_document_create, oxidize_document_free,
+    };
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+    use std::ffi::CString;
+
+    /// Build a one-page document whose single page defines `name` as a shading
+    /// and paints it bounded by a clip rect, then serialize WITHOUT stream
+    /// compression so the content-stream `sh` operator is greppable. The
+    /// shading dictionary itself is an indirect object (always greppable).
+    unsafe fn build_gradient_pdf(name: &str, shading_json: &str) -> String {
+        let handle = oxidize_document_create();
+        let page = oxidize_page_create(595.0, 842.0);
+
+        let c_name = CString::new(name).unwrap();
+        let c_json = CString::new(shading_json).unwrap();
+        assert_eq!(
+            oxidize_page_add_shading_json(page, c_name.as_ptr(), c_json.as_ptr()),
+            ErrorCode::Success as c_int,
+            "add_shading_json failed"
+        );
+
+        // q <rect> re W n  /Grad sh  Q
+        assert_eq!(oxidize_page_save_state(page), ErrorCode::Success as c_int);
+        assert_eq!(
+            oxidize_page_clip_rect(page, 50.0, 50.0, 200.0, 100.0),
+            ErrorCode::Success as c_int
+        );
+        assert_eq!(
+            oxidize_page_paint_shading(page, c_name.as_ptr()),
+            ErrorCode::Success as c_int
+        );
+        assert_eq!(
+            oxidize_page_restore_state(page),
+            ErrorCode::Success as c_int
+        );
+
+        assert_eq!(
+            oxidize_document_add_page(handle, page),
+            ErrorCode::Success as c_int
+        );
+        oxidize_page_free(page);
+
+        let config = oxidize_pdf::writer::WriterConfig {
+            use_xref_streams: false,
+            use_object_streams: false,
+            pdf_version: "1.7".to_string(),
+            compress_streams: false,
+            incremental_update: false,
+        };
+        let bytes = (*handle).inner.to_bytes_with_config(config).unwrap();
+        oxidize_document_free(handle);
+        String::from_utf8_lossy(&bytes).into_owned()
+    }
+
+    #[test]
+    fn axial_shading_emits_type2_dict_and_sh_operator() {
+        unsafe {
+            let s = build_gradient_pdf(
+                "Grad1",
+                r#"{"kind":"axial","start":[50,50],"end":[250,50],
+                   "stops":[{"position":0.0,"color":[1.0,0.0,0.0]},
+                            {"position":1.0,"color":[0.0,0.0,1.0]}]}"#,
+            );
+            assert!(
+                s.contains("/ShadingType 2"),
+                "axial shading must emit /ShadingType 2; got none"
+            );
+            assert!(
+                s.contains("/Coords"),
+                "axial shading must emit /Coords; got none"
+            );
+            assert!(
+                s.contains("/Grad1 sh"),
+                "content stream must paint the shading with `/Grad1 sh`"
+            );
+        }
+    }
+
+    #[test]
+    fn radial_shading_emits_type3_dict() {
+        unsafe {
+            let s = build_gradient_pdf(
+                "Glow",
+                r#"{"kind":"radial","start_center":[150,150],"start_radius":0.0,
+                   "end_center":[150,150],"end_radius":80.0,
+                   "stops":[{"position":0.0,"color":[1.0,1.0,1.0]},
+                            {"position":1.0,"color":[0.0,0.0,0.0]}]}"#,
+            );
+            assert!(
+                s.contains("/ShadingType 3"),
+                "radial shading must emit /ShadingType 3"
+            );
+            assert!(s.contains("/Glow sh"), "content must paint `/Glow sh`");
+        }
+    }
+
+    #[test]
+    fn shading_resource_is_referenced_from_page_resources() {
+        unsafe {
+            let s = build_gradient_pdf(
+                "G",
+                r#"{"kind":"axial","start":[0,0],"end":[100,0],
+                   "stops":[{"position":0.0,"color":[0.0,0.0,0.0]},
+                            {"position":1.0,"color":[1.0,1.0,1.0]}]}"#,
+            );
+            // The page /Resources must expose a /Shading subdictionary keyed by
+            // the registered name so the `sh` operator can resolve it.
+            assert!(
+                s.contains("/Shading"),
+                "page resources must contain a /Shading entry"
+            );
+        }
+    }
+
+    #[test]
+    fn add_shading_unknown_kind_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let name = CString::new("X").unwrap();
+            let json = CString::new(
+                r#"{"kind":"conic","start":[0,0],"end":[1,1],"stops":[{"position":0.0,"color":[0,0,0]},{"position":1.0,"color":[1,1,1]}]}"#,
+            )
+            .unwrap();
+            let rc = oxidize_page_add_shading_json(page, name.as_ptr(), json.as_ptr());
+            oxidize_page_free(page);
+            assert_eq!(rc, ErrorCode::InvalidArgument as c_int);
+        }
+    }
+
+    #[test]
+    fn add_shading_too_few_stops_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let name = CString::new("X").unwrap();
+            let json = CString::new(
+                r#"{"kind":"axial","start":[0,0],"end":[1,1],"stops":[{"position":0.0,"color":[0,0,0]}]}"#,
+            )
+            .unwrap();
+            let rc = oxidize_page_add_shading_json(page, name.as_ptr(), json.as_ptr());
+            oxidize_page_free(page);
+            assert_eq!(rc, ErrorCode::InvalidArgument as c_int);
+        }
+    }
+
+    #[test]
+    fn axial_missing_coords_returns_invalid_argument() {
+        unsafe {
+            let page = oxidize_page_create(595.0, 842.0);
+            let name = CString::new("X").unwrap();
+            // 'axial' without start/end.
+            let json = CString::new(
+                r#"{"kind":"axial","stops":[{"position":0.0,"color":[0,0,0]},{"position":1.0,"color":[1,1,1]}]}"#,
+            )
+            .unwrap();
+            let rc = oxidize_page_add_shading_json(page, name.as_ptr(), json.as_ptr());
+            oxidize_page_free(page);
+            assert_eq!(rc, ErrorCode::InvalidArgument as c_int);
+        }
+    }
+
+    #[test]
+    fn add_shading_null_page_returns_null_pointer() {
+        unsafe {
+            let name = CString::new("X").unwrap();
+            let json =
+                CString::new(r#"{"kind":"axial","start":[0,0],"end":[1,1],"stops":[]}"#).unwrap();
+            let rc =
+                oxidize_page_add_shading_json(std::ptr::null_mut(), name.as_ptr(), json.as_ptr());
+            assert_eq!(rc, ErrorCode::NullPointer as c_int);
+        }
+    }
+
+    #[test]
+    fn paint_shading_null_page_returns_null_pointer() {
+        unsafe {
+            let name = CString::new("X").unwrap();
+            let rc = oxidize_page_paint_shading(std::ptr::null_mut(), name.as_ptr());
+            assert_eq!(rc, ErrorCode::NullPointer as c_int);
         }
     }
 }

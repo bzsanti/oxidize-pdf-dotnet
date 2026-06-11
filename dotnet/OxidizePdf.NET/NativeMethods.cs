@@ -565,6 +565,23 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_clip_rect(IntPtr page, double x, double y, double width, double height);
 
+    /// <summary>Register an axial/radial gradient shading on the page from a JSON definition.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_shading_json(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Paint a registered shading with the `sh` operator.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_paint_shading(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
+    /// <summary>End the current path without filling or stroking (the `n` operator).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_end_path(IntPtr page);
+
     /// <summary>Set a circular clipping region</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_clip_circle(IntPtr page, double cx, double cy, double radius);
