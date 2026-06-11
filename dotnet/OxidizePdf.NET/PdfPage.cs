@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using OxidizePdf.NET.Models;
 
 namespace OxidizePdf.NET;
 
@@ -973,6 +975,155 @@ public sealed class PdfPage : IDisposable
             "Failed to clear clipping");
         return this;
     }
+
+    // ── Shadings / gradients ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Registers an axial (linear) gradient shading on this page under
+    /// <paramref name="name"/>. Paint it with <see cref="PaintShading"/>. The
+    /// gradient runs along the line from (<paramref name="x1"/>, <paramref name="y1"/>)
+    /// to (<paramref name="x2"/>, <paramref name="y2"/>). Returns <c>this</c>.
+    /// </summary>
+    /// <param name="name">Resource name used to reference the shading when painting.</param>
+    /// <param name="x1">X of the gradient start point, in PDF points.</param>
+    /// <param name="y1">Y of the gradient start point, in PDF points.</param>
+    /// <param name="x2">X of the gradient end point, in PDF points.</param>
+    /// <param name="y2">Y of the gradient end point, in PDF points.</param>
+    /// <param name="stops">Color stops (at least two), ordered by position.</param>
+    /// <param name="extendStart">Whether to extend the gradient before the start point.</param>
+    /// <param name="extendEnd">Whether to extend the gradient beyond the end point.</param>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace or fewer than two stops are given.</exception>
+    /// <exception cref="ArgumentNullException">If <paramref name="stops"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage AddAxialShading(
+        string name,
+        double x1,
+        double y1,
+        double x2,
+        double y2,
+        IEnumerable<GradientStop> stops,
+        bool extendStart = false,
+        bool extendEnd = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(stops);
+        var stopList = ToStopPayload(stops);
+        if (stopList.Count < 2)
+            throw new ArgumentException("A gradient requires at least two stops", nameof(stops));
+        string json = JsonSerializer.Serialize(new
+        {
+            kind = "axial",
+            start = new[] { x1, y1 },
+            end = new[] { x2, y2 },
+            stops = stopList,
+            extend_start = extendStart,
+            extend_end = extendEnd,
+        });
+        return AddShading(name, json);
+    }
+
+    /// <summary>
+    /// Registers a radial gradient shading on this page under
+    /// <paramref name="name"/>. Paint it with <see cref="PaintShading"/>. The
+    /// gradient interpolates between two circles. Returns <c>this</c>.
+    /// </summary>
+    /// <param name="name">Resource name used to reference the shading when painting.</param>
+    /// <param name="startCenterX">X of the start circle center, in PDF points.</param>
+    /// <param name="startCenterY">Y of the start circle center, in PDF points.</param>
+    /// <param name="startRadius">Radius of the start circle, in PDF points.</param>
+    /// <param name="endCenterX">X of the end circle center, in PDF points.</param>
+    /// <param name="endCenterY">Y of the end circle center, in PDF points.</param>
+    /// <param name="endRadius">Radius of the end circle, in PDF points.</param>
+    /// <param name="stops">Color stops (at least two), ordered by position.</param>
+    /// <param name="extendStart">Whether to extend the gradient before the start circle.</param>
+    /// <param name="extendEnd">Whether to extend the gradient beyond the end circle.</param>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace or fewer than two stops are given.</exception>
+    /// <exception cref="ArgumentNullException">If <paramref name="stops"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage AddRadialShading(
+        string name,
+        double startCenterX,
+        double startCenterY,
+        double startRadius,
+        double endCenterX,
+        double endCenterY,
+        double endRadius,
+        IEnumerable<GradientStop> stops,
+        bool extendStart = false,
+        bool extendEnd = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(stops);
+        var stopList = ToStopPayload(stops);
+        if (stopList.Count < 2)
+            throw new ArgumentException("A gradient requires at least two stops", nameof(stops));
+        string json = JsonSerializer.Serialize(new
+        {
+            kind = "radial",
+            start_center = new[] { startCenterX, startCenterY },
+            start_radius = startRadius,
+            end_center = new[] { endCenterX, endCenterY },
+            end_radius = endRadius,
+            stops = stopList,
+            extend_start = extendStart,
+            extend_end = extendEnd,
+        });
+        return AddShading(name, json);
+    }
+
+    /// <summary>
+    /// Paints a previously registered shading with the <c>sh</c> operator,
+    /// filling the current clip region (the whole page if unclipped). To bound
+    /// a gradient, wrap the call: <c>SaveGraphicsState().ClipRect(..).PaintShading(name).RestoreGraphicsState()</c>.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="name">Name of a shading registered via <see cref="AddAxialShading"/> or <see cref="AddRadialShading"/>.</param>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage PaintShading(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_paint_shading(_handle, name),
+            "Failed to paint shading");
+        return this;
+    }
+
+    /// <summary>
+    /// Ends the current path without filling or stroking (the <c>n</c> operator).
+    /// Used to terminate a manually constructed clipping path before painting.
+    /// For rectangular clips, prefer <see cref="ClipRect"/>. Returns <c>this</c>.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage EndPath()
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_end_path(_handle),
+            "Failed to end path");
+        return this;
+    }
+
+    private PdfPage AddShading(string name, string json)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_add_shading_json(_handle, name, json),
+            $"Failed to add shading '{name}'");
+        return this;
+    }
+
+    private static List<object> ToStopPayload(IEnumerable<GradientStop> stops) =>
+        stops.Select(s => (object)new
+        {
+            position = s.Position,
+            color = new[] { s.Red, s.Green, s.Blue },
+        }).ToList();
 
     // ── Blend mode ───────────────────────────────────────────────────────────
 
