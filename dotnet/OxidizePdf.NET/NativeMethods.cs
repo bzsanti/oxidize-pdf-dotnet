@@ -311,6 +311,33 @@ internal static class NativeMethods
         IntPtr handle,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string outlineJson);
 
+    // ── Forms (M2 write-path) ───────────────────────────────────────────────────
+
+    /// <summary>Enable interactive forms on the document (idempotent).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_enable_forms(IntPtr handle);
+
+    /// <summary>Create an AcroForm field from a tagged JSON DTO; returns its object number.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_add_form_field_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json,
+        out uint outObjNum);
+
+    /// <summary>Set a form field's value in-process (updates /V and regenerates appearance).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_fill_field(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    /// <summary>Attach a widget annotation to a page, linked to a field by its object number.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_form_widget_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json,
+        uint fieldObjNum);
+
     // ── Page ──────────────────────────────────────────────────────────────────
 
     /// <summary>Create a new page with explicit dimensions in PDF points</summary>

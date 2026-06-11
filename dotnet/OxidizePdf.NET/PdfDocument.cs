@@ -1,4 +1,7 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using OxidizePdf.NET.Models;
 
 namespace OxidizePdf.NET;
 
@@ -529,6 +532,363 @@ public sealed class PdfDocument : IDisposable
             NativeMethods.oxidize_document_set_page_labels_json(_handle, json),
             "Failed to set page labels");
         return this;
+    }
+
+    // ── Interactive forms (AcroForm write-path) ─────────────────────────────────
+
+    private static readonly JsonSerializerOptions FormJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
+
+    /// <summary>
+    /// Enables interactive forms (creates the AcroForm + form manager if absent).
+    /// Idempotent; the <c>Add*</c> field factories call this implicitly, so an
+    /// explicit call is only needed to signal intent. Returns <c>this</c>.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfDocument EnableForms()
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_enable_forms(_handle),
+            "Failed to enable forms");
+        return this;
+    }
+
+    /// <summary>
+    /// Creates an AcroForm text field. Place its visual on a page with
+    /// <see cref="PdfPage.AddFormWidget(FormFieldRef)"/> before adding the page.
+    /// </summary>
+    /// <param name="name">Unique field name (the AcroForm <c>/T</c> entry).</param>
+    /// <param name="x1">Lower-left X of the widget rectangle, in PDF points.</param>
+    /// <param name="y1">Lower-left Y of the widget rectangle, in PDF points.</param>
+    /// <param name="x2">Upper-right X of the widget rectangle, in PDF points.</param>
+    /// <param name="y2">Upper-right Y of the widget rectangle, in PDF points.</param>
+    /// <param name="value">Initial value (<c>/V</c>), or null.</param>
+    /// <param name="defaultValue">Default value (<c>/DV</c>), or null.</param>
+    /// <param name="maxLength">Maximum character length, or null for unlimited.</param>
+    /// <param name="multiline">Whether the field accepts multiple lines.</param>
+    /// <param name="password">Whether the field masks its input.</param>
+    /// <param name="readOnly">Whether the field is read-only.</param>
+    /// <param name="required">Whether the field is required.</param>
+    /// <returns>A reference used to attach widgets and identify the field.</returns>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public FormFieldRef AddTextField(
+        string name,
+        double x1,
+        double y1,
+        double x2,
+        double y2,
+        string? value = null,
+        string? defaultValue = null,
+        int? maxLength = null,
+        bool multiline = false,
+        bool password = false,
+        bool readOnly = false,
+        bool required = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var payload = new FormFieldPayload("text", name, new[] { x1, y1, x2, y2 })
+        {
+            Value = value,
+            DefaultValue = defaultValue,
+            MaxLength = maxLength,
+            Multiline = multiline,
+            Password = password,
+            ReadOnly = readOnly,
+            Required = required,
+        };
+        return AddFormFieldCore(payload, x1, y1, x2, y2);
+    }
+
+    /// <summary>
+    /// Creates an AcroForm checkbox field.
+    /// </summary>
+    /// <param name="name">Unique field name.</param>
+    /// <param name="x1">Lower-left X of the widget rectangle.</param>
+    /// <param name="y1">Lower-left Y of the widget rectangle.</param>
+    /// <param name="x2">Upper-right X of the widget rectangle.</param>
+    /// <param name="y2">Upper-right Y of the widget rectangle.</param>
+    /// <param name="checked">Whether the box starts checked.</param>
+    /// <param name="exportValue">The "on" export value (default "Yes").</param>
+    /// <param name="readOnly">Whether the field is read-only.</param>
+    /// <param name="required">Whether the field is required.</param>
+    /// <returns>A reference used to attach widgets and identify the field.</returns>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public FormFieldRef AddCheckBox(
+        string name,
+        double x1,
+        double y1,
+        double x2,
+        double y2,
+        bool @checked = false,
+        string exportValue = "Yes",
+        bool readOnly = false,
+        bool required = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var payload = new FormFieldPayload("checkbox", name, new[] { x1, y1, x2, y2 })
+        {
+            Checked = @checked,
+            ExportValue = exportValue,
+            ReadOnly = readOnly,
+            Required = required,
+        };
+        return AddFormFieldCore(payload, x1, y1, x2, y2);
+    }
+
+    /// <summary>
+    /// Creates an AcroForm radio-button group. Each option is an
+    /// (export value, label) pair; <paramref name="selected"/> is the 0-based
+    /// index of the initially selected option, or null for none.
+    /// </summary>
+    /// <param name="name">Unique field name.</param>
+    /// <param name="x1">Lower-left X of the primary widget rectangle.</param>
+    /// <param name="y1">Lower-left Y of the primary widget rectangle.</param>
+    /// <param name="x2">Upper-right X of the primary widget rectangle.</param>
+    /// <param name="y2">Upper-right Y of the primary widget rectangle.</param>
+    /// <param name="options">The (export, label) options; must be non-empty.</param>
+    /// <param name="selected">0-based index of the selected option, or null.</param>
+    /// <param name="readOnly">Whether the field is read-only.</param>
+    /// <param name="required">Whether the field is required.</param>
+    /// <returns>A reference used to attach widgets and identify the field.</returns>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is invalid or <paramref name="options"/> is empty.</exception>
+    /// <exception cref="ArgumentNullException">If <paramref name="options"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public FormFieldRef AddRadioGroup(
+        string name,
+        double x1,
+        double y1,
+        double x2,
+        double y2,
+        IEnumerable<(string Export, string Label)> options,
+        int? selected = null,
+        bool readOnly = false,
+        bool required = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(options);
+        var opts = ToOptionPayloads(options);
+        if (opts.Count == 0)
+            throw new ArgumentException("Radio group requires at least one option", nameof(options));
+        var payload = new FormFieldPayload("radio", name, new[] { x1, y1, x2, y2 })
+        {
+            Options = opts,
+            Selected = selected,
+            ReadOnly = readOnly,
+            Required = required,
+        };
+        return AddFormFieldCore(payload, x1, y1, x2, y2);
+    }
+
+    /// <summary>
+    /// Creates an AcroForm combo box (dropdown). Each option is an
+    /// (export value, display text) pair.
+    /// </summary>
+    /// <param name="name">Unique field name.</param>
+    /// <param name="x1">Lower-left X of the widget rectangle.</param>
+    /// <param name="y1">Lower-left Y of the widget rectangle.</param>
+    /// <param name="x2">Upper-right X of the widget rectangle.</param>
+    /// <param name="y2">Upper-right Y of the widget rectangle.</param>
+    /// <param name="options">The (export, display) options; must be non-empty.</param>
+    /// <param name="value">Initial value (<c>/V</c>), or null.</param>
+    /// <param name="editable">Whether the user may type a custom value.</param>
+    /// <param name="readOnly">Whether the field is read-only.</param>
+    /// <param name="required">Whether the field is required.</param>
+    /// <returns>A reference used to attach widgets and identify the field.</returns>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is invalid or <paramref name="options"/> is empty.</exception>
+    /// <exception cref="ArgumentNullException">If <paramref name="options"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public FormFieldRef AddComboBox(
+        string name,
+        double x1,
+        double y1,
+        double x2,
+        double y2,
+        IEnumerable<(string Export, string Display)> options,
+        string? value = null,
+        bool editable = false,
+        bool readOnly = false,
+        bool required = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(options);
+        var opts = ToOptionPayloads(options);
+        if (opts.Count == 0)
+            throw new ArgumentException("Combo box requires at least one option", nameof(options));
+        var payload = new FormFieldPayload("combobox", name, new[] { x1, y1, x2, y2 })
+        {
+            Options = opts,
+            Value = value,
+            Editable = editable,
+            ReadOnly = readOnly,
+            Required = required,
+        };
+        return AddFormFieldCore(payload, x1, y1, x2, y2);
+    }
+
+    /// <summary>
+    /// Creates an AcroForm list box. Each option is an
+    /// (export value, display text) pair.
+    /// </summary>
+    /// <param name="name">Unique field name.</param>
+    /// <param name="x1">Lower-left X of the widget rectangle.</param>
+    /// <param name="y1">Lower-left Y of the widget rectangle.</param>
+    /// <param name="x2">Upper-right X of the widget rectangle.</param>
+    /// <param name="y2">Upper-right Y of the widget rectangle.</param>
+    /// <param name="options">The (export, display) options; must be non-empty.</param>
+    /// <param name="selectedIndices">0-based indices of selected options, or null.</param>
+    /// <param name="multiSelect">Whether multiple options may be selected.</param>
+    /// <param name="readOnly">Whether the field is read-only.</param>
+    /// <param name="required">Whether the field is required.</param>
+    /// <returns>A reference used to attach widgets and identify the field.</returns>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is invalid or <paramref name="options"/> is empty.</exception>
+    /// <exception cref="ArgumentNullException">If <paramref name="options"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public FormFieldRef AddListBox(
+        string name,
+        double x1,
+        double y1,
+        double x2,
+        double y2,
+        IEnumerable<(string Export, string Display)> options,
+        IEnumerable<int>? selectedIndices = null,
+        bool multiSelect = false,
+        bool readOnly = false,
+        bool required = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(options);
+        var opts = ToOptionPayloads(options);
+        if (opts.Count == 0)
+            throw new ArgumentException("List box requires at least one option", nameof(options));
+        var payload = new FormFieldPayload("listbox", name, new[] { x1, y1, x2, y2 })
+        {
+            Options = opts,
+            SelectedIndices = selectedIndices?.ToList() ?? new List<int>(),
+            MultiSelect = multiSelect,
+            ReadOnly = readOnly,
+            Required = required,
+        };
+        return AddFormFieldCore(payload, x1, y1, x2, y2);
+    }
+
+    /// <summary>
+    /// Creates an AcroForm push button (an action trigger, not a value holder).
+    /// </summary>
+    /// <param name="name">Unique field name.</param>
+    /// <param name="x1">Lower-left X of the widget rectangle.</param>
+    /// <param name="y1">Lower-left Y of the widget rectangle.</param>
+    /// <param name="x2">Upper-right X of the widget rectangle.</param>
+    /// <param name="y2">Upper-right Y of the widget rectangle.</param>
+    /// <param name="caption">The button caption, or null.</param>
+    /// <returns>A reference used to attach widgets and identify the field.</returns>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public FormFieldRef AddPushButton(
+        string name,
+        double x1,
+        double y1,
+        double x2,
+        double y2,
+        string? caption = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var payload = new FormFieldPayload("pushbutton", name, new[] { x1, y1, x2, y2 })
+        {
+            Caption = caption,
+        };
+        return AddFormFieldCore(payload, x1, y1, x2, y2);
+    }
+
+    /// <summary>
+    /// Sets the value of a form field created on this document, updating its
+    /// <c>/V</c> entry and regenerating the widget appearance. Only works for
+    /// fields registered in this document's form manager (i.e. created via the
+    /// <c>Add*</c> factories); there is no path to fill fields of a parsed PDF.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="name">The field name to fill.</param>
+    /// <param name="value">The textual value to set.</param>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace.</exception>
+    /// <exception cref="ArgumentNullException">If <paramref name="value"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the field does not exist or the native call fails.</exception>
+    public PdfDocument FillField(string name, string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(value);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_document_fill_field(_handle, name, value),
+            $"Failed to fill form field '{name}'");
+        return this;
+    }
+
+    private FormFieldRef AddFormFieldCore(FormFieldPayload payload, double x1, double y1, double x2, double y2)
+    {
+        ThrowIfDisposed();
+        string json = JsonSerializer.Serialize(payload, FormJsonOptions);
+        ThrowIfError(
+            NativeMethods.oxidize_document_add_form_field_json(_handle, json, out uint objNum),
+            $"Failed to create form field '{payload.Name}'");
+        return new FormFieldRef(objNum, x1, y1, x2, y2);
+    }
+
+    private static List<FormOptionPayload> ToOptionPayloads(IEnumerable<(string, string)> options) =>
+        options.Select(o => new FormOptionPayload(o.Item1, o.Item2)).ToList();
+
+    private sealed record FormOptionPayload(
+        [property: JsonPropertyName("export")] string Export,
+        [property: JsonPropertyName("label")] string Label);
+
+    // Mirrors the Rust `CreateFieldJson` DTO. Property names map to snake_case
+    // via FormJsonOptions; bool fields are always emitted (the Rust DTO derives
+    // them with serde `default` and cannot deserialize null into bool).
+    private sealed class FormFieldPayload
+    {
+        public FormFieldPayload(string kind, string name, double[] rect)
+        {
+            Kind = kind;
+            Name = name;
+            Rect = rect;
+        }
+
+        public string Kind { get; }
+        public string Name { get; }
+        public double[] Rect { get; }
+
+        public string? Value { get; init; }
+        public string? DefaultValue { get; init; }
+        public int? MaxLength { get; init; }
+        public bool Multiline { get; init; }
+        public bool Password { get; init; }
+
+        public bool Checked { get; init; }
+        public string? ExportValue { get; init; }
+
+        public List<FormOptionPayload> Options { get; init; } = new();
+        public int? Selected { get; init; }
+        public List<int> SelectedIndices { get; init; } = new();
+        public bool MultiSelect { get; init; }
+        public bool Editable { get; init; }
+
+        public string? Caption { get; init; }
+
+        public bool ReadOnly { get; init; }
+        public bool Required { get; init; }
+        public bool NoExport { get; init; }
+        public int? Quadding { get; init; }
     }
 
     /// <summary>

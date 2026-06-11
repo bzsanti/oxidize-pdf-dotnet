@@ -1344,6 +1344,43 @@ public sealed class PdfPage : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    // ── Form widgets (AcroForm write-path) ─────────────────────────────────────
+
+    /// <summary>
+    /// Places the widget annotation for an AcroForm field on this page, using
+    /// the rectangle supplied when the field was created. Must be called before
+    /// the page is added to its document. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="field">A field reference returned by one of the
+    /// <see cref="PdfDocument"/> <c>Add*</c> form factories.</param>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage AddFormWidget(FormFieldRef field) =>
+        AddFormWidget(field, field.X1, field.Y1, field.X2, field.Y2);
+
+    /// <summary>
+    /// Places a widget annotation for an AcroForm field at an explicit rectangle,
+    /// linked to the field via <c>/Parent</c>. Use this overload to add extra
+    /// widgets for a single field (for example, the individual buttons of a
+    /// radio group). Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="field">A field reference returned by a <see cref="PdfDocument"/> form factory.</param>
+    /// <param name="x1">Lower-left X of the widget rectangle, in PDF points.</param>
+    /// <param name="y1">Lower-left Y of the widget rectangle, in PDF points.</param>
+    /// <param name="x2">Upper-right X of the widget rectangle, in PDF points.</param>
+    /// <param name="y2">Upper-right Y of the widget rectangle, in PDF points.</param>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage AddFormWidget(FormFieldRef field, double x1, double y1, double x2, double y2)
+    {
+        ThrowIfDisposed();
+        string json = JsonSerializer.Serialize(new { rect = new[] { x1, y1, x2, y2 } });
+        ThrowIfError(
+            NativeMethods.oxidize_page_add_form_widget_json(_handle, json, field.ObjectNumber),
+            "Failed to add form widget to page");
+        return this;
+    }
+
     // ── Annotations ──────────────────────────────────────────────────────────
 
     /// <summary>Add a URI link annotation.</summary>
