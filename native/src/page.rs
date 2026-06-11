@@ -151,6 +151,71 @@ pub unsafe extern "C" fn oxidize_page_begin_screen_space(
     ErrorCode::Success as c_int
 }
 
+/// PAGE-009 — Begin a marked-content sequence (Tagged PDF).
+///
+/// Emits a `/{tag} <</MCID n>> BDC` operator into the page content stream and
+/// returns the auto-assigned marked-content identifier (MCID) via `out_mcid`.
+/// The MCID can be linked to a structure element so the tagged content is
+/// reachable from the document's structure tree (see
+/// `oxidize_document_set_struct_tree_json`). Sequences nest; each must be
+/// closed with `oxidize_page_end_marked_content`.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by an `oxidize_page_*` constructor.
+/// - `tag` must be a valid non-null, null-terminated UTF-8 C string.
+/// - `out_mcid` must be a valid pointer to a `u32`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_begin_marked_content(
+    handle: *mut PageHandle,
+    tag: *const c_char,
+    out_mcid: *mut u32,
+) -> c_int {
+    clear_last_error();
+    if handle.is_null() || tag.is_null() || out_mcid.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_begin_marked_content");
+        return ErrorCode::NullPointer as c_int;
+    }
+    let tag_str = match CStr::from_ptr(tag).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in marked-content tag");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    match (*handle).inner.begin_marked_content(tag_str) {
+        Ok(mcid) => {
+            *out_mcid = mcid;
+            ErrorCode::Success as c_int
+        }
+        Err(e) => {
+            set_last_error(format!("begin_marked_content failed: {e}"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    }
+}
+
+/// PAGE-009 — End the most recently opened marked-content sequence.
+///
+/// Emits an `EMC` operator. Returns `InvalidArgument` if no sequence is open.
+///
+/// # Safety
+/// - `handle` must be a valid pointer returned by an `oxidize_page_*` constructor.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_end_marked_content(handle: *mut PageHandle) -> c_int {
+    clear_last_error();
+    if handle.is_null() {
+        set_last_error("Null pointer provided to oxidize_page_end_marked_content");
+        return ErrorCode::NullPointer as c_int;
+    }
+    match (*handle).inner.end_marked_content() {
+        Ok(()) => ErrorCode::Success as c_int,
+        Err(e) => {
+            set_last_error(format!("end_marked_content failed: {e}"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    }
+}
+
 /// Free a page handle previously created by `oxidize_page_create` or
 /// `oxidize_page_create_preset`.
 ///
@@ -739,6 +804,62 @@ mod page_editing_ffi_tests {
             let cm_pos = content.find(" cm").expect("cm operator present");
             let re_pos = content.find(" re").expect("re operator present");
             assert!(cm_pos < re_pos, "CTM must be emitted before draw ops");
+        }
+    }
+
+    #[test]
+    fn marked_content_emits_bdc_emc_and_returns_mcid() {
+        use std::ffi::CString;
+        unsafe {
+            let handle = oxidize_page_create(200.0, 300.0);
+            let tag = CString::new("P").unwrap();
+            let mut mcid = u32::MAX;
+            assert_eq!(
+                oxidize_page_begin_marked_content(handle, tag.as_ptr(), &mut mcid),
+                0
+            );
+            assert_eq!(mcid, 0, "first marked-content sequence gets MCID 0");
+
+            (*handle)
+                .inner
+                .text()
+                .set_font(Font::Helvetica, 12.0)
+                .at(20.0, 250.0)
+                .write("TAGGED_TEXT")
+                .unwrap();
+
+            assert_eq!(oxidize_page_end_marked_content(handle), 0);
+
+            let page = std::mem::replace(&mut (*handle).inner, Page::new(1.0, 1.0));
+            let mut doc = Document::new();
+            doc.set_compress(false);
+            doc.add_page(page);
+            let out = doc.to_bytes().unwrap();
+            oxidize_page_free(handle);
+
+            let content = String::from_utf8_lossy(&out);
+            assert!(
+                content.contains("/P <</MCID 0>> BDC"),
+                "expected BDC with MCID 0; content:\n{content}"
+            );
+            assert!(content.contains("EMC"), "expected EMC operator");
+            assert!(
+                content.contains("TAGGED_TEXT"),
+                "tagged text must be present"
+            );
+            let bdc = content.find("BDC").expect("BDC present");
+            let emc = content.find("EMC").expect("EMC present");
+            assert!(bdc < emc, "BDC must precede EMC");
+        }
+    }
+
+    #[test]
+    fn end_marked_content_without_begin_returns_error() {
+        unsafe {
+            let handle = oxidize_page_create(200.0, 300.0);
+            let result = oxidize_page_end_marked_content(handle);
+            assert_eq!(result, 9, "EMC without BDC must return InvalidArgument (9)");
+            oxidize_page_free(handle);
         }
     }
 

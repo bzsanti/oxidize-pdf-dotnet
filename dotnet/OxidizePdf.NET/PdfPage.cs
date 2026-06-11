@@ -124,6 +124,93 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// PAGE-009: Begins a marked-content sequence (Tagged PDF), emitting a
+    /// <c>/{tag} &lt;&lt;/MCID n&gt;&gt; BDC</c> operator and returning the
+    /// auto-assigned marked-content identifier (MCID). Link the MCID to a
+    /// structure element (via <see cref="Models.PdfStructureTree"/>) so the
+    /// tagged content is reachable from the document's structure tree. Close the
+    /// sequence with <see cref="EndMarkedContent"/>; sequences may nest.
+    /// </summary>
+    /// <param name="tag">The structure tag, e.g. "P", "H1", "Figure".</param>
+    /// <returns>The MCID assigned to this sequence.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public int BeginMarkedContent(string tag)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_begin_marked_content(_handle, tag, out var mcid),
+            "Failed to begin marked content");
+        return (int)mcid;
+    }
+
+    /// <summary>
+    /// PAGE-009: Ends the most recently opened marked-content sequence, emitting
+    /// an <c>EMC</c> operator. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If no sequence is open or the native call fails.</exception>
+    public PdfPage EndMarkedContent()
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_end_marked_content(_handle),
+            "Failed to end marked content");
+        return this;
+    }
+
+    /// <summary>
+    /// TXT-014: Flows <paramref name="options"/>.Text across multiple columns on
+    /// this page, emitting positioned text per column into the content stream.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="options">Column count/widths, geometry, font and alignment.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="options"/> or its text is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage RenderColumns(Models.ColumnTextOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(options.Text);
+        ThrowIfDisposed();
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["text"] = options.Text,
+            ["column_count"] = options.ColumnCount,
+            ["total_width"] = options.TotalWidth,
+            ["column_gap"] = options.ColumnGap,
+            ["start_x"] = options.StartX,
+            ["start_y"] = options.StartY,
+            ["column_height"] = options.ColumnHeight,
+        };
+        if (options.CustomWidths is { Count: > 0 })
+            payload["custom_widths"] = options.CustomWidths;
+        if (options.Font is { } font)
+            payload["font"] = font.ToString();
+        if (options.FontSize is { } size)
+            payload["font_size"] = size;
+        if (options.LineHeight is { } lh)
+            payload["line_height"] = lh;
+        if (options.TextAlign is { } align)
+            payload["text_align"] = align.ToString().ToLowerInvariant();
+        if (options.BalanceColumns is { } balance)
+            payload["balance_columns"] = balance;
+        if (options.ShowSeparators is { } sep)
+            payload["show_separators"] = sep;
+        if (options.Color is { } c)
+            payload["color"] = new[] { c.R, c.G, c.B };
+
+        string json = JsonSerializer.Serialize(payload);
+        ThrowIfError(
+            NativeMethods.oxidize_page_render_columns_json(_handle, json),
+            "Failed to render column layout");
+        return this;
+    }
+
     // ── Static factory methods for page presets ───────────────────────────────
 
     /// <summary>Creates an A4 page (595 x 842 points).</summary>

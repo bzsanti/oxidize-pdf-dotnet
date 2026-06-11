@@ -7,6 +7,7 @@ use std::ptr;
 
 pub mod annotations;
 pub mod chunking;
+pub mod columns;
 pub mod document;
 pub mod document_metadata;
 pub mod forms;
@@ -21,8 +22,11 @@ pub mod page;
 pub mod parser;
 pub mod pipeline_config;
 pub mod security;
+pub mod semantic;
 pub mod table;
+pub mod tagged;
 pub mod text;
+pub mod text_validation;
 pub mod types;
 
 // ── Error infrastructure ──────────────────────────────────────────────────────
