@@ -368,6 +368,94 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_begin_screen_space(IntPtr handle, double scale);
 
+    /// <summary>PAGE-009: begin a marked-content sequence; returns the assigned MCID via outMcid.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_begin_marked_content(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string tag,
+        out uint outMcid);
+
+    /// <summary>PAGE-009: end the most recent marked-content sequence.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_end_marked_content(IntPtr handle);
+
+    /// <summary>TXT-014: flow text across columns on the page from a JSON description.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_render_columns_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>DOC-019: attach a Tagged-PDF structure tree to the document from JSON.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_struct_tree_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>DOC-021: mark a region as a typed semantic entity.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_mark_entity(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string entityType,
+        double x, double y, double width, double height, uint page);
+
+    /// <summary>DOC-021: set the content text of a marked entity.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_entity_content(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string content);
+
+    /// <summary>DOC-021: add a metadata key/value pair to a marked entity.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_add_entity_metadata(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string key,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    /// <summary>DOC-021: set the confidence (0..1) of a marked entity.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_entity_confidence(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        float confidence);
+
+    /// <summary>DOC-021: record a relationship between two marked entities.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_relate_entities(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string fromId,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string toId,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string relation);
+
+    /// <summary>DOC-021: export semantic entities as a plain JSON array (full fidelity).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_export_semantic_entities_json(IntPtr handle, out IntPtr outJson);
+
+    /// <summary>DOC-021: export semantic entities as Schema.org JSON-LD.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_export_semantic_entities_json_ld(IntPtr handle, out IntPtr outJson);
+
+    /// <summary>TXT-016: validate contract-style text; returns JSON TextValidationResult.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_text_validate_contract(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        out IntPtr outJson);
+
+    /// <summary>TXT-016: search text for a target string; returns JSON TextValidationResult.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_text_search_target(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string target,
+        out IntPtr outJson);
+
+    /// <summary>TXT-016: extract key info (dates, amounts, organizations) as JSON.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_text_extract_key_info(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        out IntPtr outJson);
+
     /// <summary>Free a page handle</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void oxidize_page_free(IntPtr handle);

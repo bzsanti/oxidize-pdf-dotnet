@@ -60,6 +60,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operator; `PdfPage.EndPath()` emits the `n` path-terminator. Bound a gradient
   with `SaveGraphicsState().ClipRect(..).PaintShading(name).RestoreGraphicsState()`.
 
+### Added — M6 Accessibility, semantic, text advanced (#25)
+- **DOC-019: Tagged PDF structure tree.** `PdfDocument.SetStructureTree(PdfStructureTree)`
+  attaches a logical structure tree built with `PdfStructureTree.AddRoot/AddChild`
+  (standard structure types, `lang`/`alt_text`/`actual_text`/`title`, role
+  mapping, marked-content links). The writer emits `/StructTreeRoot`,
+  `/MarkInfo <</Marked true>>` and `/StructElem` dictionaries — a Tagged PDF.
+- **PAGE-009: Marked content.** `PdfPage.BeginMarkedContent(tag)` returns an
+  auto-assigned MCID and emits `/{tag} <</MCID n>> BDC`; `PdfPage.EndMarkedContent()`
+  emits `EMC`. Link the MCID to a structure element for PDF/UA accessibility.
+- **TXT-014: Column layout.** `PdfPage.RenderColumns(ColumnTextOptions)` flows
+  text across N equal or custom-width columns (font, size, alignment, line
+  height, separators, balance), emitting positioned text per column.
+- **DOC-021: Semantic entities (AI-ready markup).** `PdfDocument.MarkEntity` /
+  `SetEntityContent` / `AddEntityMetadata` / `SetEntityConfidence` /
+  `RelateEntities`, exported with `ExportSemanticEntitiesJson` (full fidelity)
+  or `ExportSemanticEntitiesJsonLd` (Schema.org). **Caveat:** entities are an
+  in-memory annotation + export feature; they are NOT embedded in the saved PDF
+  (use DOC-019 for in-PDF tagged structure).
+- **TXT-016: Text validation.** `TextValidation.ValidateContract` / `Search` /
+  `ExtractKeyInfo` classify dates, monetary amounts, contract numbers and party
+  names in already-extracted text. **Caveat:** this is a text-content validator
+  (upstream `text/validation.rs`), not a PDF-structure integrity checker; feed
+  it extracted text, not raw PDF bytes.
+
 ### Added — M5 Page editing and coordinate systems (#24)
 - **PAGE-010: Edit an existing page.** `PdfPage.FromParsedBytes(byte[] pdf, int pageIndex)`
   opens an existing PDF and returns a writable page that preserves the original
