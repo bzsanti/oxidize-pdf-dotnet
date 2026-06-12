@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-06-12
+
 ### Added — M1 Document metadata (#20)
 - **DOC-014: Open action.** `PdfDocument.SetOpenAction(PdfOpenAction)` —
   `PdfOpenAction.GoTo(pageIndex, PdfDestination?)` or `.Uri(string)`;
@@ -550,7 +552,8 @@ the FFI boundary as UTF-8 JSON; profile crosses as a `u8` discriminant.
 - Windows x64 (.NET 6.0+)
 - macOS x64 (.NET 6.0+)
 
-[unreleased]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.12.0...v0.13.0
 [0.3.0]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.1.0...v0.2.1
