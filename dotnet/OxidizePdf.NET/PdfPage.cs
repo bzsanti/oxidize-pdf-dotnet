@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using OxidizePdf.NET.Models;
 
 namespace OxidizePdf.NET;
 
@@ -46,6 +48,167 @@ public sealed class PdfPage : IDisposable
         _handle = handle;
         if (_handle == IntPtr.Zero)
             throw new PdfExtractionException("Failed to create page from preset");
+    }
+
+    /// <summary>
+    /// PAGE-010: Opens an existing PDF and converts the page at
+    /// <paramref name="pageIndex"/> into a writable page that preserves the
+    /// original content streams and resources (fonts resolved/embedded). New
+    /// content drawn on the returned page is overlaid alongside the original;
+    /// after saving and re-parsing, both the original and the overlay are
+    /// present in the document.
+    /// </summary>
+    /// <param name="pdfBytes">Raw bytes of the source PDF.</param>
+    /// <param name="pageIndex">Zero-based index of the page to edit.</param>
+    /// <returns>A writable <see cref="PdfPage"/> seeded with the original content.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">If <paramref name="pageIndex"/> is negative.</exception>
+    /// <exception cref="PdfExtractionException">If the PDF cannot be parsed or the page does not exist.</exception>
+    public static PdfPage FromParsedBytes(byte[] pdfBytes, int pageIndex)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pageIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(pageIndex), pageIndex, "Page index must be non-negative.");
+
+        IntPtr pdfPtr = IntPtr.Zero;
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var handle = NativeMethods.oxidize_page_from_parsed_bytes(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                (uint)pageIndex);
+
+            if (handle == IntPtr.Zero)
+            {
+                var rustError = NativeMethods.GetLastError();
+                var detail = !string.IsNullOrEmpty(rustError) ? rustError : "unknown error";
+                throw new PdfExtractionException(
+                    $"Failed to create editable page {pageIndex} from PDF: {detail}");
+            }
+
+            return new PdfPage(handle);
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(pdfPtr);
+        }
+    }
+
+    /// <summary>
+    /// PAGE-011: Switches this page to a screen-space coordinate system: the
+    /// origin moves to the top-left corner and Y grows downward, with an
+    /// optional uniform <paramref name="scale"/> (1.0 = 1 unit per PDF point).
+    /// Emits a single transformation matrix at the head of the page's graphics
+    /// stream, so all subsequent draw operations use screen-space coordinates.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="scale">Uniform scale factor; must be finite and non-zero.</param>
+    /// <remarks>
+    /// The Y-flip also mirrors text glyphs vertically, so this is intended for
+    /// shape, line, and path draw operations. Text drawn after
+    /// <see cref="BeginScreenSpace"/> renders upside-down unless a compensating
+    /// per-text transform is applied.
+    /// </remarks>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage BeginScreenSpace(double scale = 1.0)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_begin_screen_space(_handle, scale),
+            "Failed to switch page to screen-space coordinates");
+        return this;
+    }
+
+    /// <summary>
+    /// PAGE-009: Begins a marked-content sequence (Tagged PDF), emitting a
+    /// <c>/{tag} &lt;&lt;/MCID n&gt;&gt; BDC</c> operator and returning the
+    /// auto-assigned marked-content identifier (MCID). Link the MCID to a
+    /// structure element (via <see cref="Models.PdfStructureTree"/>) so the
+    /// tagged content is reachable from the document's structure tree. Close the
+    /// sequence with <see cref="EndMarkedContent"/>; sequences may nest.
+    /// </summary>
+    /// <param name="tag">The structure tag, e.g. "P", "H1", "Figure".</param>
+    /// <returns>The MCID assigned to this sequence.</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public int BeginMarkedContent(string tag)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_begin_marked_content(_handle, tag, out var mcid),
+            "Failed to begin marked content");
+        return (int)mcid;
+    }
+
+    /// <summary>
+    /// PAGE-009: Ends the most recently opened marked-content sequence, emitting
+    /// an <c>EMC</c> operator. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If no sequence is open or the native call fails.</exception>
+    public PdfPage EndMarkedContent()
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_end_marked_content(_handle),
+            "Failed to end marked content");
+        return this;
+    }
+
+    /// <summary>
+    /// TXT-014: Flows <paramref name="options"/>.Text across multiple columns on
+    /// this page, emitting positioned text per column into the content stream.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="options">Column count/widths, geometry, font and alignment.</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="options"/> or its text is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage RenderColumns(Models.ColumnTextOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(options.Text);
+        ThrowIfDisposed();
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["text"] = options.Text,
+            ["column_count"] = options.ColumnCount,
+            ["total_width"] = options.TotalWidth,
+            ["column_gap"] = options.ColumnGap,
+            ["start_x"] = options.StartX,
+            ["start_y"] = options.StartY,
+            ["column_height"] = options.ColumnHeight,
+        };
+        if (options.CustomWidths is { Count: > 0 })
+            payload["custom_widths"] = options.CustomWidths;
+        if (options.Font is { } font)
+            payload["font"] = font.ToString();
+        if (options.FontSize is { } size)
+            payload["font_size"] = size;
+        if (options.LineHeight is { } lh)
+            payload["line_height"] = lh;
+        if (options.TextAlign is { } align)
+            payload["text_align"] = align.ToString().ToLowerInvariant();
+        if (options.BalanceColumns is { } balance)
+            payload["balance_columns"] = balance;
+        if (options.ShowSeparators is { } sep)
+            payload["show_separators"] = sep;
+        if (options.Color is { } c)
+            payload["color"] = new[] { c.R, c.G, c.B };
+
+        string json = JsonSerializer.Serialize(payload);
+        ThrowIfError(
+            NativeMethods.oxidize_page_render_columns_json(_handle, json),
+            "Failed to render column layout");
+        return this;
     }
 
     // ── Static factory methods for page presets ───────────────────────────────
@@ -974,6 +1137,155 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    // ── Shadings / gradients ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Registers an axial (linear) gradient shading on this page under
+    /// <paramref name="name"/>. Paint it with <see cref="PaintShading"/>. The
+    /// gradient runs along the line from (<paramref name="x1"/>, <paramref name="y1"/>)
+    /// to (<paramref name="x2"/>, <paramref name="y2"/>). Returns <c>this</c>.
+    /// </summary>
+    /// <param name="name">Resource name used to reference the shading when painting.</param>
+    /// <param name="x1">X of the gradient start point, in PDF points.</param>
+    /// <param name="y1">Y of the gradient start point, in PDF points.</param>
+    /// <param name="x2">X of the gradient end point, in PDF points.</param>
+    /// <param name="y2">Y of the gradient end point, in PDF points.</param>
+    /// <param name="stops">Color stops (at least two), ordered by position.</param>
+    /// <param name="extendStart">Whether to extend the gradient before the start point.</param>
+    /// <param name="extendEnd">Whether to extend the gradient beyond the end point.</param>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace or fewer than two stops are given.</exception>
+    /// <exception cref="ArgumentNullException">If <paramref name="stops"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage AddAxialShading(
+        string name,
+        double x1,
+        double y1,
+        double x2,
+        double y2,
+        IEnumerable<GradientStop> stops,
+        bool extendStart = false,
+        bool extendEnd = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(stops);
+        var stopList = ToStopPayload(stops);
+        if (stopList.Count < 2)
+            throw new ArgumentException("A gradient requires at least two stops", nameof(stops));
+        string json = JsonSerializer.Serialize(new
+        {
+            kind = "axial",
+            start = new[] { x1, y1 },
+            end = new[] { x2, y2 },
+            stops = stopList,
+            extend_start = extendStart,
+            extend_end = extendEnd,
+        });
+        return AddShading(name, json);
+    }
+
+    /// <summary>
+    /// Registers a radial gradient shading on this page under
+    /// <paramref name="name"/>. Paint it with <see cref="PaintShading"/>. The
+    /// gradient interpolates between two circles. Returns <c>this</c>.
+    /// </summary>
+    /// <param name="name">Resource name used to reference the shading when painting.</param>
+    /// <param name="startCenterX">X of the start circle center, in PDF points.</param>
+    /// <param name="startCenterY">Y of the start circle center, in PDF points.</param>
+    /// <param name="startRadius">Radius of the start circle, in PDF points.</param>
+    /// <param name="endCenterX">X of the end circle center, in PDF points.</param>
+    /// <param name="endCenterY">Y of the end circle center, in PDF points.</param>
+    /// <param name="endRadius">Radius of the end circle, in PDF points.</param>
+    /// <param name="stops">Color stops (at least two), ordered by position.</param>
+    /// <param name="extendStart">Whether to extend the gradient before the start circle.</param>
+    /// <param name="extendEnd">Whether to extend the gradient beyond the end circle.</param>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace or fewer than two stops are given.</exception>
+    /// <exception cref="ArgumentNullException">If <paramref name="stops"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage AddRadialShading(
+        string name,
+        double startCenterX,
+        double startCenterY,
+        double startRadius,
+        double endCenterX,
+        double endCenterY,
+        double endRadius,
+        IEnumerable<GradientStop> stops,
+        bool extendStart = false,
+        bool extendEnd = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(stops);
+        var stopList = ToStopPayload(stops);
+        if (stopList.Count < 2)
+            throw new ArgumentException("A gradient requires at least two stops", nameof(stops));
+        string json = JsonSerializer.Serialize(new
+        {
+            kind = "radial",
+            start_center = new[] { startCenterX, startCenterY },
+            start_radius = startRadius,
+            end_center = new[] { endCenterX, endCenterY },
+            end_radius = endRadius,
+            stops = stopList,
+            extend_start = extendStart,
+            extend_end = extendEnd,
+        });
+        return AddShading(name, json);
+    }
+
+    /// <summary>
+    /// Paints a previously registered shading with the <c>sh</c> operator,
+    /// filling the current clip region (the whole page if unclipped). To bound
+    /// a gradient, wrap the call: <c>SaveGraphicsState().ClipRect(..).PaintShading(name).RestoreGraphicsState()</c>.
+    /// Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="name">Name of a shading registered via <see cref="AddAxialShading"/> or <see cref="AddRadialShading"/>.</param>
+    /// <exception cref="ArgumentException">If <paramref name="name"/> is null/empty/whitespace.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage PaintShading(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_paint_shading(_handle, name),
+            "Failed to paint shading");
+        return this;
+    }
+
+    /// <summary>
+    /// Ends the current path without filling or stroking (the <c>n</c> operator).
+    /// Used to terminate a manually constructed clipping path before painting.
+    /// For rectangular clips, prefer <see cref="ClipRect"/>. Returns <c>this</c>.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage EndPath()
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_end_path(_handle),
+            "Failed to end path");
+        return this;
+    }
+
+    private PdfPage AddShading(string name, string json)
+    {
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_add_shading_json(_handle, name, json),
+            $"Failed to add shading '{name}'");
+        return this;
+    }
+
+    private static List<object> ToStopPayload(IEnumerable<GradientStop> stops) =>
+        stops.Select(s => (object)new
+        {
+            position = s.Position,
+            color = new[] { s.Red, s.Green, s.Blue },
+        }).ToList();
+
     // ── Blend mode ───────────────────────────────────────────────────────────
 
     /// <summary>
@@ -1191,6 +1503,43 @@ public sealed class PdfPage : IDisposable
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    // ── Form widgets (AcroForm write-path) ─────────────────────────────────────
+
+    /// <summary>
+    /// Places the widget annotation for an AcroForm field on this page, using
+    /// the rectangle supplied when the field was created. Must be called before
+    /// the page is added to its document. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="field">A field reference returned by one of the
+    /// <see cref="PdfDocument"/> <c>Add*</c> form factories.</param>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage AddFormWidget(FormFieldRef field) =>
+        AddFormWidget(field, field.X1, field.Y1, field.X2, field.Y2);
+
+    /// <summary>
+    /// Places a widget annotation for an AcroForm field at an explicit rectangle,
+    /// linked to the field via <c>/Parent</c>. Use this overload to add extra
+    /// widgets for a single field (for example, the individual buttons of a
+    /// radio group). Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="field">A field reference returned by a <see cref="PdfDocument"/> form factory.</param>
+    /// <param name="x1">Lower-left X of the widget rectangle, in PDF points.</param>
+    /// <param name="y1">Lower-left Y of the widget rectangle, in PDF points.</param>
+    /// <param name="x2">Upper-right X of the widget rectangle, in PDF points.</param>
+    /// <param name="y2">Upper-right Y of the widget rectangle, in PDF points.</param>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage AddFormWidget(FormFieldRef field, double x1, double y1, double x2, double y2)
+    {
+        ThrowIfDisposed();
+        string json = JsonSerializer.Serialize(new { rect = new[] { x1, y1, x2, y2 } });
+        ThrowIfError(
+            NativeMethods.oxidize_page_add_form_widget_json(_handle, json, field.ObjectNumber),
+            "Failed to add form widget to page");
+        return this;
     }
 
     // ── Annotations ──────────────────────────────────────────────────────────

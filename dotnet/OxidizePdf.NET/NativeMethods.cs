@@ -249,6 +249,43 @@ internal static class NativeMethods
         out IntPtr outBytes,
         out nuint outLen);
 
+    // ── document metadata — M1 (DOC-014/015/017/018/020) ───────────────────────
+
+    /// <summary>Set the document open action (GoTo/URI) from a JSON payload.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_open_action_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Set the document viewer preferences from a JSON payload.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_viewer_preferences_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Register a named destination (name → destination) from a JSON payload.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_add_named_destination_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Set the document page-label ranges from a JSON payload.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_page_labels_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Serialize the document with an explicit WriterConfig (version, xref/object streams, compression).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_save_to_bytes_with_config(
+        IntPtr handle,
+        int useXrefStreams,
+        int useObjectStreams,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string pdfVersion,
+        int compressStreams,
+        out IntPtr outBytes,
+        out nuint outLen);
+
     /// <summary>Get the number of pages in the document</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_page_count(IntPtr handle, out nuint outCount);
@@ -274,6 +311,33 @@ internal static class NativeMethods
         IntPtr handle,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string outlineJson);
 
+    // ── Forms (M2 write-path) ───────────────────────────────────────────────────
+
+    /// <summary>Enable interactive forms on the document (idempotent).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_enable_forms(IntPtr handle);
+
+    /// <summary>Create an AcroForm field from a tagged JSON DTO; returns its object number.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_add_form_field_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json,
+        out uint outObjNum);
+
+    /// <summary>Set a form field's value in-process (updates /V and regenerates appearance).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_fill_field(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    /// <summary>Attach a widget annotation to a page, linked to a field by its object number.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_form_widget_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json,
+        uint fieldObjNum);
+
     // ── Page ──────────────────────────────────────────────────────────────────
 
     /// <summary>Create a new page with explicit dimensions in PDF points</summary>
@@ -283,6 +347,114 @@ internal static class NativeMethods
     /// <summary>Create a new page from a size preset</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern IntPtr oxidize_page_create_preset(PagePreset preset);
+
+    /// <summary>
+    /// PAGE-010: Build a writable page from a parsed page of an existing PDF,
+    /// preserving original content and resources. Returns a page handle (or
+    /// IntPtr.Zero on error) that must be freed with <c>oxidize_page_free</c>
+    /// or handed to <c>oxidize_document_add_page</c>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr oxidize_page_from_parsed_bytes(
+        IntPtr bytes,
+        nuint bytesLen,
+        uint pageIndex);
+
+    /// <summary>
+    /// PAGE-011: Switch the page to a screen-space (top-left origin) coordinate
+    /// system with a uniform scale, emitting a Y-flip CTM at the head of the
+    /// page's graphics stream.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_begin_screen_space(IntPtr handle, double scale);
+
+    /// <summary>PAGE-009: begin a marked-content sequence; returns the assigned MCID via outMcid.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_begin_marked_content(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string tag,
+        out uint outMcid);
+
+    /// <summary>PAGE-009: end the most recent marked-content sequence.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_end_marked_content(IntPtr handle);
+
+    /// <summary>TXT-014: flow text across columns on the page from a JSON description.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_render_columns_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>DOC-019: attach a Tagged-PDF structure tree to the document from JSON.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_struct_tree_json(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>DOC-021: mark a region as a typed semantic entity.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_mark_entity(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string entityType,
+        double x, double y, double width, double height, uint page);
+
+    /// <summary>DOC-021: set the content text of a marked entity.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_entity_content(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string content);
+
+    /// <summary>DOC-021: add a metadata key/value pair to a marked entity.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_add_entity_metadata(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string key,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    /// <summary>DOC-021: set the confidence (0..1) of a marked entity.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_entity_confidence(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        float confidence);
+
+    /// <summary>DOC-021: record a relationship between two marked entities.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_relate_entities(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string fromId,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string toId,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string relation);
+
+    /// <summary>DOC-021: export semantic entities as a plain JSON array (full fidelity).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_export_semantic_entities_json(IntPtr handle, out IntPtr outJson);
+
+    /// <summary>DOC-021: export semantic entities as Schema.org JSON-LD.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_export_semantic_entities_json_ld(IntPtr handle, out IntPtr outJson);
+
+    /// <summary>TXT-016: validate contract-style text; returns JSON TextValidationResult.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_text_validate_contract(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        out IntPtr outJson);
+
+    /// <summary>TXT-016: search text for a target string; returns JSON TextValidationResult.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_text_search_target(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string target,
+        out IntPtr outJson);
+
+    /// <summary>TXT-016: extract key info (dates, amounts, organizations) as JSON.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_text_extract_key_info(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+        out IntPtr outJson);
 
     /// <summary>Free a page handle</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -500,6 +672,23 @@ internal static class NativeMethods
     /// <summary>Set a rectangular clipping region</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_clip_rect(IntPtr page, double x, double y, double width, double height);
+
+    /// <summary>Register an axial/radial gradient shading on the page from a JSON definition.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_add_shading_json(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json);
+
+    /// <summary>Paint a registered shading with the `sh` operator.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_paint_shading(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
+    /// <summary>End the current path without filling or stroking (the `n` operator).</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_end_path(IntPtr page);
 
     /// <summary>Set a circular clipping region</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1036,6 +1225,48 @@ internal static class NativeMethods
     internal static extern int oxidize_estimate_tokens(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
         out nuint outCount);
+
+    // ── ai — chunking, language detection, token-efficient export (2.13.0) ──────
+
+    /// <summary>
+    /// Chunk a PDF into <c>DocumentChunk</c> records via the core
+    /// <c>DocumentChunker</c>. When <paramref name="detectLanguage"/> is non-zero,
+    /// per-chunk language detection populates each chunk's
+    /// <c>metadata.language</c>. Returns a <c>DocumentChunkDto[]</c> JSON array.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_chunk_pdf(
+        IntPtr pdfBytes, nuint pdfLen,
+        nuint chunkSize, nuint overlap, byte detectLanguage,
+        out IntPtr outJson);
+
+    /// <summary>
+    /// Compute the dominant language across a <c>DocumentChunkDto[]</c> JSON set
+    /// that already carries per-chunk languages. Emits a
+    /// <c>DetectedLanguageDto</c> JSON object, or the literal <c>null</c>.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_language(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string chunksJson,
+        out IntPtr outJson);
+
+    /// <summary>
+    /// Serialize a <c>DocumentChunkDto[]</c> JSON set into the token-efficient
+    /// TOON-style payload (<c>TokenEfficientExporter::export_chunks</c>).
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_export_chunks_token_efficient(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string chunksJson,
+        out IntPtr outStr);
+
+    /// <summary>
+    /// Parse a token-efficient payload back into a <c>DocumentChunkDto[]</c> JSON
+    /// array (inverse of <see cref="oxidize_export_chunks_token_efficient"/>).
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_parse_chunks_token_efficient(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string input,
+        out IntPtr outJson);
 
     // ── Parser — extraction options ────────────────────────────────────────────
 

@@ -7,6 +7,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-06-12
+
+### Added — M1 Document metadata (#20)
+- **DOC-014: Open action.** `PdfDocument.SetOpenAction(PdfOpenAction)` —
+  `PdfOpenAction.GoTo(pageIndex, PdfDestination?)` or `.Uri(string)`;
+  `PdfDestination.Fit/Xyz/FitH/FitV` with `PdfDestinationFit`.
+- **DOC-015: Viewer preferences.** `PdfDocument.SetViewerPreferences(PdfViewerPreferences)`
+  (toolbar/menu visibility, window behaviour, `PdfPageLayout`, `PdfPageMode`,
+  `PdfPrintScaling`, `PdfDuplex`, copies, tray).
+- **DOC-017: Named destinations.** `PdfDocument.AddNamedDestination(name, PdfDestination)`
+  (name tree; re-adding a name overwrites it).
+- **DOC-018: Page labels.** `PdfDocument.SetPageLabels(PdfPageLabels)` —
+  fluent `PdfPageLabels.Create().AddRange(startPage, PdfPageLabelStyle, prefix?, startAt?)`
+  (decimal / roman / letters, optional prefix and starting value).
+- **DOC-020: Save with writer options.** `PdfDocument.SaveToBytes(PdfSaveOptions)`
+  controlling PDF version, xref/object streams, and stream compression
+  (`PdfSaveOptions.Default()` / `.Modern()` / `.Legacy()`).
+
+### Changed
+- **Upstream `oxidize-pdf` 2.12.0 → 2.13.0.** Enables the `language-detection`
+  core feature (`whatlang`).
+- **Upstream `oxidize-pdf` 2.13.0 → 2.14.0.** Adds the `sh` shading-paint
+  operator, unblocking gradient rendering (GFX-017, core issue #297).
+
+### Added — AI chunking (oxidize-pdf 2.13.0)
+- **Language detection.** `DocumentChunker.WithLanguageDetection(bool)` enables
+  per-chunk detection; `DocumentChunker.ChunkPdf(byte[])` returns full-fidelity
+  `OxidizePdf.NET.Ai.DocumentChunk` records (with `ChunkMetadata` /
+  `ChunkPosition` / `DetectedLanguage`); static
+  `DocumentChunker.DocumentLanguage(IEnumerable<DocumentChunk>)` returns the
+  length-weighted dominant language.
+- **Token-efficient chunk export.** `OxidizePdf.NET.Ai.TokenEfficientExporter`
+  with `Export(IEnumerable<DocumentChunk>)` / `Parse(string)` — a TOON-style
+  tabular serialization (~64% fewer tokens than JSON on a representative corpus),
+  round-trippable except for per-chunk `Language`.
+- **Ruling-based table detection toggle.** `PartitionConfig.PreferRulingTables`
+  (default `true`) + `WithoutRulingTables()`, mirroring the new
+  `PartitionConfig::prefer_ruling_tables` core field.
+
+### Note
+- `OxidizePdf.NET.Ai.DocumentChunk` (RAG chunk) is distinct from the existing
+  `OxidizePdf.NET.Models.DocumentChunk` (per-page chunk). Consumers importing
+  both namespaces must qualify the unqualified name.
+
+### Added — GFX-017 Gradients (oxidize-pdf 2.14.0)
+- **Axial (linear) gradients.** `PdfPage.AddAxialShading(name, x1, y1, x2, y2,
+  IEnumerable<GradientStop>, extendStart?, extendEnd?)` registers a Type 2
+  shading; `GradientStop(position, r, g, b)` carries RGB color stops.
+- **Radial gradients.** `PdfPage.AddRadialShading(name, startCenterX, startCenterY,
+  startRadius, endCenterX, endCenterY, endRadius, IEnumerable<GradientStop>,
+  extendStart?, extendEnd?)` registers a Type 3 shading.
+- **Paint + clip primitives.** `PdfPage.PaintShading(name)` emits the `sh`
+  operator; `PdfPage.EndPath()` emits the `n` path-terminator. Bound a gradient
+  with `SaveGraphicsState().ClipRect(..).PaintShading(name).RestoreGraphicsState()`.
+
+### Added — M6 Accessibility, semantic, text advanced (#25)
+- **DOC-019: Tagged PDF structure tree.** `PdfDocument.SetStructureTree(PdfStructureTree)`
+  attaches a logical structure tree built with `PdfStructureTree.AddRoot/AddChild`
+  (standard structure types, `lang`/`alt_text`/`actual_text`/`title`, role
+  mapping, marked-content links). The writer emits `/StructTreeRoot`,
+  `/MarkInfo <</Marked true>>` and `/StructElem` dictionaries — a Tagged PDF.
+- **PAGE-009: Marked content.** `PdfPage.BeginMarkedContent(tag)` returns an
+  auto-assigned MCID and emits `/{tag} <</MCID n>> BDC`; `PdfPage.EndMarkedContent()`
+  emits `EMC`. Link the MCID to a structure element for PDF/UA accessibility.
+- **TXT-014: Column layout.** `PdfPage.RenderColumns(ColumnTextOptions)` flows
+  text across N equal or custom-width columns (font, size, alignment, line
+  height, separators, balance), emitting positioned text per column.
+- **DOC-021: Semantic entities (AI-ready markup).** `PdfDocument.MarkEntity` /
+  `SetEntityContent` / `AddEntityMetadata` / `SetEntityConfidence` /
+  `RelateEntities`, exported with `ExportSemanticEntitiesJson` (full fidelity)
+  or `ExportSemanticEntitiesJsonLd` (Schema.org). **Caveat:** entities are an
+  in-memory annotation + export feature; they are NOT embedded in the saved PDF
+  (use DOC-019 for in-PDF tagged structure).
+- **TXT-016: Text validation.** `TextValidation.ValidateContract` / `Search` /
+  `ExtractKeyInfo` classify dates, monetary amounts, contract numbers and party
+  names in already-extracted text. **Caveat:** this is a text-content validator
+  (upstream `text/validation.rs`), not a PDF-structure integrity checker; feed
+  it extracted text, not raw PDF bytes.
+
+### Added — M5 Page editing and coordinate systems (#24)
+- **PAGE-010: Edit an existing page.** `PdfPage.FromParsedBytes(byte[] pdf, int pageIndex)`
+  opens an existing PDF and returns a writable page that preserves the original
+  content streams and resources (fonts resolved/embedded). New content drawn on
+  the page is overlaid alongside the original; after saving and re-parsing, both
+  the original and the overlay are present.
+- **PAGE-011: Screen-space coordinates.** `PdfPage.BeginScreenSpace(double scale = 1.0)`
+  switches the page to a top-left origin (Y grows downward) with a uniform scale,
+  emitting a single Y-flip transformation matrix so subsequent draw operations
+  use screen-space coordinates. Intended for shape/line/path ops; text drawn
+  after the switch is mirrored vertically (documented caveat).
+
 ## [0.12.0] - 2026-06-06
 
 ### Added — M4a Advanced Graphics
@@ -461,7 +552,8 @@ the FFI boundary as UTF-8 JSON; profile crosses as a `u8` discriminant.
 - Windows x64 (.NET 6.0+)
 - macOS x64 (.NET 6.0+)
 
-[unreleased]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.12.0...v0.13.0
 [0.3.0]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.1.0...v0.2.1

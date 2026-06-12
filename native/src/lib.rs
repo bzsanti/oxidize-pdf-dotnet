@@ -6,7 +6,11 @@ use std::ptr;
 // ── Sub-modules ───────────────────────────────────────────────────────────────
 
 pub mod annotations;
+pub mod chunking;
+pub mod columns;
 pub mod document;
+pub mod document_metadata;
+pub mod forms;
 pub mod graphics;
 pub mod header_footer;
 pub mod image;
@@ -18,8 +22,11 @@ pub mod page;
 pub mod parser;
 pub mod pipeline_config;
 pub mod security;
+pub mod semantic;
 pub mod table;
+pub mod tagged;
 pub mod text;
+pub mod text_validation;
 pub mod types;
 
 // ── Error infrastructure ──────────────────────────────────────────────────────
