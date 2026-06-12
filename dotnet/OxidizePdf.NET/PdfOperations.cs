@@ -314,6 +314,43 @@ public static class PdfOperations
         return Task.Run(() => RotatePages(pdfBytes, degrees, pages), ct);
     }
 
+    /// <summary>
+    /// Fills AcroForm fields on an existing (already-serialized) PDF and returns the updated
+    /// bytes, appending an ISO 32000-1 §7.5.6 incremental update.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="PdfDocument.FillField"/> (which only fills fields created in-process
+    /// through the builder), this works on any parsed PDF produced elsewhere (Acrobat, pdftk,
+    /// ReportLab, …). The base bytes are preserved verbatim as the output prefix; only the
+    /// touched field objects, a partial cross-reference section and a new trailer are appended.
+    /// It sets <c>/AcroForm/NeedAppearances true</c> so compliant viewers regenerate the field
+    /// appearance on open; explicit <c>/AP</c> appearance-stream generation is an upstream follow-up.
+    /// </remarks>
+    /// <param name="pdfBytes">The source PDF as a byte array.</param>
+    /// <param name="fields">Map of fully-qualified field name (e.g. <c>"address.street"</c>) to new value.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The updated PDF as a byte array (base bytes + appended incremental update).</returns>
+    /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> or <paramref name="fields"/> is null.</exception>
+    /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty or <paramref name="fields"/> is empty.</exception>
+    /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
+    /// <exception cref="PdfExtractionException">If parsing fails or a named field does not exist.</exception>
+    public static Task<byte[]> FillFormFieldsAsync(
+        byte[] pdfBytes,
+        IReadOnlyDictionary<string, string> fields,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(fields);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        if (fields.Count == 0)
+            throw new ArgumentException("At least one field is required", nameof(fields));
+
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => FillFormFields(pdfBytes, fields), ct);
+    }
+
     // ── Private synchronous implementations ──────────────────────────────────
 
     private static List<byte[]> Split(byte[] pdfBytes)
@@ -745,6 +782,43 @@ public static class PdfOperations
         }
     }
 
+    private static byte[] FillFormFields(byte[] pdfBytes, IReadOnlyDictionary<string, string> fields)
+    {
+        IntPtr pdfPtr = IntPtr.Zero;
+        IntPtr outPtr = IntPtr.Zero;
+        nuint outLen = 0;
+
+        try
+        {
+            pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+
+            var dtos = fields.Select(kv => new FieldFillDto { Name = kv.Key, Value = kv.Value }).ToArray();
+            var fieldsJson = JsonSerializer.Serialize(dtos);
+
+            var result = NativeMethods.oxidize_fill_existing_form_json(
+                pdfPtr,
+                (nuint)pdfBytes.Length,
+                fieldsJson,
+                out outPtr,
+                out outLen);
+
+            ThrowIfError(result, "Failed to fill form fields on existing PDF");
+
+            var length = (int)outLen;
+            var output = new byte[length];
+            Marshal.Copy(outPtr, output, 0, length);
+            return output;
+        }
+        finally
+        {
+            if (pdfPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(pdfPtr);
+            if (outPtr != IntPtr.Zero)
+                NativeMethods.oxidize_free_bytes(outPtr, outLen);
+        }
+    }
+
     // ── Error helper ──────────────────────────────────────────────────────────
 
     private static void ThrowIfError(int errorCode, string message)
@@ -758,6 +832,15 @@ public static class PdfOperations
     }
 
     // ── Private DTOs ──────────────────────────────────────────────────────────
+
+    private sealed class FieldFillDto
+    {
+        [JsonPropertyName("name")]
+        public string Name { get; init; } = string.Empty;
+
+        [JsonPropertyName("value")]
+        public string Value { get; init; } = string.Empty;
+    }
 
     private sealed class ExtractedImageDto
     {

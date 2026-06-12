@@ -800,6 +800,20 @@ internal static class NativeMethods
         out nuint outLen);
 
     /// <summary>
+    /// Fill AcroForm fields on an existing (already-serialized) PDF via an ISO 32000-1 §7.5.6
+    /// incremental update, returning the updated bytes. fields_json is a JSON array of
+    /// {"name":..,"value":..} entries. Works on any parsed PDF (Acrobat, pdftk, ReportLab, …),
+    /// unlike <see cref="oxidize_document_fill_field"/> which only fills in-process fields.
+    /// </summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_fill_existing_form_json(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string fieldsJson,
+        out IntPtr outBytes,
+        out nuint outLen);
+
+    /// <summary>
     /// Extract all images from a PDF. Returns a JSON array of image objects with base64-encoded data.
     /// The returned string must be freed with <see cref="oxidize_free_string"/>.
     /// </summary>
