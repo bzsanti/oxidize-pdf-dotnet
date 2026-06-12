@@ -31,6 +31,7 @@ use oxidize_pdf::forms::{
     Widget,
 };
 use oxidize_pdf::objects::ObjectReference;
+use oxidize_pdf::writer::IncrementalFormFiller;
 use oxidize_pdf::{Point, Rectangle};
 use serde::Deserialize;
 
@@ -400,6 +401,110 @@ pub unsafe extern "C" fn oxidize_document_fill_field(
     }
 }
 
+// ── Fill an existing/parsed PDF (incremental update, upstream 2.15.0) ─────────
+
+/// One `{ "name": .., "value": .. }` entry for `oxidize_fill_existing_form_json`.
+#[derive(Deserialize)]
+struct FieldFillJson {
+    /// Fully-qualified AcroForm field name (e.g. `"address.street"`).
+    name: String,
+    /// New text value to set on the field's `/V`.
+    value: String,
+}
+
+/// Fill AcroForm fields on an existing (already-serialized) PDF and return the
+/// updated bytes, using upstream `IncrementalFormFiller` (ISO 32000-1 §7.5.6
+/// incremental update). The base bytes are preserved verbatim as the output
+/// prefix; only the touched field objects, a partial xref section and a new
+/// trailer are appended.
+///
+/// Unlike [`oxidize_document_fill_field`] (in-process `FormManager` only), this
+/// works on any parsed PDF (Acrobat, pdftk, ReportLab, …). It sets
+/// `/AcroForm/NeedAppearances true`; compliant viewers regenerate the field
+/// appearance on open. `/AP` appearance-stream generation is an upstream
+/// follow-up.
+///
+/// # Arguments
+/// * `pdf_bytes` / `pdf_len` — the base PDF.
+/// * `fields_json` — a `FieldFillJson[]` JSON C string:
+///   `[{"name":..,"value":..}, …]`.
+/// * `out_bytes` / `out_len` — receive the heap-allocated result; free with
+///   `oxidize_free_bytes`.
+///
+/// # Returns
+/// `Success`; or `NullPointer`, `InvalidUtf8`, `InvalidArgument` (bad JSON or
+/// empty field list), `PdfParseError` (`pdf_len == 0`, parse failure, or an
+/// unknown field name). `*out_bytes` is null on any error.
+///
+/// # Safety
+/// - `pdf_bytes` must point to `pdf_len` readable bytes.
+/// - `fields_json` must be a NUL-terminated UTF-8 C string.
+/// - `out_bytes` must be a writeable `*mut *mut u8`; `out_len` a writeable
+///   `*mut usize`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_fill_existing_form_json(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    fields_json: *const c_char,
+    out_bytes: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    clear_last_error();
+    if pdf_bytes.is_null() || fields_json.is_null() || out_bytes.is_null() || out_len.is_null() {
+        set_last_error("Null pointer provided to oxidize_fill_existing_form_json");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_bytes = std::ptr::null_mut();
+    *out_len = 0;
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let fields_str = match CStr::from_ptr(fields_json).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in fields JSON");
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    let fills: Vec<FieldFillJson> = match serde_json::from_str(fields_str) {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("Invalid fields JSON: {e}"));
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    if fills.is_empty() {
+        set_last_error("Field list is empty");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+
+    let pairs: Vec<(&str, &str)> = fills
+        .iter()
+        .map(|f| (f.name.as_str(), f.value.as_str()))
+        .collect();
+
+    let base = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+    let filled = match IncrementalFormFiller::new(base).fill_many(&pairs) {
+        Ok(b) => b,
+        Err(e) => {
+            set_last_error(format!("Failed to fill form fields: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let len = filled.len();
+    let mut boxed = filled.into_boxed_slice();
+    *out_bytes = boxed.as_mut_ptr();
+    *out_len = len;
+    std::mem::forget(boxed);
+
+    ErrorCode::Success as c_int
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -734,6 +839,149 @@ mod tests {
             let code = oxidize_document_fill_field(handle, name.as_ptr(), value.as_ptr());
             oxidize_document_free(handle);
             assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+        }
+    }
+
+    // ── fill existing/parsed PDF (incremental update, FORM-008) ───────────────
+
+    /// Build a single-text-field PDF (empty value) and return its serialized
+    /// bytes — a stand-in for an arbitrary "form template" PDF.
+    unsafe fn build_form_template(field_name: &str) -> Vec<u8> {
+        let handle = oxidize_document_create();
+        let field_json =
+            format!(r#"{{"kind":"text","name":"{field_name}","rect":[50,700,300,720]}}"#);
+        let obj_num = add_field(handle, &field_json);
+        let page = oxidize_page_create(595.0, 842.0);
+        add_widget(page, r#"{"rect":[50,700,300,720]}"#, obj_num);
+        assert_eq!(
+            oxidize_document_add_page(handle, page),
+            ErrorCode::Success as c_int
+        );
+        oxidize_page_free(page);
+        let bytes = (*handle).inner.to_bytes().unwrap();
+        oxidize_document_free(handle);
+        bytes
+    }
+
+    #[test]
+    fn fill_existing_form_sets_value_recoverable_via_read_path() {
+        unsafe {
+            let base = build_form_template("full_name");
+
+            let fields = CString::new(r#"[{"name":"full_name","value":"Ada Lovelace"}]"#).unwrap();
+            let mut out: *mut u8 = std::ptr::null_mut();
+            let mut out_len: usize = 0;
+            let code = oxidize_fill_existing_form_json(
+                base.as_ptr(),
+                base.len(),
+                fields.as_ptr(),
+                &mut out,
+                &mut out_len,
+            );
+            assert_eq!(
+                code,
+                ErrorCode::Success as c_int,
+                "fill on existing PDF failed"
+            );
+            assert!(
+                !out.is_null() && out_len > base.len(),
+                "expected an appended incremental update (out_len {out_len} > base {})",
+                base.len()
+            );
+
+            let filled = std::slice::from_raw_parts(out, out_len).to_vec();
+            crate::oxidize_free_bytes(out, out_len);
+
+            // ISO 32000-1 §7.5.6: the base bytes must be a verbatim prefix.
+            assert_eq!(
+                &filled[..base.len()],
+                &base[..],
+                "base bytes must be preserved verbatim as the prefix"
+            );
+
+            // The read-path (which follows the most-recent startxref + /Prev
+            // chain) must recover the newly-set value.
+            let mut out_json: *mut c_char = std::ptr::null_mut();
+            assert_eq!(
+                crate::parser::oxidize_get_form_fields(
+                    filled.as_ptr(),
+                    filled.len(),
+                    &mut out_json
+                ),
+                ErrorCode::Success as c_int,
+                "read-path failed on the filled PDF"
+            );
+            let json = CStr::from_ptr(out_json).to_string_lossy().into_owned();
+            crate::oxidize_free_string(out_json);
+            assert!(
+                json.contains("\"field_name\":\"full_name\""),
+                "field name not recovered; got {json}"
+            );
+            assert!(
+                json.contains("\"value\":\"Ada Lovelace\""),
+                "filled value not recovered via read-path; got {json}"
+            );
+        }
+    }
+
+    #[test]
+    fn fill_existing_form_unknown_field_errors_and_nulls_out() {
+        unsafe {
+            let base = build_form_template("full_name");
+            let fields = CString::new(r#"[{"name":"does_not_exist","value":"x"}]"#).unwrap();
+            let mut out: *mut u8 = std::ptr::null_mut();
+            let mut out_len: usize = 0;
+            let code = oxidize_fill_existing_form_json(
+                base.as_ptr(),
+                base.len(),
+                fields.as_ptr(),
+                &mut out,
+                &mut out_len,
+            );
+            assert_ne!(
+                code,
+                ErrorCode::Success as c_int,
+                "filling an unknown field must error"
+            );
+            assert!(out.is_null(), "out_bytes must be null on error");
+            assert_eq!(out_len, 0, "out_len must be 0 on error");
+        }
+    }
+
+    #[test]
+    fn fill_existing_form_empty_field_list_is_invalid_argument() {
+        unsafe {
+            let base = build_form_template("full_name");
+            let fields = CString::new("[]").unwrap();
+            let mut out: *mut u8 = std::ptr::null_mut();
+            let mut out_len: usize = 0;
+            let code = oxidize_fill_existing_form_json(
+                base.as_ptr(),
+                base.len(),
+                fields.as_ptr(),
+                &mut out,
+                &mut out_len,
+            );
+            assert_eq!(code, ErrorCode::InvalidArgument as c_int);
+            assert!(out.is_null());
+        }
+    }
+
+    #[test]
+    fn fill_existing_form_empty_pdf_is_parse_error() {
+        unsafe {
+            let fields = CString::new(r#"[{"name":"x","value":"y"}]"#).unwrap();
+            let mut out: *mut u8 = std::ptr::null_mut();
+            let mut out_len: usize = 0;
+            let code = oxidize_fill_existing_form_json(
+                std::ptr::null(),
+                0,
+                fields.as_ptr(),
+                &mut out,
+                &mut out_len,
+            );
+            // Null pdf pointer is caught before the length check.
+            assert_eq!(code, ErrorCode::NullPointer as c_int);
         }
     }
 

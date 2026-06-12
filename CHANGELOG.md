@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-06-12
+
+### Added — FORM-008: fill forms on existing PDFs
+- **`PdfOperations.FillFormFieldsAsync(byte[] pdfBytes, IReadOnlyDictionary<string, string> fields)`** —
+  fills AcroForm fields on an already-serialized PDF and returns the updated
+  bytes, appending an ISO 32000-1 §7.5.6 incremental update (core
+  `IncrementalFormFiller`, upstream oxidizePdf #318; previously blocked, now
+  unblocked in core 2.15.0). Unlike
+  `PdfDocument.FillField` (in-process builder fields only), this works on any
+  parsed PDF produced elsewhere (Acrobat, pdftk, ReportLab, …). The base bytes
+  are preserved verbatim as the output prefix; `/AcroForm/NeedAppearances` is
+  set so compliant viewers regenerate the field appearance on open. Throws
+  `PdfExtractionException` when a named field does not exist.
+
+### Changed
+- Upgraded the native `oxidize-pdf` core from 2.14.0 to **2.15.0**.
+
+### Fixed — text extraction (via core 2.15.0, #319)
+- Text past a malformed content operator is now recovered instead of dropped.
+- Text inside Form XObjects is now extracted (the extractor recurses into
+  them), recovering content previously missing from some invoices and forms.
+
 ## [0.13.0] - 2026-06-12
 
 ### Added — M1 Document metadata (#20)
@@ -552,7 +574,8 @@ the FFI boundary as UTF-8 JSON; profile crosses as a `u8` discriminant.
 - Windows x64 (.NET 6.0+)
 - macOS x64 (.NET 6.0+)
 
-[unreleased]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.13.0...HEAD
+[unreleased]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.12.0...v0.13.0
 [0.3.0]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/bzsanti/oxidize-pdf-dotnet/compare/v0.2.1...v0.2.2
