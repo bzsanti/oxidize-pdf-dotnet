@@ -246,6 +246,51 @@ public sealed class PdfDocument : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Registers a CID-keyed (CID = glyph id) TrueType font for use with
+    /// <see cref="PdfPage.ShowCidArray"/> — the positioned-glyph-run path used by a
+    /// shaper (upstream issue #358). The caller supplies the CID→GID and
+    /// CID→Unicode maps in <paramref name="mapping"/>; the run stays extractable via
+    /// the emitted <c>ToUnicode</c> CMap. Only TrueType (CIDFontType2) fonts are
+    /// supported. Returns <c>this</c> for fluent chaining.
+    /// </summary>
+    /// <param name="name">A unique name to identify the font.</param>
+    /// <param name="fontData">The raw TrueType font file bytes.</param>
+    /// <param name="mapping">CID→GID (required) and CID→Unicode mappings.</param>
+    /// <exception cref="ArgumentNullException">If any argument is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this document has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails (e.g. the font is not TrueType).</exception>
+    public PdfDocument AddCidKeyedFont(string name, byte[] fontData, Models.CidFontMapping mapping)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(fontData);
+        ArgumentNullException.ThrowIfNull(mapping);
+        ThrowIfDisposed();
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["cid_to_gid"] = mapping.CidToGid,
+        };
+        if (mapping.CidToUnicode.Count > 0)
+            payload["cid_to_unicode"] = mapping.CidToUnicode;
+        if (mapping.CidToUnicodeStr.Count > 0)
+            payload["cid_to_unicode_str"] = mapping.CidToUnicodeStr;
+        string mappingJson = JsonSerializer.Serialize(payload);
+
+        unsafe
+        {
+            fixed (byte* ptr = fontData)
+            {
+                ThrowIfError(
+                    NativeMethods.oxidize_document_add_cid_keyed_font(
+                        _handle, name, (IntPtr)ptr, (nuint)fontData.Length, mappingJson),
+                    "Failed to add CID-keyed font");
+            }
+        }
+
+        return this;
+    }
+
     // ── Pages ─────────────────────────────────────────────────────────────────
 
     /// <summary>

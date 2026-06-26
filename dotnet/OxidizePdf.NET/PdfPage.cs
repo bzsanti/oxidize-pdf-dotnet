@@ -211,6 +211,46 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// Draws a pre-shaped, positioned glyph run over a CID-keyed font registered
+    /// via <see cref="PdfDocument.AddCidKeyedFont"/> (upstream issue #358). Selects
+    /// <paramref name="fontName"/> at <paramref name="size"/> on the page's graphics
+    /// context and emits a <c>TJ</c> array at <c>(x, y)</c>. Returns <c>this</c> for
+    /// fluent chaining.
+    /// </summary>
+    /// <param name="fontName">Name the CID-keyed font was registered under.</param>
+    /// <param name="size">Font size in points.</param>
+    /// <param name="glyphs">The shaped run: glyph CIDs with optional kerning/offset.</param>
+    /// <param name="x">Pen X position (PDF points).</param>
+    /// <param name="y">Pen Y position (PDF points).</param>
+    /// <exception cref="ArgumentNullException">If <paramref name="fontName"/> or <paramref name="glyphs"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">If this page has been disposed.</exception>
+    /// <exception cref="PdfExtractionException">If the native call fails.</exception>
+    public PdfPage ShowCidArray(
+        string fontName, double size, IReadOnlyList<Models.CidGlyph> glyphs, double x, double y)
+    {
+        ArgumentNullException.ThrowIfNull(fontName);
+        ArgumentNullException.ThrowIfNull(glyphs);
+        ThrowIfDisposed();
+
+        var elements = new List<Dictionary<string, object?>>(glyphs.Count);
+        foreach (var g in glyphs)
+        {
+            elements.Add(new Dictionary<string, object?>
+            {
+                ["cid"] = g.Cid,
+                ["adjust"] = g.Adjust,
+                ["x_offset"] = g.XOffset,
+            });
+        }
+        string json = JsonSerializer.Serialize(elements);
+
+        ThrowIfError(
+            NativeMethods.oxidize_page_show_cid_array(_handle, fontName, size, json, x, y),
+            "Failed to draw CID glyph run");
+        return this;
+    }
+
     // ── Static factory methods for page presets ───────────────────────────────
 
     /// <summary>Creates an A4 page (595 x 842 points).</summary>

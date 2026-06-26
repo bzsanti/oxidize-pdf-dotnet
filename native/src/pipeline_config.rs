@@ -62,9 +62,19 @@ pub struct PartitionConfigDto {
     /// keeps the upstream default behaviour.
     #[serde(default = "default_prefer_ruling_tables")]
     pub prefer_ruling_tables: bool,
+    /// Run the spatial-cluster table detector alongside ruling detection.
+    /// Mirrors `PartitionConfig::detect_spatial_tables` (added upstream in 2.16.1, #329).
+    /// Defaults to `true` so JSON emitted by older callers that omit the field
+    /// keeps the upstream default behaviour.
+    #[serde(default = "default_detect_spatial_tables")]
+    pub detect_spatial_tables: bool,
 }
 
 fn default_prefer_ruling_tables() -> bool {
+    true
+}
+
+fn default_detect_spatial_tables() -> bool {
     true
 }
 
@@ -79,6 +89,7 @@ impl From<PartitionConfigDto> for RustPartition {
             reading_order: d.reading_order.into(),
             min_table_confidence: d.min_table_confidence,
             prefer_ruling_tables: d.prefer_ruling_tables,
+            detect_spatial_tables: d.detect_spatial_tables,
         }
     }
 }
@@ -194,6 +205,7 @@ mod tests {
         assert!(matches!(cfg.reading_order, RustReadingOrder::Simple));
         // Field omitted above → serde default must reproduce the upstream default.
         assert!(cfg.prefer_ruling_tables);
+        assert!(cfg.detect_spatial_tables);
     }
 
     #[test]
@@ -211,6 +223,23 @@ mod tests {
         let dto: PartitionConfigDto = serde_json::from_str(json).unwrap();
         let cfg: RustPartition = dto.into();
         assert!(!cfg.prefer_ruling_tables);
+    }
+
+    #[test]
+    fn partition_config_detect_spatial_tables_explicit_false_is_honored() {
+        let json = r#"{
+            "detect_tables": true,
+            "detect_headers_footers": true,
+            "title_min_font_ratio": 1.3,
+            "header_zone": 0.05,
+            "footer_zone": 0.05,
+            "reading_order": "Simple",
+            "min_table_confidence": 0.5,
+            "detect_spatial_tables": false
+        }"#;
+        let dto: PartitionConfigDto = serde_json::from_str(json).unwrap();
+        let cfg: RustPartition = dto.into();
+        assert!(!cfg.detect_spatial_tables);
     }
 
     #[test]
