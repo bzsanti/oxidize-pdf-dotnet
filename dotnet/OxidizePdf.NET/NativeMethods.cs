@@ -305,6 +305,25 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
 
+    /// <summary>Register a CID-keyed (CID = GID) TrueType font with a mapping JSON</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_add_cid_keyed_font(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr fontBytes,
+        nuint fontLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string mappingJson);
+
+    /// <summary>Draw a positioned glyph run over a CID-keyed font on a page</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_show_cid_array(
+        IntPtr page,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string fontName,
+        double size,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string elementsJson,
+        double x,
+        double y);
+
     /// <summary>Set the document outline (bookmarks) from a JSON tree</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_set_outline(

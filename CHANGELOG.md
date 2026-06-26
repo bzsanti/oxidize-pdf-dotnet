@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-06-26
+
+### Added — CID-keyed positioned glyph runs (#358)
+- **`PdfDocument.AddCidKeyedFont(string name, byte[] fontData, CidFontMapping mapping)`**
+  registers a CID-keyed (CID = glyph id) TrueType font, and
+  **`PdfPage.ShowCidArray(string fontName, double size, IReadOnlyList<CidGlyph> glyphs, double x, double y)`**
+  draws a pre-shaped, positioned glyph run (a `TJ` array) over it. The caller
+  supplies an already-shaped run (e.g. from a shaper such as `rustybuzz`),
+  expressing ligatures and per-glyph kerning/offset the Unicode-keyed path
+  cannot; the run stays extractable via the emitted `ToUnicode` CMap. New
+  models `CidFontMapping` (CID→GID and CID→Unicode maps) and `CidGlyph`
+  (`Cid`, `Adjust`, `XOffset`). Exposes upstream `oxidize-pdf` 3.0.0 issue #358.
+  Only TrueType (CIDFontType2) fonts are supported.
+
+### Changed
+- Upgraded the native `oxidize-pdf` core from 2.15.0 to **3.0.1** (a major
+  upstream release). Beyond the CID-keyed write API, this brings bounded-memory
+  lenient parsing for damaged/large PDFs (#339), an xref-stream double-decode
+  fix that repairs the strict reader for every xref-stream PDF (#341), a PDF/A
+  validation fix for Flate-compressed XMP metadata (#346), and a
+  manual-stream-reconstruction fix that preserves non-Flate filters on damaged
+  files (#351).
+
+### Breaking Changes
+None at the .NET API surface. All additions are backward compatible.
+
 ## [0.14.0] - 2026-06-12
 
 ### Added — FORM-008: fill forms on existing PDFs

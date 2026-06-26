@@ -7,6 +7,7 @@ use std::ptr;
 
 pub mod annotations;
 pub mod chunking;
+pub mod cid_font;
 pub mod columns;
 pub mod document;
 pub mod document_metadata;
