@@ -86,78 +86,80 @@ pub unsafe extern "C" fn oxidize_page_render_columns_json(
     page: *mut PageHandle,
     json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || json.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_render_columns_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let json_str = match CStr::from_ptr(json).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in column-layout JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || json.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_render_columns_json");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let dto: ColumnLayoutDto = match serde_json::from_str(json_str) {
-        Ok(d) => d,
-        Err(e) => {
-            set_last_error(format!("Failed to parse column-layout JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
-
-    let mut layout = match &dto.custom_widths {
-        Some(widths) if !widths.is_empty() => {
-            ColumnLayout::with_custom_widths(widths.clone(), dto.column_gap)
-        }
-        _ => {
-            if dto.column_count == 0 {
-                set_last_error("column_count must be >= 1");
-                return ErrorCode::InvalidArgument as c_int;
+        let json_str = match CStr::from_ptr(json).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in column-layout JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
             }
-            ColumnLayout::new(dto.column_count, dto.total_width, dto.column_gap)
+        };
+        let dto: ColumnLayoutDto = match serde_json::from_str(json_str) {
+            Ok(d) => d,
+            Err(e) => {
+                set_last_error(format!("Failed to parse column-layout JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+
+        let mut layout = match &dto.custom_widths {
+            Some(widths) if !widths.is_empty() => {
+                ColumnLayout::with_custom_widths(widths.clone(), dto.column_gap)
+            }
+            _ => {
+                if dto.column_count == 0 {
+                    set_last_error("column_count must be >= 1");
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+                ColumnLayout::new(dto.column_count, dto.total_width, dto.column_gap)
+            }
+        };
+
+        let mut options = ColumnOptions::default();
+        if let Some(f) = &dto.font {
+            options.font = font_from_name(f);
         }
-    };
-
-    let mut options = ColumnOptions::default();
-    if let Some(f) = &dto.font {
-        options.font = font_from_name(f);
-    }
-    if let Some(sz) = dto.font_size {
-        options.font_size = sz;
-    }
-    if let Some(lh) = dto.line_height {
-        options.line_height = lh;
-    }
-    if let Some(a) = &dto.text_align {
-        options.text_align = align_from_name(a);
-    }
-    if let Some(b) = dto.balance_columns {
-        options.balance_columns = b;
-    }
-    if let Some(s) = dto.show_separators {
-        options.show_separators = s;
-    }
-    if let Some([r, g, b]) = dto.color {
-        options.text_color = Color::rgb(r, g, b);
-    }
-    layout.set_options(options);
-
-    let content = ColumnContent::new(dto.text);
-
-    match (*page).inner.graphics().render_column_layout(
-        &layout,
-        &content,
-        dto.start_x,
-        dto.start_y,
-        dto.column_height,
-    ) {
-        Ok(()) => ErrorCode::Success as c_int,
-        Err(e) => {
-            set_last_error(format!("render_column_layout failed: {e}"));
-            ErrorCode::InvalidArgument as c_int
+        if let Some(sz) = dto.font_size {
+            options.font_size = sz;
         }
-    }
+        if let Some(lh) = dto.line_height {
+            options.line_height = lh;
+        }
+        if let Some(a) = &dto.text_align {
+            options.text_align = align_from_name(a);
+        }
+        if let Some(b) = dto.balance_columns {
+            options.balance_columns = b;
+        }
+        if let Some(s) = dto.show_separators {
+            options.show_separators = s;
+        }
+        if let Some([r, g, b]) = dto.color {
+            options.text_color = Color::rgb(r, g, b);
+        }
+        layout.set_options(options);
+
+        let content = ColumnContent::new(dto.text);
+
+        match (*page).inner.graphics().render_column_layout(
+            &layout,
+            &content,
+            dto.start_x,
+            dto.start_y,
+            dto.column_height,
+        ) {
+            Ok(()) => ErrorCode::Success as c_int,
+            Err(e) => {
+                set_last_error(format!("render_column_layout failed: {e}"));
+                ErrorCode::InvalidArgument as c_int
+            }
+        }
+    })
 }
 
 #[cfg(test)]

@@ -22,8 +22,10 @@ namespace OxidizePdf.NET;
 /// </example>
 public sealed class PdfTextFlow : IDisposable
 {
-    private IntPtr _handle;
-    private bool _disposed;
+    private readonly TextFlowSafeHandle _safeHandle;
+
+    // Bridge: existing call sites read `_handle` as an IntPtr unchanged.
+    private IntPtr _handle => _safeHandle.DangerousGetHandle();
 
     /// <summary>
     /// Exposes the native text flow handle for use by <see cref="PdfPage.AddTextFlow"/>.
@@ -47,7 +49,7 @@ public sealed class PdfTextFlow : IDisposable
     internal PdfTextFlow(PdfPage page)
     {
         ArgumentNullException.ThrowIfNull(page);
-        _handle = NativeMethods.oxidize_text_flow_create(page.Handle);
+        _safeHandle = new TextFlowSafeHandle(NativeMethods.oxidize_text_flow_create(page.Handle));
         if (_handle == IntPtr.Zero)
             throw new PdfExtractionException("Failed to create text flow context");
     }
@@ -108,25 +110,14 @@ public sealed class PdfTextFlow : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        if (_handle != IntPtr.Zero)
-        {
-            NativeMethods.oxidize_text_flow_free(_handle);
-            _handle = IntPtr.Zero;
-        }
-
-        GC.SuppressFinalize(this);
+        // SafeHandle releases the native handle exactly once, atomically,
+        // even under concurrent Dispose or finalization (issue #54).
+        _safeHandle.Dispose();
     }
-
-    /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
-    ~PdfTextFlow() => Dispose();
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
+        if (_safeHandle.IsClosed)
             throw new ObjectDisposedException(nameof(PdfTextFlow));
     }
 

@@ -96,22 +96,24 @@ pub unsafe extern "C" fn oxidize_text_validate_contract(
     text: *const c_char,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
-    if text.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_text_validate_contract");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_json = std::ptr::null_mut();
-    let text_str = match CStr::from_ptr(text).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in validation text");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if text.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_text_validate_contract");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let validator = TextValidator::new();
-    let result = validator.validate_contract_text(text_str);
-    emit_json(&to_dto(result), out_json, "validation result")
+        *out_json = std::ptr::null_mut();
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in validation text");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let validator = TextValidator::new();
+        let result = validator.validate_contract_text(text_str);
+        emit_json(&to_dto(result), out_json, "validation result")
+    })
 }
 
 /// TXT-016 — Search `text` for a target string, returning matches as a JSON
@@ -128,29 +130,31 @@ pub unsafe extern "C" fn oxidize_text_search_target(
     target: *const c_char,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
-    if text.is_null() || target.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_text_search_target");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_json = std::ptr::null_mut();
-    let text_str = match CStr::from_ptr(text).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in search text");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if text.is_null() || target.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_text_search_target");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let target_str = match CStr::from_ptr(target).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in search target");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
-    let validator = TextValidator::new();
-    let result = validator.search_for_target(text_str, target_str);
-    emit_json(&to_dto(result), out_json, "search result")
+        *out_json = std::ptr::null_mut();
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in search text");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let target_str = match CStr::from_ptr(target).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in search target");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let validator = TextValidator::new();
+        let result = validator.search_for_target(text_str, target_str);
+        emit_json(&to_dto(result), out_json, "search result")
+    })
 }
 
 /// TXT-016 — Extract key information (dates, monetary amounts, organizations,
@@ -166,22 +170,24 @@ pub unsafe extern "C" fn oxidize_text_extract_key_info(
     text: *const c_char,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
-    if text.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_text_extract_key_info");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_json = std::ptr::null_mut();
-    let text_str = match CStr::from_ptr(text).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in extraction text");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if text.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_text_extract_key_info");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let validator = TextValidator::new();
-    let info = validator.extract_key_info(text_str);
-    emit_json(&info, out_json, "key info")
+        *out_json = std::ptr::null_mut();
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in extraction text");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let validator = TextValidator::new();
+        let info = validator.extract_key_info(text_str);
+        emit_json(&info, out_json, "key info")
+    })
 }
 
 #[cfg(test)]

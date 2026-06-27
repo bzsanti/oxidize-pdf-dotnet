@@ -24,6 +24,9 @@ internal static class NativeMethods
         EncryptionError = 7,
         PermissionError = 8,
         InvalidArgument = 9,
+
+        /// <summary>A Rust panic was caught at the FFI boundary (see last error message).</summary>
+        Panic = 10,
     }
 
     /// <summary>
@@ -1948,6 +1951,18 @@ internal static class NativeMethods
     /// Gets the last error message from the native library and clears it
     /// </summary>
     /// <returns>The error message, or null if no error was set</returns>
+    /// <summary>
+    /// Reads the native library's last error message for the current thread.
+    /// </summary>
+    /// <remarks>
+    /// The native error channel is THREAD-LOCAL (issue #55). This MUST be called
+    /// synchronously, on the same thread, immediately after the failing native
+    /// call — before any <c>await</c>. An <c>await</c> may resume the
+    /// continuation on a different thread-pool thread, which would read that
+    /// thread's (empty or unrelated) error slot. All wrappers satisfy this by
+    /// invoking it from synchronous <c>ThrowIfError</c> helpers; async methods
+    /// keep the whole call+check sequence inside a single <c>Task.Run</c> body.
+    /// </remarks>
     internal static string? GetLastError()
     {
         IntPtr errorPtr = IntPtr.Zero;
@@ -1990,37 +2005,63 @@ internal static class NativeMethods
         else
             throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}");
 
-        // Determine runtime identifier
-        string rid;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            rid = "win-x64";
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            rid = "linux-x64";
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            rid = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "osx-arm64" : "osx-x64";
-        else
-            throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}");
+        // Runtime identifiers to probe, most specific first. Must account for
+        // both architecture (x64/arm64) and, on Linux, the C library
+        // (glibc vs musl) — otherwise ARM and Alpine consumers get a spurious
+        // DllNotFoundException even when the matching native binary is shipped.
+        var rids = GetCandidateRids();
 
-        // Try to load from runtimes folder
         var baseDirectory = AppContext.BaseDirectory;
-        var libraryPath = Path.Combine(baseDirectory, "runtimes", rid, "native", fileName);
-
-        if (File.Exists(libraryPath))
+        foreach (var rid in rids)
         {
-            if (NativeLibrary.TryLoad(libraryPath, out var handle))
+            var ridPath = Path.Combine(baseDirectory, "runtimes", rid, "native", fileName);
+            if (File.Exists(ridPath) && NativeLibrary.TryLoad(ridPath, out var handle))
                 return handle;
         }
 
-        // Try to load from current directory (development scenario)
-        libraryPath = Path.Combine(baseDirectory, fileName);
-        if (File.Exists(libraryPath))
-        {
-            if (NativeLibrary.TryLoad(libraryPath, out var handle))
-                return handle;
-        }
+        // Fall back to the application base directory (development scenario).
+        var localPath = Path.Combine(baseDirectory, fileName);
+        if (File.Exists(localPath) && NativeLibrary.TryLoad(localPath, out var localHandle))
+            return localHandle;
 
         throw new DllNotFoundException(
-            $"Unable to load native library '{fileName}' for runtime '{rid}'. " +
-            $"Searched paths: {baseDirectory}");
+            $"Unable to load native library '{fileName}' for runtime(s) '{string.Join(", ", rids)}'. " +
+            $"Searched under '{Path.Combine(baseDirectory, "runtimes")}' and '{baseDirectory}'.");
+    }
+
+    /// <summary>
+    /// Builds the ordered list of runtime identifiers to probe for the native
+    /// binary, derived from the current OS, process architecture, and (on
+    /// Linux) the C library implementation.
+    /// </summary>
+    private static string[] GetCandidateRids()
+    {
+        string arch = RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X64 => "x64",
+            Architecture.Arm64 => "arm64",
+            Architecture.X86 => "x86",
+            _ => throw new PlatformNotSupportedException(
+                $"Unsupported process architecture: {RuntimeInformation.ProcessArchitecture}"),
+        };
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return new[] { $"win-{arch}" };
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            return new[] { $"osx-{arch}" };
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            // The musl build of .NET (Alpine) reports a musl RID; use that as
+            // the signal and try the matching libc first, the other as fallback.
+            bool isMusl = RuntimeInformation.RuntimeIdentifier
+                .Contains("musl", StringComparison.OrdinalIgnoreCase);
+            return isMusl
+                ? new[] { $"linux-musl-{arch}", $"linux-{arch}" }
+                : new[] { $"linux-{arch}", $"linux-musl-{arch}" };
+        }
+
+        throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}");
     }
 }

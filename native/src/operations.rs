@@ -91,58 +91,61 @@ pub unsafe extern "C" fn oxidize_split_pdf_bytes(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_split_pdf_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_json = ptr::null_mut();
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_split_pdf_bytes");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_json = ptr::null_mut();
 
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
-
-    let result = with_temp_input(input_bytes, |input_path| {
-        let out_dir = std::env::temp_dir();
-        let ts = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let pattern = format!("{}/oxidize_split_{}_page_{{}}.pdf", out_dir.display(), ts);
-
-        let paths = oxidize_pdf::operations::split_into_pages(input_path, &pattern)
-            .map_err(|e| format!("split_into_pages failed: {e}"))?;
-
-        let mut encoded_pages = Vec::with_capacity(paths.len());
-        for path in &paths {
-            let page_bytes =
-                fs::read(path).map_err(|e| format!("Failed to read split page: {e}"))?;
-            encoded_pages.push(base64::engine::general_purpose::STANDARD.encode(&page_bytes));
-            let _ = fs::remove_file(path);
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
         }
 
-        serde_json::to_string(&encoded_pages).map_err(|e| format!("JSON serialization failed: {e}"))
-    });
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
 
-    match result {
-        Ok(json) => match CString::new(json) {
-            Ok(cs) => {
-                *out_json = cs.into_raw();
-                ErrorCode::Success as c_int
+        let result = with_temp_input(input_bytes, |input_path| {
+            let out_dir = std::env::temp_dir();
+            let ts = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0);
+            let pattern = format!("{}/oxidize_split_{}_page_{{}}.pdf", out_dir.display(), ts);
+
+            let paths = oxidize_pdf::operations::split_into_pages(input_path, &pattern)
+                .map_err(|e| format!("split_into_pages failed: {e}"))?;
+
+            let mut encoded_pages = Vec::with_capacity(paths.len());
+            for path in &paths {
+                let page_bytes =
+                    fs::read(path).map_err(|e| format!("Failed to read split page: {e}"))?;
+                encoded_pages.push(base64::engine::general_purpose::STANDARD.encode(&page_bytes));
+                let _ = fs::remove_file(path);
             }
-            Err(_) => {
-                set_last_error("JSON output contains null bytes");
-                ErrorCode::SerializationError as c_int
+
+            serde_json::to_string(&encoded_pages)
+                .map_err(|e| format!("JSON serialization failed: {e}"))
+        });
+
+        match result {
+            Ok(json) => match CString::new(json) {
+                Ok(cs) => {
+                    *out_json = cs.into_raw();
+                    ErrorCode::Success as c_int
+                }
+                Err(_) => {
+                    set_last_error("JSON output contains null bytes");
+                    ErrorCode::SerializationError as c_int
+                }
+            },
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
             }
-        },
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
         }
-    }
+    })
 }
 
 // ── merge ─────────────────────────────────────────────────────────────────────
@@ -162,102 +165,104 @@ pub unsafe extern "C" fn oxidize_merge_pdfs_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if pdfs_json.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_merge_pdfs_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
-
-    let json_str = match CStr::from_ptr(pdfs_json).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in pdfs_json");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdfs_json.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_merge_pdfs_bytes");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
 
-    let encoded: Vec<String> = match serde_json::from_str(json_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Failed to parse pdfs_json: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
+        let json_str = match CStr::from_ptr(pdfs_json).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in pdfs_json");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    if encoded.is_empty() {
-        set_last_error("At least one PDF is required for merge");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    // Decode all base64 PDFs and write to temp files.
-    let mut temp_paths: Vec<PathBuf> = Vec::with_capacity(encoded.len());
-    for (i, b64) in encoded.iter().enumerate() {
-        let decoded = match base64::engine::general_purpose::STANDARD.decode(b64) {
-            Ok(d) => d,
+        let encoded: Vec<String> = match serde_json::from_str(json_str) {
+            Ok(v) => v,
             Err(e) => {
+                set_last_error(format!("Failed to parse pdfs_json: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+
+        if encoded.is_empty() {
+            set_last_error("At least one PDF is required for merge");
+            return ErrorCode::PdfParseError as c_int;
+        }
+
+        // Decode all base64 PDFs and write to temp files.
+        let mut temp_paths: Vec<PathBuf> = Vec::with_capacity(encoded.len());
+        for (i, b64) in encoded.iter().enumerate() {
+            let decoded = match base64::engine::general_purpose::STANDARD.decode(b64) {
+                Ok(d) => d,
+                Err(e) => {
+                    for p in &temp_paths {
+                        let _ = fs::remove_file(p);
+                    }
+                    set_last_error(format!("Failed to decode PDF #{i}: {e}"));
+                    return ErrorCode::PdfParseError as c_int;
+                }
+            };
+            let path = temp_pdf_path(&format!("_merge_{i}"));
+            if let Err(e) = fs::write(&path, &decoded) {
                 for p in &temp_paths {
                     let _ = fs::remove_file(p);
                 }
-                set_last_error(format!("Failed to decode PDF #{i}: {e}"));
-                return ErrorCode::PdfParseError as c_int;
+                set_last_error(format!("Failed to write temp file for PDF #{i}: {e}"));
+                return ErrorCode::IoError as c_int;
+            }
+            temp_paths.push(path);
+        }
+
+        let inputs: Vec<oxidize_pdf::operations::MergeInput> = match temp_paths
+            .iter()
+            .map(|p| {
+                p.to_str()
+                    .ok_or_else(|| "Temp path is not valid UTF-8".to_string())
+                    .map(oxidize_pdf::operations::MergeInput::new)
+            })
+            .collect::<Result<Vec<_>, _>>()
+        {
+            Ok(v) => v,
+            Err(msg) => {
+                for p in &temp_paths {
+                    let _ = fs::remove_file(p);
+                }
+                set_last_error(msg);
+                return ErrorCode::IoError as c_int;
             }
         };
-        let path = temp_pdf_path(&format!("_merge_{i}"));
-        if let Err(e) = fs::write(&path, &decoded) {
-            for p in &temp_paths {
-                let _ = fs::remove_file(p);
+
+        let merge_result = with_temp_output(|output_path| {
+            oxidize_pdf::operations::merge_pdfs(
+                inputs,
+                output_path,
+                oxidize_pdf::operations::MergeOptions::default(),
+            )
+            .map_err(|e| format!("merge_pdfs failed: {e}"))
+        });
+
+        // Clean up temp input files regardless.
+        for p in &temp_paths {
+            let _ = fs::remove_file(p);
+        }
+
+        match merge_result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
             }
-            set_last_error(format!("Failed to write temp file for PDF #{i}: {e}"));
-            return ErrorCode::IoError as c_int;
-        }
-        temp_paths.push(path);
-    }
-
-    let inputs: Vec<oxidize_pdf::operations::MergeInput> = match temp_paths
-        .iter()
-        .map(|p| {
-            p.to_str()
-                .ok_or_else(|| "Temp path is not valid UTF-8".to_string())
-                .map(oxidize_pdf::operations::MergeInput::new)
-        })
-        .collect::<Result<Vec<_>, _>>()
-    {
-        Ok(v) => v,
-        Err(msg) => {
-            for p in &temp_paths {
-                let _ = fs::remove_file(p);
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
             }
-            set_last_error(msg);
-            return ErrorCode::IoError as c_int;
         }
-    };
-
-    let merge_result = with_temp_output(|output_path| {
-        oxidize_pdf::operations::merge_pdfs(
-            inputs,
-            output_path,
-            oxidize_pdf::operations::MergeOptions::default(),
-        )
-        .map_err(|e| format!("merge_pdfs failed: {e}"))
-    });
-
-    // Clean up temp input files regardless.
-    for p in &temp_paths {
-        let _ = fs::remove_file(p);
-    }
-
-    match merge_result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
-        }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
-        }
-    }
+    })
 }
 
 // ── rotate ────────────────────────────────────────────────────────────────────
@@ -278,46 +283,48 @@ pub unsafe extern "C" fn oxidize_rotate_pdf_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_rotate_pdf_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_rotate_pdf_bytes");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
 
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let angle = match oxidize_pdf::operations::RotationAngle::from_degrees(degrees) {
-        Ok(a) => a,
-        Err(e) => {
-            set_last_error(format!("Invalid rotation angle {degrees}: {e}"));
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
             return ErrorCode::PdfParseError as c_int;
         }
-    };
 
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+        let angle = match oxidize_pdf::operations::RotationAngle::from_degrees(degrees) {
+            Ok(a) => a,
+            Err(e) => {
+                set_last_error(format!("Invalid rotation angle {degrees}: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
 
-    let result = with_temp_input(input_bytes, |input_path| {
-        with_temp_output(|output_path| {
-            oxidize_pdf::operations::rotate_all_pages(input_path, output_path, angle)
-                .map_err(|e| format!("rotate_all_pages failed: {e}"))
-        })
-    });
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
 
-    match result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
+        let result = with_temp_input(input_bytes, |input_path| {
+            with_temp_output(|output_path| {
+                oxidize_pdf::operations::rotate_all_pages(input_path, output_path, angle)
+                    .map_err(|e| format!("rotate_all_pages failed: {e}"))
+            })
+        });
+
+        match result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
+            }
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
         }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
-        }
-    }
+    })
 }
 
 // ── extract pages ─────────────────────────────────────────────────────────────
@@ -339,59 +346,61 @@ pub unsafe extern "C" fn oxidize_extract_pages_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || pages_json.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_extract_pages_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
-
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let json_str = match CStr::from_ptr(pages_json).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in pages_json");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || pages_json.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_extract_pages_bytes");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
 
-    let indices: Vec<usize> = match serde_json::from_str(json_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Failed to parse pages_json: {e}"));
-            return ErrorCode::SerializationError as c_int;
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
         }
-    };
 
-    if indices.is_empty() {
-        set_last_error("At least one page index is required");
-        return ErrorCode::PdfParseError as c_int;
-    }
+        let json_str = match CStr::from_ptr(pages_json).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in pages_json");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+        let indices: Vec<usize> = match serde_json::from_str(json_str) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Failed to parse pages_json: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
 
-    let result = with_temp_input(input_bytes, |input_path| {
-        with_temp_output(|output_path| {
-            oxidize_pdf::operations::extract_pages_to_file(input_path, &indices, output_path)
-                .map_err(|e| format!("extract_pages_to_file failed: {e}"))
-        })
-    });
-
-    match result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
+        if indices.is_empty() {
+            set_last_error("At least one page index is required");
+            return ErrorCode::PdfParseError as c_int;
         }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
+
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+        let result = with_temp_input(input_bytes, |input_path| {
+            with_temp_output(|output_path| {
+                oxidize_pdf::operations::extract_pages_to_file(input_path, &indices, output_path)
+                    .map_err(|e| format!("extract_pages_to_file failed: {e}"))
+            })
+        });
+
+        match result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
+            }
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
         }
-    }
+    })
 }
 
 // ── reorder pages ────────────────────────────────────────────────────────────
@@ -410,59 +419,61 @@ pub unsafe extern "C" fn oxidize_reorder_pages_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || order_json.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_reorder_pages_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
-
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let json_str = match CStr::from_ptr(order_json).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in order_json");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || order_json.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_reorder_pages_bytes");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
 
-    let order: Vec<usize> = match serde_json::from_str(json_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Failed to parse order_json: {e}"));
-            return ErrorCode::SerializationError as c_int;
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
         }
-    };
 
-    if order.is_empty() {
-        set_last_error("Page order array cannot be empty");
-        return ErrorCode::PdfParseError as c_int;
-    }
+        let json_str = match CStr::from_ptr(order_json).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in order_json");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+        let order: Vec<usize> = match serde_json::from_str(json_str) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Failed to parse order_json: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
 
-    let result = with_temp_input(input_bytes, |input_path| {
-        with_temp_output(|output_path| {
-            oxidize_pdf::operations::reorder_pdf_pages(input_path, output_path, order.clone())
-                .map_err(|e| format!("reorder_pdf_pages failed: {e}"))
-        })
-    });
-
-    match result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
+        if order.is_empty() {
+            set_last_error("Page order array cannot be empty");
+            return ErrorCode::PdfParseError as c_int;
         }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
+
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+        let result = with_temp_input(input_bytes, |input_path| {
+            with_temp_output(|output_path| {
+                oxidize_pdf::operations::reorder_pdf_pages(input_path, output_path, order.clone())
+                    .map_err(|e| format!("reorder_pdf_pages failed: {e}"))
+            })
+        });
+
+        match result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
+            }
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
         }
-    }
+    })
 }
 
 // ── swap pages ───────────────────────────────────────────────────────────────
@@ -481,38 +492,40 @@ pub unsafe extern "C" fn oxidize_swap_pages_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_swap_pages_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
-
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
-
-    let result = with_temp_input(input_bytes, |input_path| {
-        with_temp_output(|output_path| {
-            oxidize_pdf::operations::swap_pdf_pages(input_path, output_path, page_a, page_b)
-                .map_err(|e| format!("swap_pdf_pages failed: {e}"))
-        })
-    });
-
-    match result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_swap_pages_bytes");
+            return ErrorCode::NullPointer as c_int;
         }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
+
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
         }
-    }
+
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+        let result = with_temp_input(input_bytes, |input_path| {
+            with_temp_output(|output_path| {
+                oxidize_pdf::operations::swap_pdf_pages(input_path, output_path, page_a, page_b)
+                    .map_err(|e| format!("swap_pdf_pages failed: {e}"))
+            })
+        });
+
+        match result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
+            }
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
+        }
+    })
 }
 
 // ── move page ────────────────────────────────────────────────────────────────
@@ -531,38 +544,45 @@ pub unsafe extern "C" fn oxidize_move_page_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_move_page_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_move_page_bytes");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
 
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
+        }
 
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
 
-    let result = with_temp_input(input_bytes, |input_path| {
-        with_temp_output(|output_path| {
-            oxidize_pdf::operations::move_pdf_page(input_path, output_path, from_index, to_index)
+        let result = with_temp_input(input_bytes, |input_path| {
+            with_temp_output(|output_path| {
+                oxidize_pdf::operations::move_pdf_page(
+                    input_path,
+                    output_path,
+                    from_index,
+                    to_index,
+                )
                 .map_err(|e| format!("move_pdf_page failed: {e}"))
-        })
-    });
+            })
+        });
 
-    match result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
+        match result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
+            }
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
         }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
-        }
-    }
+    })
 }
 
 // ── reverse pages ────────────────────────────────────────────────────────────
@@ -579,38 +599,40 @@ pub unsafe extern "C" fn oxidize_reverse_pages_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_reverse_pages_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
-
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
-
-    let result = with_temp_input(input_bytes, |input_path| {
-        with_temp_output(|output_path| {
-            oxidize_pdf::operations::reverse_pdf_pages(input_path, output_path)
-                .map_err(|e| format!("reverse_pdf_pages failed: {e}"))
-        })
-    });
-
-    match result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_reverse_pages_bytes");
+            return ErrorCode::NullPointer as c_int;
         }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
+
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
         }
-    }
+
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+        let result = with_temp_input(input_bytes, |input_path| {
+            with_temp_output(|output_path| {
+                oxidize_pdf::operations::reverse_pdf_pages(input_path, output_path)
+                    .map_err(|e| format!("reverse_pdf_pages failed: {e}"))
+            })
+        });
+
+        match result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
+            }
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
+        }
+    })
 }
 
 // ── split with options ────────────────────────────────────────────────────────
@@ -643,102 +665,104 @@ pub unsafe extern "C" fn oxidize_split_pdf_bytes_with_options(
     options_json: *const c_char,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || options_json.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_split_pdf_bytes_with_options");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_json = ptr::null_mut();
-
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let opts_str = match CStr::from_ptr(options_json).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in options_json");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || options_json.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_split_pdf_bytes_with_options");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        *out_json = ptr::null_mut();
 
-    let opts_json: SplitOptionsJson = match serde_json::from_str(opts_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Failed to parse options_json: {e}"));
-            return ErrorCode::SerializationError as c_int;
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
         }
-    };
 
-    let split_mode = match opts_json {
-        SplitOptionsJson::SinglePages => oxidize_pdf::operations::SplitMode::SinglePages,
-        SplitOptionsJson::ChunkSize { chunk_size } => {
-            oxidize_pdf::operations::SplitMode::ChunkSize(chunk_size)
-        }
-        SplitOptionsJson::Ranges { ranges } => {
-            let page_ranges: Vec<oxidize_pdf::operations::PageRange> = ranges
-                .iter()
-                .map(|&[from, to]| oxidize_pdf::operations::PageRange::Range(from, to))
-                .collect();
-            oxidize_pdf::operations::SplitMode::Ranges(page_ranges)
-        }
-        SplitOptionsJson::SplitAt { split_at } => {
-            oxidize_pdf::operations::SplitMode::SplitAt(split_at)
-        }
-    };
-
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
-
-    let result = with_temp_input(input_bytes, |input_path| {
-        let out_dir = std::env::temp_dir();
-        let ts = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let pattern = format!(
-            "{}/oxidize_split_opts_{}_chunk_{{}}.pdf",
-            out_dir.display(),
-            ts
-        );
-
-        let options = oxidize_pdf::operations::SplitOptions {
-            mode: split_mode,
-            output_pattern: pattern,
-            ..Default::default()
+        let opts_str = match CStr::from_ptr(options_json).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in options_json");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
         };
 
-        let paths = oxidize_pdf::operations::split_pdf(input_path, options)
-            .map_err(|e| format!("split_pdf failed: {e}"))?;
-
-        let mut encoded_chunks = Vec::with_capacity(paths.len());
-        for path in &paths {
-            let chunk_bytes =
-                fs::read(path).map_err(|e| format!("Failed to read split chunk: {e}"))?;
-            encoded_chunks.push(base64::engine::general_purpose::STANDARD.encode(&chunk_bytes));
-            let _ = fs::remove_file(path);
-        }
-
-        serde_json::to_string(&encoded_chunks)
-            .map_err(|e| format!("JSON serialization failed: {e}"))
-    });
-
-    match result {
-        Ok(json) => match CString::new(json) {
-            Ok(cs) => {
-                *out_json = cs.into_raw();
-                ErrorCode::Success as c_int
+        let opts_json: SplitOptionsJson = match serde_json::from_str(opts_str) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Failed to parse options_json: {e}"));
+                return ErrorCode::SerializationError as c_int;
             }
-            Err(_) => {
-                set_last_error("JSON output contains null bytes");
-                ErrorCode::SerializationError as c_int
+        };
+
+        let split_mode = match opts_json {
+            SplitOptionsJson::SinglePages => oxidize_pdf::operations::SplitMode::SinglePages,
+            SplitOptionsJson::ChunkSize { chunk_size } => {
+                oxidize_pdf::operations::SplitMode::ChunkSize(chunk_size)
             }
-        },
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
+            SplitOptionsJson::Ranges { ranges } => {
+                let page_ranges: Vec<oxidize_pdf::operations::PageRange> = ranges
+                    .iter()
+                    .map(|&[from, to]| oxidize_pdf::operations::PageRange::Range(from, to))
+                    .collect();
+                oxidize_pdf::operations::SplitMode::Ranges(page_ranges)
+            }
+            SplitOptionsJson::SplitAt { split_at } => {
+                oxidize_pdf::operations::SplitMode::SplitAt(split_at)
+            }
+        };
+
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+        let result = with_temp_input(input_bytes, |input_path| {
+            let out_dir = std::env::temp_dir();
+            let ts = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0);
+            let pattern = format!(
+                "{}/oxidize_split_opts_{}_chunk_{{}}.pdf",
+                out_dir.display(),
+                ts
+            );
+
+            let options = oxidize_pdf::operations::SplitOptions {
+                mode: split_mode,
+                output_pattern: pattern,
+                ..Default::default()
+            };
+
+            let paths = oxidize_pdf::operations::split_pdf(input_path, options)
+                .map_err(|e| format!("split_pdf failed: {e}"))?;
+
+            let mut encoded_chunks = Vec::with_capacity(paths.len());
+            for path in &paths {
+                let chunk_bytes =
+                    fs::read(path).map_err(|e| format!("Failed to read split chunk: {e}"))?;
+                encoded_chunks.push(base64::engine::general_purpose::STANDARD.encode(&chunk_bytes));
+                let _ = fs::remove_file(path);
+            }
+
+            serde_json::to_string(&encoded_chunks)
+                .map_err(|e| format!("JSON serialization failed: {e}"))
+        });
+
+        match result {
+            Ok(json) => match CString::new(json) {
+                Ok(cs) => {
+                    *out_json = cs.into_raw();
+                    ErrorCode::Success as c_int
+                }
+                Err(_) => {
+                    set_last_error("JSON output contains null bytes");
+                    ErrorCode::SerializationError as c_int
+                }
+            },
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
         }
-    }
+    })
 }
 
 // ── merge with page ranges ─────────────────────────────────────────────────────
@@ -790,105 +814,107 @@ pub unsafe extern "C" fn oxidize_merge_pdfs_with_ranges(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if inputs_json.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_merge_pdfs_with_ranges");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
-
-    let json_str = match CStr::from_ptr(inputs_json).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in inputs_json");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if inputs_json.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_merge_pdfs_with_ranges");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
 
-    let inputs_data: Vec<MergeInputJson> = match serde_json::from_str(json_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Failed to parse inputs_json: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
+        let json_str = match CStr::from_ptr(inputs_json).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in inputs_json");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    if inputs_data.is_empty() {
-        set_last_error("At least one PDF is required for merge");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    // Decode all base64 PDFs and write to temp files.
-    let mut temp_paths: Vec<PathBuf> = Vec::with_capacity(inputs_data.len());
-
-    for (i, input) in inputs_data.iter().enumerate() {
-        let decoded = match base64::engine::general_purpose::STANDARD.decode(&input.pdf) {
-            Ok(d) => d,
+        let inputs_data: Vec<MergeInputJson> = match serde_json::from_str(json_str) {
+            Ok(v) => v,
             Err(e) => {
+                set_last_error(format!("Failed to parse inputs_json: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+
+        if inputs_data.is_empty() {
+            set_last_error("At least one PDF is required for merge");
+            return ErrorCode::PdfParseError as c_int;
+        }
+
+        // Decode all base64 PDFs and write to temp files.
+        let mut temp_paths: Vec<PathBuf> = Vec::with_capacity(inputs_data.len());
+
+        for (i, input) in inputs_data.iter().enumerate() {
+            let decoded = match base64::engine::general_purpose::STANDARD.decode(&input.pdf) {
+                Ok(d) => d,
+                Err(e) => {
+                    for p in &temp_paths {
+                        let _ = fs::remove_file(p);
+                    }
+                    set_last_error(format!("Failed to decode PDF #{i}: {e}"));
+                    return ErrorCode::PdfParseError as c_int;
+                }
+            };
+            let path = temp_pdf_path(&format!("_merge_ranges_{i}"));
+            if let Err(e) = fs::write(&path, &decoded) {
                 for p in &temp_paths {
                     let _ = fs::remove_file(p);
                 }
-                set_last_error(format!("Failed to decode PDF #{i}: {e}"));
-                return ErrorCode::PdfParseError as c_int;
+                set_last_error(format!("Failed to write temp file for PDF #{i}: {e}"));
+                return ErrorCode::IoError as c_int;
             }
-        };
-        let path = temp_pdf_path(&format!("_merge_ranges_{i}"));
-        if let Err(e) = fs::write(&path, &decoded) {
+            temp_paths.push(path);
+        }
+
+        // Build MergeInput list with optional page ranges.
+        let merge_inputs: Vec<oxidize_pdf::operations::MergeInput> = temp_paths
+            .iter()
+            .zip(inputs_data)
+            .filter_map(|(path, data)| {
+                path.to_str().map(|path_str| match data.pages {
+                    Some(range) => {
+                        oxidize_pdf::operations::MergeInput::with_pages(path_str, range.into_core())
+                    }
+                    None => oxidize_pdf::operations::MergeInput::new(path_str),
+                })
+            })
+            .collect();
+
+        if merge_inputs.len() != temp_paths.len() {
             for p in &temp_paths {
                 let _ = fs::remove_file(p);
             }
-            set_last_error(format!("Failed to write temp file for PDF #{i}: {e}"));
+            set_last_error("One or more temp paths are not valid UTF-8");
             return ErrorCode::IoError as c_int;
         }
-        temp_paths.push(path);
-    }
 
-    // Build MergeInput list with optional page ranges.
-    let merge_inputs: Vec<oxidize_pdf::operations::MergeInput> = temp_paths
-        .iter()
-        .zip(inputs_data)
-        .filter_map(|(path, data)| {
-            path.to_str().map(|path_str| match data.pages {
-                Some(range) => {
-                    oxidize_pdf::operations::MergeInput::with_pages(path_str, range.into_core())
-                }
-                None => oxidize_pdf::operations::MergeInput::new(path_str),
-            })
-        })
-        .collect();
+        let merge_result = with_temp_output(|output_path| {
+            oxidize_pdf::operations::merge_pdfs(
+                merge_inputs,
+                output_path,
+                oxidize_pdf::operations::MergeOptions::default(),
+            )
+            .map_err(|e| format!("merge_pdfs failed: {e}"))
+        });
 
-    if merge_inputs.len() != temp_paths.len() {
         for p in &temp_paths {
             let _ = fs::remove_file(p);
         }
-        set_last_error("One or more temp paths are not valid UTF-8");
-        return ErrorCode::IoError as c_int;
-    }
 
-    let merge_result = with_temp_output(|output_path| {
-        oxidize_pdf::operations::merge_pdfs(
-            merge_inputs,
-            output_path,
-            oxidize_pdf::operations::MergeOptions::default(),
-        )
-        .map_err(|e| format!("merge_pdfs failed: {e}"))
-    });
-
-    for p in &temp_paths {
-        let _ = fs::remove_file(p);
-    }
-
-    match merge_result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
+        match merge_result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
+            }
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
         }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
-        }
-    }
+    })
 }
 
 // ── rotate selected pages ─────────────────────────────────────────────────────
@@ -913,71 +939,73 @@ pub unsafe extern "C" fn oxidize_rotate_pages_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_rotate_pages_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_rotate_pages_bytes");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
 
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let angle = match oxidize_pdf::operations::RotationAngle::from_degrees(degrees) {
-        Ok(a) => a,
-        Err(e) => {
-            set_last_error(format!("Invalid rotation angle {degrees}: {e}"));
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
             return ErrorCode::PdfParseError as c_int;
         }
-    };
 
-    let page_range = if pages_json.is_null() {
-        oxidize_pdf::operations::PageRange::All
-    } else {
-        let range_str = match CStr::from_ptr(pages_json).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in pages_json");
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-        let range_json: PageRangeJson = match serde_json::from_str(range_str) {
-            Ok(v) => v,
+        let angle = match oxidize_pdf::operations::RotationAngle::from_degrees(degrees) {
+            Ok(a) => a,
             Err(e) => {
-                set_last_error(format!("Failed to parse pages_json: {e}"));
-                return ErrorCode::SerializationError as c_int;
+                set_last_error(format!("Invalid rotation angle {degrees}: {e}"));
+                return ErrorCode::PdfParseError as c_int;
             }
         };
-        range_json.into_core()
-    };
 
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
-
-    let result = with_temp_input(input_bytes, |input_path| {
-        with_temp_output(|output_path| {
-            let options = oxidize_pdf::operations::RotateOptions {
-                pages: page_range,
-                angle,
-                preserve_page_size: false,
+        let page_range = if pages_json.is_null() {
+            oxidize_pdf::operations::PageRange::All
+        } else {
+            let range_str = match CStr::from_ptr(pages_json).to_str() {
+                Ok(s) => s,
+                Err(_) => {
+                    set_last_error("Invalid UTF-8 in pages_json");
+                    return ErrorCode::InvalidUtf8 as c_int;
+                }
             };
-            oxidize_pdf::operations::rotate_pdf_pages(input_path, output_path, options)
-                .map_err(|e| format!("rotate_pdf_pages failed: {e}"))
-        })
-    });
+            let range_json: PageRangeJson = match serde_json::from_str(range_str) {
+                Ok(v) => v,
+                Err(e) => {
+                    set_last_error(format!("Failed to parse pages_json: {e}"));
+                    return ErrorCode::SerializationError as c_int;
+                }
+            };
+            range_json.into_core()
+        };
 
-    match result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+
+        let result = with_temp_input(input_bytes, |input_path| {
+            with_temp_output(|output_path| {
+                let options = oxidize_pdf::operations::RotateOptions {
+                    pages: page_range,
+                    angle,
+                    preserve_page_size: false,
+                };
+                oxidize_pdf::operations::rotate_pdf_pages(input_path, output_path, options)
+                    .map_err(|e| format!("rotate_pdf_pages failed: {e}"))
+            })
+        });
+
+        match result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
+            }
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
         }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
-        }
-    }
+    })
 }
 
 // ── overlay ──────────────────────────────────────────────────────────────────
@@ -997,58 +1025,64 @@ pub unsafe extern "C" fn oxidize_overlay_pdf_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if base_bytes.is_null() || overlay_bytes.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_overlay_pdf_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if base_bytes.is_null()
+            || overlay_bytes.is_null()
+            || out_bytes.is_null()
+            || out_len.is_null()
+        {
+            set_last_error("Null pointer provided to oxidize_overlay_pdf_bytes");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
 
-    if base_len == 0 || overlay_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
+        if base_len == 0 || overlay_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
+        }
 
-    let base_data = std::slice::from_raw_parts(base_bytes, base_len);
-    let overlay_data = std::slice::from_raw_parts(overlay_bytes, overlay_len);
+        let base_data = std::slice::from_raw_parts(base_bytes, base_len);
+        let overlay_data = std::slice::from_raw_parts(overlay_bytes, overlay_len);
 
-    let base_path = temp_pdf_path("_overlay_base");
-    let overlay_path = temp_pdf_path("_overlay_top");
+        let base_path = temp_pdf_path("_overlay_base");
+        let overlay_path = temp_pdf_path("_overlay_top");
 
-    if let Err(e) = fs::write(&base_path, base_data) {
-        set_last_error(format!("Failed to write base temp file: {e}"));
-        return ErrorCode::IoError as c_int;
-    }
-    if let Err(e) = fs::write(&overlay_path, overlay_data) {
+        if let Err(e) = fs::write(&base_path, base_data) {
+            set_last_error(format!("Failed to write base temp file: {e}"));
+            return ErrorCode::IoError as c_int;
+        }
+        if let Err(e) = fs::write(&overlay_path, overlay_data) {
+            let _ = fs::remove_file(&base_path);
+            set_last_error(format!("Failed to write overlay temp file: {e}"));
+            return ErrorCode::IoError as c_int;
+        }
+
+        let result = with_temp_output(|output_path| {
+            oxidize_pdf::operations::overlay_pdf(
+                &base_path,
+                &overlay_path,
+                output_path,
+                oxidize_pdf::operations::OverlayOptions::default(),
+            )
+            .map_err(|e| format!("overlay_pdf failed: {e}"))
+        });
+
         let _ = fs::remove_file(&base_path);
-        set_last_error(format!("Failed to write overlay temp file: {e}"));
-        return ErrorCode::IoError as c_int;
-    }
+        let _ = fs::remove_file(&overlay_path);
 
-    let result = with_temp_output(|output_path| {
-        oxidize_pdf::operations::overlay_pdf(
-            &base_path,
-            &overlay_path,
-            output_path,
-            oxidize_pdf::operations::OverlayOptions::default(),
-        )
-        .map_err(|e| format!("overlay_pdf failed: {e}"))
-    });
-
-    let _ = fs::remove_file(&base_path);
-    let _ = fs::remove_file(&overlay_path);
-
-    match result {
-        Ok(bytes) => {
-            set_out_bytes(bytes, out_bytes, out_len);
-            ErrorCode::Success as c_int
+        match result {
+            Ok(bytes) => {
+                set_out_bytes(bytes, out_bytes, out_len);
+                ErrorCode::Success as c_int
+            }
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
+            }
         }
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
-        }
-    }
+    })
 }
 
 // ── extract images ───────────────────────────────────────────────────────────
@@ -1068,54 +1102,55 @@ pub unsafe extern "C" fn oxidize_extract_images_bytes(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_extract_images_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_json = ptr::null_mut();
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_extract_images_bytes");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_json = ptr::null_mut();
 
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
+        }
 
-    let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
 
-    let result = with_temp_input(input_bytes, |input_path| {
-        let ts = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let tid = std::thread::current().id();
-        let out_dir = std::env::temp_dir().join(format!("oxidize_imgs_{ts}_{tid:?}"));
+        let result = with_temp_input(input_bytes, |input_path| {
+            let ts = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0);
+            let tid = std::thread::current().id();
+            let out_dir = std::env::temp_dir().join(format!("oxidize_imgs_{ts}_{tid:?}"));
 
-        let options = oxidize_pdf::operations::ExtractImagesOptions {
-            output_dir: out_dir.clone(),
-            create_dir: true,
-            ..Default::default()
-        };
-
-        let images = oxidize_pdf::operations::extract_images_from_pdf(input_path, options)
-            .map_err(|e| format!("extract_images_from_pdf failed: {e}"))?;
-
-        let mut json_items: Vec<String> = Vec::with_capacity(images.len());
-        for img in &images {
-            let img_bytes = match fs::read(&img.file_path) {
-                Ok(b) => b,
-                Err(e) => {
-                    let _ = fs::remove_dir_all(&out_dir);
-                    return Err(format!("Failed to read extracted image: {e}"));
-                }
+            let options = oxidize_pdf::operations::ExtractImagesOptions {
+                output_dir: out_dir.clone(),
+                create_dir: true,
+                ..Default::default()
             };
-            let data_b64 = base64::engine::general_purpose::STANDARD.encode(&img_bytes);
-            let format_str = match img.format {
-                oxidize_pdf::ImageFormat::Jpeg => "jpeg",
-                oxidize_pdf::ImageFormat::Png => "png",
-                oxidize_pdf::ImageFormat::Tiff => "tiff",
-                oxidize_pdf::ImageFormat::Raw => "raw",
-            };
-            json_items.push(format!(
+
+            let images = oxidize_pdf::operations::extract_images_from_pdf(input_path, options)
+                .map_err(|e| format!("extract_images_from_pdf failed: {e}"))?;
+
+            let mut json_items: Vec<String> = Vec::with_capacity(images.len());
+            for img in &images {
+                let img_bytes = match fs::read(&img.file_path) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        let _ = fs::remove_dir_all(&out_dir);
+                        return Err(format!("Failed to read extracted image: {e}"));
+                    }
+                };
+                let data_b64 = base64::engine::general_purpose::STANDARD.encode(&img_bytes);
+                let format_str = match img.format {
+                    oxidize_pdf::ImageFormat::Jpeg => "jpeg",
+                    oxidize_pdf::ImageFormat::Png => "png",
+                    oxidize_pdf::ImageFormat::Tiff => "tiff",
+                    oxidize_pdf::ImageFormat::Raw => "raw",
+                };
+                json_items.push(format!(
                 r#"{{"page_number":{page},"image_index":{idx},"width":{w},"height":{h},"format":"{fmt}","data":"{b64}"}}"#,
                 page = img.page_number,
                 idx = img.image_index,
@@ -1124,27 +1159,28 @@ pub unsafe extern "C" fn oxidize_extract_images_bytes(
                 fmt = format_str,
                 b64 = data_b64,
             ));
-        }
-
-        let _ = fs::remove_dir_all(&out_dir);
-
-        Ok(format!("[{}]", json_items.join(",")))
-    });
-
-    match result {
-        Ok(json) => match CString::new(json) {
-            Ok(cs) => {
-                *out_json = cs.into_raw();
-                ErrorCode::Success as c_int
             }
-            Err(_) => {
-                set_last_error("JSON output contains null bytes");
-                ErrorCode::SerializationError as c_int
+
+            let _ = fs::remove_dir_all(&out_dir);
+
+            Ok(format!("[{}]", json_items.join(",")))
+        });
+
+        match result {
+            Ok(json) => match CString::new(json) {
+                Ok(cs) => {
+                    *out_json = cs.into_raw();
+                    ErrorCode::Success as c_int
+                }
+                Err(_) => {
+                    set_last_error("JSON output contains null bytes");
+                    ErrorCode::SerializationError as c_int
+                }
+            },
+            Err(msg) => {
+                set_last_error(msg);
+                ErrorCode::IoError as c_int
             }
-        },
-        Err(msg) => {
-            set_last_error(msg);
-            ErrorCode::IoError as c_int
         }
-    }
+    })
 }

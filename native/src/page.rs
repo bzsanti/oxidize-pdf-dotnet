@@ -38,43 +38,45 @@ pub unsafe extern "C" fn oxidize_page_from_parsed_bytes(
     bytes_len: usize,
     page_index: u32,
 ) -> *mut PageHandle {
-    clear_last_error();
-    if bytes.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_from_parsed_bytes");
-        return std::ptr::null_mut();
-    }
-
-    let slice = slice::from_raw_parts(bytes, bytes_len);
-    let reader = match crate::parser::open_lenient(slice) {
-        Ok(r) => r,
-        Err(e) => {
-            set_last_error(format!("oxidize_page_from_parsed_bytes: {e}"));
+    crate::ffi_guard_ptr(move || {
+        clear_last_error();
+        if bytes.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_from_parsed_bytes");
             return std::ptr::null_mut();
         }
-    };
-    let document: PdfDocument<Cursor<&[u8]>> = PdfDocument::new(reader);
 
-    let parsed = match document.get_page(page_index) {
-        Ok(p) => p,
-        Err(e) => {
-            set_last_error(format!(
-                "oxidize_page_from_parsed_bytes: page {page_index} not found: {e}"
-            ));
-            return std::ptr::null_mut();
-        }
-    };
+        let slice = slice::from_raw_parts(bytes, bytes_len);
+        let reader = match crate::parser::open_lenient(slice) {
+            Ok(r) => r,
+            Err(e) => {
+                set_last_error(format!("oxidize_page_from_parsed_bytes: {e}"));
+                return std::ptr::null_mut();
+            }
+        };
+        let document: PdfDocument<Cursor<&[u8]>> = PdfDocument::new(reader);
 
-    let page = match oxidize_pdf::Page::from_parsed_with_content(&parsed, &document) {
-        Ok(p) => p,
-        Err(e) => {
-            set_last_error(format!(
-                "oxidize_page_from_parsed_bytes: from_parsed_with_content failed: {e}"
-            ));
-            return std::ptr::null_mut();
-        }
-    };
+        let parsed = match document.get_page(page_index) {
+            Ok(p) => p,
+            Err(e) => {
+                set_last_error(format!(
+                    "oxidize_page_from_parsed_bytes: page {page_index} not found: {e}"
+                ));
+                return std::ptr::null_mut();
+            }
+        };
 
-    Box::into_raw(Box::new(PageHandle { inner: page }))
+        let page = match oxidize_pdf::Page::from_parsed_with_content(&parsed, &document) {
+            Ok(p) => p,
+            Err(e) => {
+                set_last_error(format!(
+                    "oxidize_page_from_parsed_bytes: from_parsed_with_content failed: {e}"
+                ));
+                return std::ptr::null_mut();
+            }
+        };
+
+        Box::into_raw(Box::new(PageHandle { inner: page }))
+    })
 }
 
 /// Create a new page with explicit dimensions (in PDF points).
@@ -83,11 +85,13 @@ pub unsafe extern "C" fn oxidize_page_from_parsed_bytes(
 /// - Returns a heap-allocated `PageHandle` pointer that must be freed with `oxidize_page_free`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_create(width: f64, height: f64) -> *mut PageHandle {
-    clear_last_error();
-    let handle = Box::new(PageHandle {
-        inner: oxidize_pdf::Page::new(width, height),
-    });
-    Box::into_raw(handle)
+    crate::ffi_guard_ptr(move || {
+        clear_last_error();
+        let handle = Box::new(PageHandle {
+            inner: oxidize_pdf::Page::new(width, height),
+        });
+        Box::into_raw(handle)
+    })
 }
 
 /// Create a new page from a size preset.
@@ -96,17 +100,19 @@ pub unsafe extern "C" fn oxidize_page_create(width: f64, height: f64) -> *mut Pa
 /// - Returns a heap-allocated `PageHandle` pointer that must be freed with `oxidize_page_free`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_create_preset(preset: PagePreset) -> *mut PageHandle {
-    clear_last_error();
-    let page = match preset {
-        PagePreset::A4 => oxidize_pdf::Page::a4(),
-        PagePreset::A4Landscape => oxidize_pdf::Page::a4_landscape(),
-        PagePreset::Letter => oxidize_pdf::Page::letter(),
-        PagePreset::LetterLandscape => oxidize_pdf::Page::letter_landscape(),
-        PagePreset::Legal => oxidize_pdf::Page::legal(),
-        PagePreset::LegalLandscape => oxidize_pdf::Page::legal_landscape(),
-    };
-    let handle = Box::new(PageHandle { inner: page });
-    Box::into_raw(handle)
+    crate::ffi_guard_ptr(move || {
+        clear_last_error();
+        let page = match preset {
+            PagePreset::A4 => oxidize_pdf::Page::a4(),
+            PagePreset::A4Landscape => oxidize_pdf::Page::a4_landscape(),
+            PagePreset::Letter => oxidize_pdf::Page::letter(),
+            PagePreset::LetterLandscape => oxidize_pdf::Page::letter_landscape(),
+            PagePreset::Legal => oxidize_pdf::Page::legal(),
+            PagePreset::LegalLandscape => oxidize_pdf::Page::legal_landscape(),
+        };
+        let handle = Box::new(PageHandle { inner: page });
+        Box::into_raw(handle)
+    })
 }
 
 /// PAGE-011 — Switch this page to a screen-space coordinate system.
@@ -132,23 +138,25 @@ pub unsafe extern "C" fn oxidize_page_begin_screen_space(
     handle: *mut PageHandle,
     scale: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_begin_screen_space");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if !scale.is_finite() || scale == 0.0 {
-        set_last_error(format!(
-            "oxidize_page_begin_screen_space: scale must be finite and non-zero (got {scale})"
-        ));
-        return ErrorCode::InvalidArgument as c_int;
-    }
-    let height = (*handle).inner.height();
-    (*handle)
-        .inner
-        .graphics()
-        .transform(scale, 0.0, 0.0, -scale, 0.0, height * scale);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_begin_screen_space");
+            return ErrorCode::NullPointer as c_int;
+        }
+        if !scale.is_finite() || scale == 0.0 {
+            set_last_error(format!(
+                "oxidize_page_begin_screen_space: scale must be finite and non-zero (got {scale})"
+            ));
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        let height = (*handle).inner.height();
+        (*handle)
+            .inner
+            .graphics()
+            .transform(scale, 0.0, 0.0, -scale, 0.0, height * scale);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// PAGE-009 — Begin a marked-content sequence (Tagged PDF).
@@ -170,28 +178,30 @@ pub unsafe extern "C" fn oxidize_page_begin_marked_content(
     tag: *const c_char,
     out_mcid: *mut u32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || tag.is_null() || out_mcid.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_begin_marked_content");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let tag_str = match CStr::from_ptr(tag).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in marked-content tag");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || tag.is_null() || out_mcid.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_begin_marked_content");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    match (*handle).inner.begin_marked_content(tag_str) {
-        Ok(mcid) => {
-            *out_mcid = mcid;
-            ErrorCode::Success as c_int
+        let tag_str = match CStr::from_ptr(tag).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in marked-content tag");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        match (*handle).inner.begin_marked_content(tag_str) {
+            Ok(mcid) => {
+                *out_mcid = mcid;
+                ErrorCode::Success as c_int
+            }
+            Err(e) => {
+                set_last_error(format!("begin_marked_content failed: {e}"));
+                ErrorCode::InvalidArgument as c_int
+            }
         }
-        Err(e) => {
-            set_last_error(format!("begin_marked_content failed: {e}"));
-            ErrorCode::InvalidArgument as c_int
-        }
-    }
+    })
 }
 
 /// PAGE-009 — End the most recently opened marked-content sequence.
@@ -202,18 +212,20 @@ pub unsafe extern "C" fn oxidize_page_begin_marked_content(
 /// - `handle` must be a valid pointer returned by an `oxidize_page_*` constructor.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_end_marked_content(handle: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_end_marked_content");
-        return ErrorCode::NullPointer as c_int;
-    }
-    match (*handle).inner.end_marked_content() {
-        Ok(()) => ErrorCode::Success as c_int,
-        Err(e) => {
-            set_last_error(format!("end_marked_content failed: {e}"));
-            ErrorCode::InvalidArgument as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_end_marked_content");
+            return ErrorCode::NullPointer as c_int;
         }
-    }
+        match (*handle).inner.end_marked_content() {
+            Ok(()) => ErrorCode::Success as c_int,
+            Err(e) => {
+                set_last_error(format!("end_marked_content failed: {e}"));
+                ErrorCode::InvalidArgument as c_int
+            }
+        }
+    })
 }
 
 /// Free a page handle previously created by `oxidize_page_create` or
@@ -225,10 +237,12 @@ pub unsafe extern "C" fn oxidize_page_end_marked_content(handle: *mut PageHandle
 /// - After calling this function, `handle` must not be used again.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_free(handle: *mut PageHandle) {
-    if handle.is_null() {
-        return;
-    }
-    drop(Box::from_raw(handle));
+    crate::ffi_guard_unit(move || {
+        if handle.is_null() {
+            return;
+        }
+        drop(Box::from_raw(handle));
+    })
 }
 
 /// Set page margins.  All values are in PDF points.
@@ -244,13 +258,15 @@ pub unsafe extern "C" fn oxidize_page_set_margins(
     bottom: f64,
     left: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_margins");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*handle).inner.set_margins(left, right, top, bottom);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_margins");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*handle).inner.set_margins(left, right, top, bottom);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Get the page width in PDF points.
@@ -264,13 +280,15 @@ pub unsafe extern "C" fn oxidize_page_get_width(
     handle: *const PageHandle,
     out_value: *mut f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_value.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_get_width");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_value = (*handle).inner.width();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_value.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_get_width");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_value = (*handle).inner.width();
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the page rotation in degrees (0, 90, 180, or 270).
@@ -283,13 +301,15 @@ pub unsafe extern "C" fn oxidize_page_set_rotation(
     handle: *mut PageHandle,
     degrees: c_int,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_rotation");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*handle).inner.set_rotation(degrees);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_rotation");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*handle).inner.set_rotation(degrees);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Get the page rotation in degrees.
@@ -303,13 +323,15 @@ pub unsafe extern "C" fn oxidize_page_get_rotation(
     handle: *const PageHandle,
     out_degrees: *mut c_int,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_degrees.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_get_rotation");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_degrees = (*handle).inner.get_rotation() as c_int;
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_degrees.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_get_rotation");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_degrees = (*handle).inner.get_rotation() as c_int;
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Get the page height in PDF points.
@@ -323,13 +345,15 @@ pub unsafe extern "C" fn oxidize_page_get_height(
     handle: *const PageHandle,
     out_value: *mut f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_value.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_get_height");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_value = (*handle).inner.height();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_value.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_get_height");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_value = (*handle).inner.height();
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Get all four page margins in PDF points.
@@ -346,22 +370,24 @@ pub unsafe extern "C" fn oxidize_page_get_margins(
     out_bottom: *mut f64,
     out_left: *mut f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null()
-        || out_top.is_null()
-        || out_right.is_null()
-        || out_bottom.is_null()
-        || out_left.is_null()
-    {
-        set_last_error("Null pointer provided to oxidize_page_get_margins");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let m = (*handle).inner.margins();
-    *out_top = m.top;
-    *out_right = m.right;
-    *out_bottom = m.bottom;
-    *out_left = m.left;
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null()
+            || out_top.is_null()
+            || out_right.is_null()
+            || out_bottom.is_null()
+            || out_left.is_null()
+        {
+            set_last_error("Null pointer provided to oxidize_page_get_margins");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let m = (*handle).inner.margins();
+        *out_top = m.top;
+        *out_right = m.right;
+        *out_bottom = m.bottom;
+        *out_left = m.left;
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Color space registration ──────────────────────────────────────────────────
@@ -387,33 +413,35 @@ pub unsafe extern "C" fn oxidize_page_add_color_space_cal_gray(
     bp_z: f64,
     gamma: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_color_space_cal_gray");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_color_space_cal_gray");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{CalGrayColorSpace, PageColorSpace};
-    let cs = CalGrayColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma(gamma);
-    match (*page)
-        .inner
-        .add_color_space(name_str, PageColorSpace::from(&cs))
-    {
-        Ok(()) => ErrorCode::Success as c_int,
-        Err(e) => {
-            set_last_error(format!("add_color_space failed: {e}"));
-            ErrorCode::InvalidArgument as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{CalGrayColorSpace, PageColorSpace};
+        let cs = CalGrayColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma(gamma);
+        match (*page)
+            .inner
+            .add_color_space(name_str, PageColorSpace::from(&cs))
+        {
+            Ok(()) => ErrorCode::Success as c_int,
+            Err(e) => {
+                set_last_error(format!("add_color_space failed: {e}"));
+                ErrorCode::InvalidArgument as c_int
+            }
         }
-    }
+    })
 }
 
 /// Register a CalRGB color space under `name` on this page.
@@ -449,34 +477,36 @@ pub unsafe extern "C" fn oxidize_page_add_color_space_cal_rgb(
     m7: f64,
     m8: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_color_space_cal_rgb");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_color_space_cal_rgb");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{CalRgbColorSpace, PageColorSpace};
-    let cs = CalRgbColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma([gamma_r, gamma_g, gamma_b])
-        .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
-    match (*page)
-        .inner
-        .add_color_space(name_str, PageColorSpace::from(&cs))
-    {
-        Ok(()) => ErrorCode::Success as c_int,
-        Err(e) => {
-            set_last_error(format!("add_color_space failed: {e}"));
-            ErrorCode::InvalidArgument as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{CalRgbColorSpace, PageColorSpace};
+        let cs = CalRgbColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma([gamma_r, gamma_g, gamma_b])
+            .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
+        match (*page)
+            .inner
+            .add_color_space(name_str, PageColorSpace::from(&cs))
+        {
+            Ok(()) => ErrorCode::Success as c_int,
+            Err(e) => {
+                set_last_error(format!("add_color_space failed: {e}"));
+                ErrorCode::InvalidArgument as c_int
+            }
         }
-    }
+    })
 }
 
 /// Register a Lab color space under `name` on this page.
@@ -504,33 +534,35 @@ pub unsafe extern "C" fn oxidize_page_add_color_space_lab(
     range_bmin: f64,
     range_bmax: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_color_space_lab");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_color_space_lab");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{LabColorSpace, PageColorSpace};
-    let cs = LabColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_range(range_amin, range_amax, range_bmin, range_bmax);
-    match (*page)
-        .inner
-        .add_color_space(name_str, PageColorSpace::from(&cs))
-    {
-        Ok(()) => ErrorCode::Success as c_int,
-        Err(e) => {
-            set_last_error(format!("add_color_space failed: {e}"));
-            ErrorCode::InvalidArgument as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{LabColorSpace, PageColorSpace};
+        let cs = LabColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_range(range_amin, range_amax, range_bmin, range_bmax);
+        match (*page)
+            .inner
+            .add_color_space(name_str, PageColorSpace::from(&cs))
+        {
+            Ok(()) => ErrorCode::Success as c_int,
+            Err(e) => {
+                set_last_error(format!("add_color_space failed: {e}"));
+                ErrorCode::InvalidArgument as c_int
+            }
         }
-    }
+    })
 }
 
 /// Register an ICC color space with an embedded profile under `name`.
@@ -556,40 +588,43 @@ pub unsafe extern "C" fn oxidize_page_add_icc_color_space(
     data_len: usize,
     color_space_kind: c_int,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_icc_color_space");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if data.is_null() || data_len == 0 {
-        set_last_error("ICC profile data must not be empty");
-        return ErrorCode::InvalidArgument as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in ICC color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_icc_color_space");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let icc_cs = match color_space_kind {
-        1 => oxidize_pdf::graphics::IccColorSpace::Gray,
-        3 => oxidize_pdf::graphics::IccColorSpace::Rgb,
-        4 => oxidize_pdf::graphics::IccColorSpace::Cmyk,
-        _ => {
-            set_last_error(format!("Unknown ICC color space kind: {color_space_kind}"));
+        if data.is_null() || data_len == 0 {
+            set_last_error("ICC profile data must not be empty");
             return ErrorCode::InvalidArgument as c_int;
         }
-    };
-    let profile_data = std::slice::from_raw_parts(data, data_len).to_vec();
-    let profile = oxidize_pdf::graphics::IccProfile::new(name_str.clone(), profile_data, icc_cs);
-    match (*page).inner.add_icc_color_space(name_str, &profile) {
-        Ok(()) => ErrorCode::Success as c_int,
-        Err(e) => {
-            set_last_error(format!("add_icc_color_space failed: {e}"));
-            ErrorCode::InvalidArgument as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in ICC color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let icc_cs = match color_space_kind {
+            1 => oxidize_pdf::graphics::IccColorSpace::Gray,
+            3 => oxidize_pdf::graphics::IccColorSpace::Rgb,
+            4 => oxidize_pdf::graphics::IccColorSpace::Cmyk,
+            _ => {
+                set_last_error(format!("Unknown ICC color space kind: {color_space_kind}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+        let profile_data = std::slice::from_raw_parts(data, data_len).to_vec();
+        let profile =
+            oxidize_pdf::graphics::IccProfile::new(name_str.clone(), profile_data, icc_cs);
+        match (*page).inner.add_icc_color_space(name_str, &profile) {
+            Ok(()) => ErrorCode::Success as c_int,
+            Err(e) => {
+                set_last_error(format!("add_icc_color_space failed: {e}"));
+                ErrorCode::InvalidArgument as c_int
+            }
         }
-    }
+    })
 }
 
 /// Register an inline ICCBased color space (N components + Alternate device
@@ -612,47 +647,49 @@ pub unsafe extern "C" fn oxidize_page_add_color_space_icc_based(
     n: c_int,
     alternate: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() || alternate.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_color_space_icc_based");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if !matches!(n, 1 | 3 | 4) {
-        set_last_error(format!(
-            "Invalid N value {n}: must be 1 (Gray), 3 (RGB/Lab), or 4 (CMYK)"
-        ));
-        return ErrorCode::InvalidArgument as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() || alternate.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_color_space_icc_based");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let alternate_str = match CStr::from_ptr(alternate).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in alternate color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+        if !matches!(n, 1 | 3 | 4) {
+            set_last_error(format!(
+                "Invalid N value {n}: must be 1 (Gray), 3 (RGB/Lab), or 4 (CMYK)"
+            ));
+            return ErrorCode::InvalidArgument as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{PageColorSpace, ParameterisedFamily};
-    use oxidize_pdf::objects::{Dictionary, Object};
-    let mut params = Dictionary::new();
-    params.set("N", Object::Integer(n as i64));
-    params.set("Alternate", Object::Name(alternate_str));
-    let cs = PageColorSpace::Parameterised {
-        family: ParameterisedFamily::IccBased,
-        params,
-    };
-    match (*page).inner.add_color_space(name_str, cs) {
-        Ok(()) => ErrorCode::Success as c_int,
-        Err(e) => {
-            set_last_error(format!("add_color_space (icc_based) failed: {e}"));
-            ErrorCode::InvalidArgument as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let alternate_str = match CStr::from_ptr(alternate).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in alternate color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{PageColorSpace, ParameterisedFamily};
+        use oxidize_pdf::objects::{Dictionary, Object};
+        let mut params = Dictionary::new();
+        params.set("N", Object::Integer(n as i64));
+        params.set("Alternate", Object::Name(alternate_str));
+        let cs = PageColorSpace::Parameterised {
+            family: ParameterisedFamily::IccBased,
+            params,
+        };
+        match (*page).inner.add_color_space(name_str, cs) {
+            Ok(()) => ErrorCode::Success as c_int,
+            Err(e) => {
+                set_last_error(format!("add_color_space (icc_based) failed: {e}"));
+                ErrorCode::InvalidArgument as c_int
+            }
         }
-    }
+    })
 }
 
 #[cfg(test)]

@@ -35,6 +35,22 @@ jobs:
             target: aarch64-apple-darwin
             rid: osx-arm64
             artifact: liboxidize_pdf_ffi.dylib
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            rid: linux-musl-x64
+            artifact: liboxidize_pdf_ffi.so
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            rid: linux-arm64
+            artifact: liboxidize_pdf_ffi.so
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            rid: linux-musl-arm64
+            artifact: liboxidize_pdf_ffi.so
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            rid: win-arm64
+            artifact: oxidize_pdf_ffi.dll
 
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +61,10 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.target }}
 
+      - name: Install musl tools
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -54,13 +74,19 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          # runner.arch + target keep the x86_64 and ARM64 caches separate;
+          # otherwise an x86_64 ~/.cargo/bin/cargo clobbers the ARM runner's
+          # cargo and the build fails with "Exec format error".
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-${{ runner.arch }}-cargo-${{ matrix.target }}-
 
       - name: Build Native Library
         working-directory: native
         run: cargo build --release --target ${{ matrix.target }}
+        env:
+          # musl defaults to static crt, which is incompatible with a cdylib (.so).
+          RUSTFLAGS: ${{ contains(matrix.target, 'musl') && '-C target-feature=-crt-static' || '' }}
 
       - name: Upload Native Artifact
         uses: actions/upload-artifact@v4
@@ -77,10 +103,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
         include:
           - os: ubuntu-latest
             rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
           - os: windows-latest
             rid: win-x64
           - os: macos-latest
@@ -118,6 +145,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # No native binary may be committed: the release pipeline builds the
+      # native library fresh from source for every RID, so a tracked binary
+      # could only ever ship stale (issue #59).
+      - name: No native binaries committed
+        run: |
+          tracked=$(git ls-files '*.so' '*.dll' '*.dylib')
+          if [ -n "$tracked" ]; then
+            echo "::error::Native binaries must not be committed (they ship stale). Found:"
+            echo "$tracked"
+            exit 1
+          fi
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

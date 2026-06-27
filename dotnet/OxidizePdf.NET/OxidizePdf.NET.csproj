@@ -10,11 +10,11 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>OxidizePdf.NET</PackageId>
-    <Version>0.15.0</Version>
+    <Version>0.16.0</Version>
     <Authors>Santiago Fernández Muñoz</Authors>
     <Company>BelowZero</Company>
-    <Description>.NET bindings for oxidize-pdf - Fast, memory-safe PDF creation, extraction, and manipulation optimized for RAG/LLM pipelines. Supports document creation with text and graphics, intelligent chunking, split, merge, rotate, and page extraction.</Description>
-    <PackageTags>pdf;creation;extraction;manipulation;rag;llm;chunking;merge;split;rotate;rust</PackageTags>
+    <Description>PDF ingestion for .NET RAG/LLM pipelines. Token-aware, structure-aware chunking (7 profiles), element-aware semantic splitting, and native (Rust) text extraction with page numbers and bounding boxes for citations — ready for Semantic Kernel / Kernel Memory and vector-store ingestion. MIT-licensed and memory-safe. Also supports PDF creation and manipulation (merge, split, rotate, page extraction).</Description>
+    <PackageTags>rag;llm;chunking;embeddings;semantic-kernel;kernel-memory;pdf;text-extraction;ai;dotnet</PackageTags>
     <PackageProjectUrl>https://github.com/bzsanti/oxidize-pdf-dotnet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/bzsanti/oxidize-pdf-dotnet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

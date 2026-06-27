@@ -68,24 +68,26 @@ pub unsafe extern "C" fn oxidize_document_mark_entity(
     height: f64,
     page: u32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_mark_entity");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let id_str = match read_str(id, "entity id") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    let type_str = match read_str(entity_type, "entity type") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    let bounds = BoundingBox::new(x as f32, y as f32, width as f32, height as f32, page);
-    (*handle)
-        .inner
-        .mark_entity(id_str.to_string(), entity_type_from_str(type_str), bounds);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_mark_entity");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let id_str = match read_str(id, "entity id") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        let type_str = match read_str(entity_type, "entity type") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        let bounds = BoundingBox::new(x as f32, y as f32, width as f32, height as f32, page);
+        (*handle)
+            .inner
+            .mark_entity(id_str.to_string(), entity_type_from_str(type_str), bounds);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// DOC-021 — Set the text content of a previously marked entity.
@@ -100,25 +102,27 @@ pub unsafe extern "C" fn oxidize_document_set_entity_content(
     id: *const c_char,
     content: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_entity_content");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let id_str = match read_str(id, "entity id") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    let content_str = match read_str(content, "entity content") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    if (*handle).inner.set_entity_content(id_str, content_str) {
-        ErrorCode::Success as c_int
-    } else {
-        set_last_error(format!("No entity with id '{id_str}'"));
-        ErrorCode::InvalidArgument as c_int
-    }
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_entity_content");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let id_str = match read_str(id, "entity id") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        let content_str = match read_str(content, "entity content") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        if (*handle).inner.set_entity_content(id_str, content_str) {
+            ErrorCode::Success as c_int
+        } else {
+            set_last_error(format!("No entity with id '{id_str}'"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    })
 }
 
 /// DOC-021 — Add a metadata key/value pair to a marked entity.
@@ -134,32 +138,34 @@ pub unsafe extern "C" fn oxidize_document_add_entity_metadata(
     key: *const c_char,
     value: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_add_entity_metadata");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let id_str = match read_str(id, "entity id") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    let key_str = match read_str(key, "metadata key") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    let value_str = match read_str(value, "metadata value") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    if (*handle)
-        .inner
-        .add_entity_metadata(id_str, key_str, value_str)
-    {
-        ErrorCode::Success as c_int
-    } else {
-        set_last_error(format!("No entity with id '{id_str}'"));
-        ErrorCode::InvalidArgument as c_int
-    }
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_add_entity_metadata");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let id_str = match read_str(id, "entity id") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        let key_str = match read_str(key, "metadata key") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        let value_str = match read_str(value, "metadata value") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        if (*handle)
+            .inner
+            .add_entity_metadata(id_str, key_str, value_str)
+        {
+            ErrorCode::Success as c_int
+        } else {
+            set_last_error(format!("No entity with id '{id_str}'"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    })
 }
 
 /// DOC-021 — Set the confidence (0.0..=1.0) of a marked entity.
@@ -174,21 +180,23 @@ pub unsafe extern "C" fn oxidize_document_set_entity_confidence(
     id: *const c_char,
     confidence: f32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_entity_confidence");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let id_str = match read_str(id, "entity id") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    if (*handle).inner.set_entity_confidence(id_str, confidence) {
-        ErrorCode::Success as c_int
-    } else {
-        set_last_error(format!("No entity with id '{id_str}'"));
-        ErrorCode::InvalidArgument as c_int
-    }
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_entity_confidence");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let id_str = match read_str(id, "entity id") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        if (*handle).inner.set_entity_confidence(id_str, confidence) {
+            ErrorCode::Success as c_int
+        } else {
+            set_last_error(format!("No entity with id '{id_str}'"));
+            ErrorCode::InvalidArgument as c_int
+        }
+    })
 }
 
 /// DOC-021 — Record a relationship between two marked entities.
@@ -204,32 +212,34 @@ pub unsafe extern "C" fn oxidize_document_relate_entities(
     to_id: *const c_char,
     relation: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_relate_entities");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let from_str = match read_str(from_id, "from entity id") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    let to_str = match read_str(to_id, "to entity id") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    let rel_str = match read_str(relation, "relation type") {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-    if (*handle)
-        .inner
-        .relate_entities(from_str, to_str, relation_type_from_str(rel_str))
-    {
-        ErrorCode::Success as c_int
-    } else {
-        set_last_error("relate_entities failed: unknown entity id");
-        ErrorCode::InvalidArgument as c_int
-    }
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_relate_entities");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let from_str = match read_str(from_id, "from entity id") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        let to_str = match read_str(to_id, "to entity id") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        let rel_str = match read_str(relation, "relation type") {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        if (*handle)
+            .inner
+            .relate_entities(from_str, to_str, relation_type_from_str(rel_str))
+        {
+            ErrorCode::Success as c_int
+        } else {
+            set_last_error("relate_entities failed: unknown entity id");
+            ErrorCode::InvalidArgument as c_int
+        }
+    })
 }
 
 /// DOC-021 — Export all marked semantic entities as a plain JSON array.
@@ -246,29 +256,33 @@ pub unsafe extern "C" fn oxidize_document_export_semantic_entities_json(
     handle: *mut DocumentHandle,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_export_semantic_entities_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_json = std::ptr::null_mut();
-    let json = match (*handle).inner.export_semantic_entities_json() {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("export_semantic_entities_json failed: {e}"));
-            return ErrorCode::SerializationError as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_json.is_null() {
+            set_last_error(
+                "Null pointer provided to oxidize_document_export_semantic_entities_json",
+            );
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    match CString::new(json) {
-        Ok(c) => {
-            *out_json = c.into_raw();
-            ErrorCode::Success as c_int
+        *out_json = std::ptr::null_mut();
+        let json = match (*handle).inner.export_semantic_entities_json() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("export_semantic_entities_json failed: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+        match CString::new(json) {
+            Ok(c) => {
+                *out_json = c.into_raw();
+                ErrorCode::Success as c_int
+            }
+            Err(e) => {
+                set_last_error(format!("Export contains null bytes: {e}"));
+                ErrorCode::InvalidUtf8 as c_int
+            }
         }
-        Err(e) => {
-            set_last_error(format!("Export contains null bytes: {e}"));
-            ErrorCode::InvalidUtf8 as c_int
-        }
-    }
+    })
 }
 
 /// DOC-021 — Export all marked semantic entities as JSON-LD (Schema.org).
@@ -286,31 +300,33 @@ pub unsafe extern "C" fn oxidize_document_export_semantic_entities_json_ld(
     handle: *mut DocumentHandle,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_json.is_null() {
-        set_last_error(
-            "Null pointer provided to oxidize_document_export_semantic_entities_json_ld",
-        );
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_json = std::ptr::null_mut();
-    let json = match (*handle).inner.export_semantic_entities_json_ld() {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("export_semantic_entities_json_ld failed: {e}"));
-            return ErrorCode::SerializationError as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_json.is_null() {
+            set_last_error(
+                "Null pointer provided to oxidize_document_export_semantic_entities_json_ld",
+            );
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    match CString::new(json) {
-        Ok(c) => {
-            *out_json = c.into_raw();
-            ErrorCode::Success as c_int
+        *out_json = std::ptr::null_mut();
+        let json = match (*handle).inner.export_semantic_entities_json_ld() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("export_semantic_entities_json_ld failed: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+        match CString::new(json) {
+            Ok(c) => {
+                *out_json = c.into_raw();
+                ErrorCode::Success as c_int
+            }
+            Err(e) => {
+                set_last_error(format!("Export contains null bytes: {e}"));
+                ErrorCode::InvalidUtf8 as c_int
+            }
         }
-        Err(e) => {
-            set_last_error(format!("Export contains null bytes: {e}"));
-            ErrorCode::InvalidUtf8 as c_int
-        }
-    }
+    })
 }
 
 #[cfg(test)]

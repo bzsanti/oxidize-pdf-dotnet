@@ -18,13 +18,15 @@ namespace OxidizePdf.NET;
 /// </example>
 public sealed class PdfDocumentBuilder : IDisposable
 {
-    private IntPtr _handle;
-    private bool _disposed;
+    private readonly DocumentBuilderSafeHandle _safeHandle;
+
+    // Bridge: existing call sites read `_handle` as an IntPtr unchanged.
+    private IntPtr _handle => _safeHandle.DangerousGetHandle();
     private bool _built;
 
     private PdfDocumentBuilder(IntPtr handle)
     {
-        _handle = handle;
+        _safeHandle = new DocumentBuilderSafeHandle(handle);
     }
 
     /// <summary>
@@ -173,27 +175,16 @@ public sealed class PdfDocumentBuilder : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        if (_handle != IntPtr.Zero)
-        {
-            NativeMethods.oxidize_document_builder_free(_handle);
-            _handle = IntPtr.Zero;
-        }
-
-        GC.SuppressFinalize(this);
+        // SafeHandle releases the native handle exactly once, atomically,
+        // even under concurrent Dispose or finalization (issue #54).
+        _safeHandle.Dispose();
     }
-
-    /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
-    ~PdfDocumentBuilder() => Dispose();
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private void ThrowIfDisposedOrBuilt()
     {
-        if (_disposed)
+        if (_safeHandle.IsClosed)
             throw new ObjectDisposedException(nameof(PdfDocumentBuilder));
         if (_built)
             throw new InvalidOperationException("This builder has already been built and cannot be modified.");

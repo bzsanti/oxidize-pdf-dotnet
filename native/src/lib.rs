@@ -72,6 +72,46 @@ pub enum ErrorCode {
     EncryptionError = 7,
     PermissionError = 8,
     InvalidArgument = 9,
+    /// A Rust panic was caught at the FFI boundary (see `oxidize_get_last_error`).
+    Panic = 10,
+}
+
+// ── Panic guards ──────────────────────────────────────────────────────────────
+
+/// Message stored in `LAST_ERROR` when a panic is caught at the FFI boundary.
+pub(crate) const PANIC_MESSAGE: &str = "internal error: a panic was caught at the FFI boundary";
+
+/// Run an FFI body that returns an error code, catching any panic.
+///
+/// Without this, a panic unwinding across the `extern "C"` boundary aborts the
+/// entire host process. Caught panics are converted to [`ErrorCode::Panic`] and
+/// recorded via [`set_last_error`]. Requires `panic = "unwind"` (see Cargo.toml).
+pub(crate) fn ffi_guard<F: FnOnce() -> c_int>(f: F) -> c_int {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+        Ok(code) => code,
+        Err(_) => {
+            set_last_error(PANIC_MESSAGE);
+            ErrorCode::Panic as c_int
+        }
+    }
+}
+
+/// Run an FFI body that returns a pointer, catching any panic (returns null).
+pub(crate) fn ffi_guard_ptr<T, F: FnOnce() -> *mut T>(f: F) -> *mut T {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+        Ok(p) => p,
+        Err(_) => {
+            set_last_error(PANIC_MESSAGE);
+            ptr::null_mut()
+        }
+    }
+}
+
+/// Run an FFI body that returns nothing, catching any panic (swallows it).
+pub(crate) fn ffi_guard_unit<F: FnOnce()>(f: F) {
+    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).is_err() {
+        set_last_error(PANIC_MESSAGE);
+    }
 }
 
 // ── Free helpers ──────────────────────────────────────────────────────────────
@@ -84,10 +124,12 @@ pub enum ErrorCode {
 /// - After calling this function, `ptr` must not be used again.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_free_string(ptr: *mut c_char) {
-    if ptr.is_null() {
-        return;
-    }
-    drop(CString::from_raw(ptr));
+    ffi_guard_unit(move || {
+        if ptr.is_null() {
+            return;
+        }
+        drop(CString::from_raw(ptr));
+    })
 }
 
 /// Free a byte array previously allocated by an `oxidize_*` function.
@@ -107,10 +149,12 @@ pub unsafe extern "C" fn oxidize_free_string(ptr: *mut c_char) {
 /// - After calling this function, `ptr` must not be used again.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_free_bytes(ptr: *mut u8, len: usize) {
-    if ptr.is_null() {
-        return;
-    }
-    drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len)));
+    ffi_guard_unit(move || {
+        if ptr.is_null() {
+            return;
+        }
+        drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len)));
+    })
 }
 
 // ── Introspection ─────────────────────────────────────────────────────────────
@@ -122,24 +166,26 @@ pub unsafe extern "C" fn oxidize_free_bytes(ptr: *mut u8, len: usize) {
 /// - The returned string must be freed with `oxidize_free_string`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_get_last_error(out_error: *mut *mut c_char) -> c_int {
-    if out_error.is_null() {
-        return ErrorCode::NullPointer as c_int;
-    }
+    ffi_guard(move || {
+        if out_error.is_null() {
+            return ErrorCode::NullPointer as c_int;
+        }
 
-    *out_error = ptr::null_mut();
+        *out_error = ptr::null_mut();
 
-    let error_msg = LAST_ERROR.with(|e| e.borrow().clone());
+        let error_msg = LAST_ERROR.with(|e| e.borrow().clone());
 
-    match error_msg {
-        Some(msg) if !msg.is_empty() => match CString::new(msg) {
-            Ok(c_string) => {
-                *out_error = c_string.into_raw();
-                ErrorCode::Success as c_int
-            }
-            Err(_) => ErrorCode::InvalidUtf8 as c_int,
-        },
-        _ => ErrorCode::Success as c_int,
-    }
+        match error_msg {
+            Some(msg) if !msg.is_empty() => match CString::new(msg) {
+                Ok(c_string) => {
+                    *out_error = c_string.into_raw();
+                    ErrorCode::Success as c_int
+                }
+                Err(_) => ErrorCode::InvalidUtf8 as c_int,
+            },
+            _ => ErrorCode::Success as c_int,
+        }
+    })
 }
 
 /// Return the library version string.
@@ -149,21 +195,23 @@ pub unsafe extern "C" fn oxidize_get_last_error(out_error: *mut *mut c_char) -> 
 /// - The returned string must be freed with `oxidize_free_string`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_version(out_version: *mut *mut c_char) -> c_int {
-    if out_version.is_null() {
-        return ErrorCode::NullPointer as c_int;
-    }
+    ffi_guard(move || {
+        if out_version.is_null() {
+            return ErrorCode::NullPointer as c_int;
+        }
 
-    *out_version = ptr::null_mut();
+        *out_version = ptr::null_mut();
 
-    let version = format!("oxidize-pdf-ffi v{}", env!("CARGO_PKG_VERSION"));
+        let version = format!("oxidize-pdf-ffi v{}", env!("CARGO_PKG_VERSION"));
 
-    let c_string = match CString::new(version) {
-        Ok(s) => s,
-        Err(_) => return ErrorCode::InvalidUtf8 as c_int,
-    };
+        let c_string = match CString::new(version) {
+            Ok(s) => s,
+            Err(_) => return ErrorCode::InvalidUtf8 as c_int,
+        };
 
-    *out_version = c_string.into_raw();
-    ErrorCode::Success as c_int
+        *out_version = c_string.into_raw();
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -200,5 +248,44 @@ mod tests {
     fn test_null_pointer_handling() {
         let result = unsafe { parser::oxidize_extract_text(ptr::null(), 0, ptr::null_mut()) };
         assert_eq!(result, ErrorCode::NullPointer as c_int);
+    }
+
+    #[test]
+    fn ffi_guard_returns_closure_value_when_no_panic() {
+        let code = ffi_guard(|| ErrorCode::Success as c_int);
+        assert_eq!(code, ErrorCode::Success as c_int);
+    }
+
+    #[test]
+    fn ffi_guard_converts_panic_into_error_code_and_message() {
+        clear_last_error();
+        let code = ffi_guard(|| panic!("boom"));
+        assert_eq!(code, ErrorCode::Panic as c_int);
+
+        let mut err: *mut c_char = ptr::null_mut();
+        let r = unsafe { oxidize_get_last_error(&mut err as *mut *mut c_char) };
+        assert_eq!(r, ErrorCode::Success as c_int);
+        assert!(!err.is_null(), "panic must populate last_error");
+        unsafe { oxidize_free_string(err) };
+    }
+
+    #[test]
+    fn ffi_guard_ptr_returns_value_when_no_panic() {
+        let mut value = 7i32;
+        let p = ffi_guard_ptr(|| &mut value as *mut i32);
+        assert!(!p.is_null());
+        assert_eq!(unsafe { *p }, 7);
+    }
+
+    #[test]
+    fn ffi_guard_ptr_returns_null_on_panic() {
+        let p = ffi_guard_ptr::<i32, _>(|| panic!("boom"));
+        assert!(p.is_null());
+    }
+
+    #[test]
+    fn ffi_guard_unit_swallows_panic() {
+        // Must not propagate; reaching the assert proves the panic was caught.
+        ffi_guard_unit(|| panic!("boom"));
     }
 }
