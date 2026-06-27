@@ -33,6 +33,22 @@ jobs:
             target: aarch64-apple-darwin
             rid: osx-arm64
             artifact: liboxidize_pdf_ffi.dylib
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            rid: linux-musl-x64
+            artifact: liboxidize_pdf_ffi.so
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            rid: linux-arm64
+            artifact: liboxidize_pdf_ffi.so
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            rid: linux-musl-arm64
+            artifact: liboxidize_pdf_ffi.so
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            rid: win-arm64
+            artifact: oxidize_pdf_ffi.dll
 
     steps:
       - uses: actions/checkout@v4
@@ -43,9 +59,16 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.target }}
 
+      - name: Install musl tools
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
       - name: Build Native Library
         working-directory: native
         run: cargo build --release --target ${{ matrix.target }}
+        env:
+          # musl defaults to static crt, which is incompatible with a cdylib (.so).
+          RUSTFLAGS: ${{ contains(matrix.target, 'musl') && '-C target-feature=-crt-static' || '' }}
 
       - name: Upload Native Artifact
         uses: actions/upload-artifact@v4
@@ -78,11 +101,19 @@ jobs:
           mkdir -p dotnet/OxidizePdf.NET/runtimes/win-x64/native
           mkdir -p dotnet/OxidizePdf.NET/runtimes/osx-x64/native
           mkdir -p dotnet/OxidizePdf.NET/runtimes/osx-arm64/native
+          mkdir -p dotnet/OxidizePdf.NET/runtimes/linux-musl-x64/native
+          mkdir -p dotnet/OxidizePdf.NET/runtimes/linux-arm64/native
+          mkdir -p dotnet/OxidizePdf.NET/runtimes/linux-musl-arm64/native
+          mkdir -p dotnet/OxidizePdf.NET/runtimes/win-arm64/native
 
           cp artifacts/native-linux-x64/liboxidize_pdf_ffi.so dotnet/OxidizePdf.NET/runtimes/linux-x64/native/
           cp artifacts/native-win-x64/oxidize_pdf_ffi.dll dotnet/OxidizePdf.NET/runtimes/win-x64/native/
           cp artifacts/native-osx-x64/liboxidize_pdf_ffi.dylib dotnet/OxidizePdf.NET/runtimes/osx-x64/native/
           cp artifacts/native-osx-arm64/liboxidize_pdf_ffi.dylib dotnet/OxidizePdf.NET/runtimes/osx-arm64/native/
+          cp artifacts/native-linux-musl-x64/liboxidize_pdf_ffi.so dotnet/OxidizePdf.NET/runtimes/linux-musl-x64/native/
+          cp artifacts/native-linux-arm64/liboxidize_pdf_ffi.so dotnet/OxidizePdf.NET/runtimes/linux-arm64/native/
+          cp artifacts/native-linux-musl-arm64/liboxidize_pdf_ffi.so dotnet/OxidizePdf.NET/runtimes/linux-musl-arm64/native/
+          cp artifacts/native-win-arm64/oxidize_pdf_ffi.dll dotnet/OxidizePdf.NET/runtimes/win-arm64/native/
 
       - name: Extract Version from Tag
         id: version
@@ -147,10 +178,10 @@ jobs:
           - See [CHANGELOG.md](CHANGELOG.md) for detailed changes
 
           ### Supported Platforms
-          - Linux x64
-          - Windows x64
-          - macOS x64
-          - macOS ARM64 (Apple Silicon)
+          - Linux x64 (glibc) / Linux x64 (musl, Alpine)
+          - Linux ARM64 (glibc) / Linux ARM64 (musl, Alpine)
+          - Windows x64 / Windows ARM64
+          - macOS x64 / macOS ARM64 (Apple Silicon)
 
           ### Links
           - [NuGet Package](https://www.nuget.org/packages/OxidizePdf.NET/${{ steps.version.outputs.VERSION }})

@@ -177,9 +177,14 @@ Based on oxidize-pdf v1.6.4 benchmarks:
 
 | Platform | Runtime Identifier | Status |
 |----------|-------------------|--------|
-| Linux x64 | `linux-x64` | ✅ Supported |
+| Linux x64 (glibc) | `linux-x64` | ✅ Supported |
+| Linux x64 (musl / Alpine) | `linux-musl-x64` | ✅ Supported |
+| Linux ARM64 (glibc) | `linux-arm64` | ✅ Supported |
+| Linux ARM64 (musl / Alpine) | `linux-musl-arm64` | ✅ Supported |
 | Windows x64 | `win-x64` | ✅ Supported |
+| Windows ARM64 | `win-arm64` | ✅ Supported |
 | macOS x64 | `osx-x64` | ✅ Supported |
+| macOS ARM64 (Apple Silicon) | `osx-arm64` | ✅ Supported |
 
 Native binaries are automatically included in the NuGet package.
 
