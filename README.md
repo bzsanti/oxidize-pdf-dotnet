@@ -4,16 +4,19 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0%2B-purple)](https://dotnet.microsoft.com/)
 
-.NET bindings for [oxidize-pdf](https://github.com/bzsanti/oxidizePdf) - Fast, memory-safe PDF text extraction optimized for RAG/LLM pipelines with intelligent chunking.
+**The PDF ingestion layer for .NET RAG/LLM pipelines.** Turn PDFs into token-aware, structure-aware, citation-ready chunks in one call — built on the native [oxidize-pdf](https://github.com/bzsanti/oxidizePdf) Rust engine. MIT-licensed, so it drops into commercial and closed-source products.
 
 ## Features
 
-- 🚀 **High Performance** - Native Rust speed (3,000-4,000 pages/second)
-- 🧠 **AI/RAG Optimized** - Intelligent text chunking with sentence boundaries
+- 🧠 **RAG-first** - Token-aware, structure-aware chunking (7 profiles) + element-aware semantic splitting, ready for vector-store ingestion
+- 🔗 **Ecosystem-ready** - Drops into Semantic Kernel / Kernel Memory and Microsoft.Extensions.AI pipelines
+- 🔍 **Citation-grade** - Every chunk carries 1-based page numbers, heading context, token estimates, and bounding boxes
+- 🚀 **Native speed** - Rust engine, 3,000-4,000 pages/second
+- ⚖️ **MIT-licensed** - No AGPL/commercial-license friction
 - 🛡️ **Memory Safe** - Zero-copy FFI with automatic resource management
-- 🌍 **Cross-Platform** - Linux, Windows, macOS (x64)
 - 📦 **Zero Dependencies** - Self-contained native binaries in NuGet package
-- 🔍 **Metadata Rich** - Page numbers, confidence scores, bounding boxes
+- 🌍 **Cross-Platform** - Linux, Windows, macOS (x64)
+- 🛠️ **Full PDF toolkit** - Also creates and manipulates PDFs (text, graphics, merge, split, rotate, page extraction)
 
 ## Installation
 
@@ -23,20 +26,7 @@ dotnet add package OxidizePdf.NET
 
 ## Quick Start
 
-### Basic Text Extraction
-
-```csharp
-using OxidizePdf.NET;
-
-// Extract all text from PDF
-using var extractor = new PdfExtractor();
-byte[] pdfBytes = File.ReadAllBytes("document.pdf");
-
-string text = await extractor.ExtractTextAsync(pdfBytes);
-Console.WriteLine(text);
-```
-
-### RAG Extraction (recommended)
+### RAG Chunking (start here)
 
 `OxidizePdf.NET` mirrors the RAG-first surface of the Python bridge
 (`oxidize-python`). Token-aware, structure-aware chunks ready for vector
@@ -47,6 +37,8 @@ using OxidizePdf.NET;
 using OxidizePdf.NET.Pipeline;
 
 var extractor = new PdfExtractor();
+byte[] pdfBytes = File.ReadAllBytes("document.pdf");
+
 var chunks = await extractor.RagChunksAsync(pdfBytes, ExtractionProfile.Rag);
 foreach (var c in chunks)
 {
@@ -86,6 +78,20 @@ using OxidizePdf.NET.Ai;
 var md = await extractor.ToMarkdownAsync(
     pdfBytes,
     new MarkdownOptions { IncludeMetadata = true, IncludePageNumbers = true });
+```
+
+### Plain Text Extraction
+
+When you just need the raw text (no chunking):
+
+```csharp
+using OxidizePdf.NET;
+
+using var extractor = new PdfExtractor();
+byte[] pdfBytes = File.ReadAllBytes("document.pdf");
+
+string text = await extractor.ExtractTextAsync(pdfBytes);
+Console.WriteLine(text);
 ```
 
 Standalone text chunker (no PDF — for non-PDF sources):
