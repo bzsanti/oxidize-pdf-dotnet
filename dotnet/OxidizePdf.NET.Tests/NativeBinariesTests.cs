@@ -15,17 +15,25 @@ public class NativeBinariesTests
 
     private static (string rid, string binaryName) GetCurrentPlatformInfo()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            return ("win-x64", "oxidize_pdf_ffi.dll");
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        var arch = RuntimeInformation.ProcessArchitecture switch
         {
-            var rid = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
-                ? "osx-arm64"
-                : "osx-x64";
-            return (rid, "liboxidize_pdf_ffi.dylib");
-        }
+            Architecture.X64 => "x64",
+            Architecture.Arm64 => "arm64",
+            Architecture.X86 => "x86",
+            _ => throw new PlatformNotSupportedException(
+                $"Unsupported process architecture: {RuntimeInformation.ProcessArchitecture}"),
+        };
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return ($"win-{arch}", "oxidize_pdf_ffi.dll");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            return ($"osx-{arch}", "liboxidize_pdf_ffi.dylib");
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            return ("linux-x64", "liboxidize_pdf_ffi.so");
+        {
+            var libc = RuntimeInformation.RuntimeIdentifier
+                .Contains("musl", StringComparison.OrdinalIgnoreCase) ? "musl-" : "";
+            return ($"linux-{libc}{arch}", "liboxidize_pdf_ffi.so");
+        }
 
         throw new PlatformNotSupportedException("Unsupported platform");
     }
