@@ -74,9 +74,12 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          # runner.arch + target keep the x86_64 and ARM64 caches separate;
+          # otherwise an x86_64 ~/.cargo/bin/cargo clobbers the ARM runner's
+          # cargo and the build fails with "Exec format error".
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-${{ runner.arch }}-cargo-${{ matrix.target }}-
 
       - name: Build Native Library
         working-directory: native
