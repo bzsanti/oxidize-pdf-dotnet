@@ -23,8 +23,10 @@ namespace OxidizePdf.NET;
 /// </example>
 public sealed class PdfDocument : IDisposable
 {
-    private IntPtr _handle;
-    private bool _disposed;
+    private readonly DocumentSafeHandle _safeHandle;
+
+    // Bridge: existing call sites read `_handle` as an IntPtr unchanged.
+    private IntPtr _handle => _safeHandle.DangerousGetHandle();
 
     /// <summary>
     /// Creates a new empty PDF document.
@@ -32,14 +34,14 @@ public sealed class PdfDocument : IDisposable
     /// <exception cref="PdfExtractionException">If native document creation fails.</exception>
     public PdfDocument()
     {
-        _handle = NativeMethods.oxidize_document_create();
+        _safeHandle = new DocumentSafeHandle(NativeMethods.oxidize_document_create());
         if (_handle == IntPtr.Zero)
             throw new PdfExtractionException("Failed to create document");
     }
 
     private PdfDocument(IntPtr handle)
     {
-        _handle = handle;
+        _safeHandle = new DocumentSafeHandle(handle);
     }
 
     /// <summary>
@@ -1257,27 +1259,16 @@ public sealed class PdfDocument : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        if (_handle != IntPtr.Zero)
-        {
-            NativeMethods.oxidize_document_free(_handle);
-            _handle = IntPtr.Zero;
-        }
-
-        GC.SuppressFinalize(this);
+        // SafeHandle releases the native handle exactly once, atomically,
+        // even under concurrent Dispose or finalization (issue #54).
+        _safeHandle.Dispose();
     }
-
-    /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
-    ~PdfDocument() => Dispose();
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
+        if (_safeHandle.IsClosed)
             throw new ObjectDisposedException(nameof(PdfDocument));
     }
 

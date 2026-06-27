@@ -15,8 +15,10 @@ namespace OxidizePdf.NET;
 /// </remarks>
 public sealed class PdfPage : IDisposable
 {
-    private IntPtr _handle;
-    private bool _disposed;
+    private readonly PageSafeHandle _safeHandle;
+
+    // Bridge: existing call sites read `_handle` as an IntPtr unchanged.
+    private IntPtr _handle => _safeHandle.DangerousGetHandle();
 
     /// <summary>
     /// Exposes the native page handle for use by <see cref="PdfDocument.AddPage"/>.
@@ -38,14 +40,14 @@ public sealed class PdfPage : IDisposable
     /// <exception cref="PdfExtractionException">If native page creation fails.</exception>
     public PdfPage(double width, double height)
     {
-        _handle = NativeMethods.oxidize_page_create(width, height);
+        _safeHandle = new PageSafeHandle(NativeMethods.oxidize_page_create(width, height));
         if (_handle == IntPtr.Zero)
             throw new PdfExtractionException("Failed to create page");
     }
 
     internal PdfPage(IntPtr handle)
     {
-        _handle = handle;
+        _safeHandle = new PageSafeHandle(handle);
         if (_handle == IntPtr.Zero)
             throw new PdfExtractionException("Failed to create page from preset");
     }
@@ -1532,17 +1534,9 @@ public sealed class PdfPage : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        if (_handle != IntPtr.Zero)
-        {
-            NativeMethods.oxidize_page_free(_handle);
-            _handle = IntPtr.Zero;
-        }
-
-        GC.SuppressFinalize(this);
+        // SafeHandle releases the native handle exactly once, atomically,
+        // even under concurrent Dispose or finalization (issue #54).
+        _safeHandle.Dispose();
     }
 
     // ── Form widgets (AcroForm write-path) ─────────────────────────────────────
@@ -2183,14 +2177,11 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
-    /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
-    ~PdfPage() => Dispose();
-
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
+        if (_safeHandle.IsClosed)
             throw new ObjectDisposedException(nameof(PdfPage));
     }
 
