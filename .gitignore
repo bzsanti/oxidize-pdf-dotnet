@@ -71,3 +71,4 @@ examples/**/obj/
 
 # Build artifacts
 artifacts/
+*.bak*
