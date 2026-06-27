@@ -381,56 +381,54 @@ pub unsafe extern "C" fn oxidize_extract_text(
     pdf_len: usize,
     out_text: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_text.is_null() {
-            set_last_error("Null pointer provided to oxidize_extract_text");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_text.is_null() {
+        set_last_error("Null pointer provided to oxidize_extract_text");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_text = ptr::null_mut();
+    *out_text = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let document = PdfDocument::new(reader);
+    let text_pages = match document.extract_text() {
+        Ok(pages) => pages,
+        Err(e) => {
+            set_last_error(format!("Failed to extract text from PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let text_pages = match document.extract_text() {
-            Ok(pages) => pages,
-            Err(e) => {
-                set_last_error(format!("Failed to extract text from PDF: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let text = text_pages
+        .iter()
+        .map(|p| p.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n\n");
 
-        let text = text_pages
-            .iter()
-            .map(|p| p.text.as_str())
-            .collect::<Vec<_>>()
-            .join("\n\n");
+    let c_string = match CString::new(text) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Text contains invalid UTF-8: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let c_string = match CString::new(text) {
-            Ok(s) => s,
-            Err(e) => {
-                set_last_error(format!("Text contains invalid UTF-8: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_text = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_text = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Extract text chunks optimized for RAG/LLM pipelines.
@@ -448,66 +446,64 @@ pub unsafe extern "C" fn oxidize_extract_chunks(
     options: *const ChunkOptions,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_extract_chunks");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_extract_chunks");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let chunk_opts = if options.is_null() {
+        default_chunk_options()
+    } else {
+        *options
+    };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let chunk_opts = if options.is_null() {
-            default_chunk_options()
-        } else {
-            *options
-        };
-
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        let document = PdfDocument::new(reader);
-        let text_pages = match document.extract_text() {
-            Ok(pages) => pages,
-            Err(e) => {
-                set_last_error(format!("Failed to extract text from PDF: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        let mut chunks = Vec::new();
-        let mut chunk_index = 0;
-
-        for (page_num, page_text) in text_pages.iter().enumerate() {
-            chunk_page_content(
-                &page_text.text,
-                page_num + 1,
-                chunk_opts,
-                &mut chunks,
-                &mut chunk_index,
-            );
+    let document = PdfDocument::new(reader);
+    let text_pages = match document.extract_text() {
+        Ok(pages) => pages,
+        Err(e) => {
+            set_last_error(format!("Failed to extract text from PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        match chunks_to_cstring(&chunks) {
-            Ok(cs) => {
-                *out_json = cs.into_raw();
-                ErrorCode::Success as c_int
-            }
-            Err(code) => code,
+    let mut chunks = Vec::new();
+    let mut chunk_index = 0;
+
+    for (page_num, page_text) in text_pages.iter().enumerate() {
+        chunk_page_content(
+            &page_text.text,
+            page_num + 1,
+            chunk_opts,
+            &mut chunks,
+            &mut chunk_index,
+        );
+    }
+
+    match chunks_to_cstring(&chunks) {
+        Ok(cs) => {
+            *out_json = cs.into_raw();
+            ErrorCode::Success as c_int
         }
-    })
+        Err(code) => code,
+    }
 }
 
 /// Get the number of pages in a PDF.
@@ -522,42 +518,40 @@ pub unsafe extern "C" fn oxidize_get_page_count(
     pdf_len: usize,
     out_count: *mut usize,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_count.is_null() {
-            set_last_error("Null pointer provided to oxidize_get_page_count");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_count.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_page_count");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_count = 0;
+    *out_count = 0;
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let document = PdfDocument::new(reader);
+    let count = match document.page_count() {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(format!("Failed to get page count: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let count = match document.page_count() {
-            Ok(c) => c,
-            Err(e) => {
-                set_last_error(format!("Failed to get page count: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        *out_count = count as usize;
-        ErrorCode::Success as c_int
-    })
+    *out_count = count as usize;
+    ErrorCode::Success as c_int
 }
 
 /// Extract plain text from a specific page of a PDF (1-based page number).
@@ -574,66 +568,64 @@ pub unsafe extern "C" fn oxidize_extract_text_from_page(
     page_number: usize,
     out_text: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_text.is_null() {
-            set_last_error("Null pointer provided to oxidize_extract_text_from_page");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_text.is_null() {
+        set_last_error("Null pointer provided to oxidize_extract_text_from_page");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_text = ptr::null_mut();
+    *out_text = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        if page_number == 0 {
-            set_last_error("Page number must be >= 1 (1-based indexing)");
+    let document = PdfDocument::new(reader);
+    let text_pages = match document.extract_text() {
+        Ok(pages) => pages,
+        Err(e) => {
+            set_last_error(format!("Failed to extract text from PDF: {e}"));
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let page_index = page_number - 1;
+    if page_index >= text_pages.len() {
+        set_last_error(format!(
+            "Page number {page_number} is out of range (PDF has {} pages)",
+            text_pages.len()
+        ));
+        return ErrorCode::PdfParseError as c_int;
+    }
 
-        let document = PdfDocument::new(reader);
-        let text_pages = match document.extract_text() {
-            Ok(pages) => pages,
-            Err(e) => {
-                set_last_error(format!("Failed to extract text from PDF: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let text = &text_pages[page_index].text;
 
-        let page_index = page_number - 1;
-        if page_index >= text_pages.len() {
-            set_last_error(format!(
-                "Page number {page_number} is out of range (PDF has {} pages)",
-                text_pages.len()
-            ));
-            return ErrorCode::PdfParseError as c_int;
+    let c_string = match CString::new(text.as_str()) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Text contains invalid UTF-8: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
         }
+    };
 
-        let text = &text_pages[page_index].text;
-
-        let c_string = match CString::new(text.as_str()) {
-            Ok(s) => s,
-            Err(e) => {
-                set_last_error(format!("Text contains invalid UTF-8: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_text = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_text = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Extract text chunks from a specific page of a PDF (1-based page number).
@@ -653,79 +645,77 @@ pub unsafe extern "C" fn oxidize_extract_chunks_from_page(
     options: *const ChunkOptions,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_extract_chunks_from_page");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_extract_chunks_from_page");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let chunk_opts = if options.is_null() {
+        default_chunk_options()
+    } else {
+        *options
+    };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        if page_number == 0 {
-            set_last_error("Page number must be >= 1 (1-based indexing)");
+    let document = PdfDocument::new(reader);
+    let text_pages = match document.extract_text() {
+        Ok(pages) => pages,
+        Err(e) => {
+            set_last_error(format!("Failed to extract text from PDF: {e}"));
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let chunk_opts = if options.is_null() {
-            default_chunk_options()
-        } else {
-            *options
-        };
+    let page_index = page_number - 1;
+    if page_index >= text_pages.len() {
+        set_last_error(format!(
+            "Page number {page_number} is out of range (PDF has {} pages)",
+            text_pages.len()
+        ));
+        return ErrorCode::PdfParseError as c_int;
+    }
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let page_text = &text_pages[page_index];
+    let mut chunks = Vec::new();
+    let mut chunk_index = 0;
 
-        let document = PdfDocument::new(reader);
-        let text_pages = match document.extract_text() {
-            Ok(pages) => pages,
-            Err(e) => {
-                set_last_error(format!("Failed to extract text from PDF: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    chunk_page_content(
+        &page_text.text,
+        page_number,
+        chunk_opts,
+        &mut chunks,
+        &mut chunk_index,
+    );
 
-        let page_index = page_number - 1;
-        if page_index >= text_pages.len() {
-            set_last_error(format!(
-                "Page number {page_number} is out of range (PDF has {} pages)",
-                text_pages.len()
-            ));
-            return ErrorCode::PdfParseError as c_int;
+    match chunks_to_cstring(&chunks) {
+        Ok(cs) => {
+            *out_json = cs.into_raw();
+            ErrorCode::Success as c_int
         }
-
-        let page_text = &text_pages[page_index];
-        let mut chunks = Vec::new();
-        let mut chunk_index = 0;
-
-        chunk_page_content(
-            &page_text.text,
-            page_number,
-            chunk_opts,
-            &mut chunks,
-            &mut chunk_index,
-        );
-
-        match chunks_to_cstring(&chunks) {
-            Ok(cs) => {
-                *out_json = cs.into_raw();
-                ErrorCode::Success as c_int
-            }
-            Err(code) => code,
-        }
-    })
+        Err(code) => code,
+    }
 }
 
 // ── Additional parser FFI functions ─────────────────────────────────────────
@@ -741,28 +731,26 @@ pub unsafe extern "C" fn oxidize_is_encrypted(
     pdf_len: usize,
     out_encrypted: *mut bool,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
-        if pdf_bytes.is_null() || out_encrypted.is_null() {
-            set_last_error("Null pointer provided to oxidize_is_encrypted");
-            return ErrorCode::NullPointer as c_int;
-        }
-        *out_encrypted = false;
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    clear_last_error();
+    if pdf_bytes.is_null() || out_encrypted.is_null() {
+        set_last_error("Null pointer provided to oxidize_is_encrypted");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_encrypted = false;
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-        *out_encrypted = reader.is_encrypted();
-        ErrorCode::Success as c_int
-    })
+    };
+    *out_encrypted = reader.is_encrypted();
+    ErrorCode::Success as c_int
 }
 
 /// Try to unlock an encrypted PDF with a password.
@@ -778,47 +766,45 @@ pub unsafe extern "C" fn oxidize_unlock_pdf(
     password: *const c_char,
     out_unlocked: *mut bool,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
-        if pdf_bytes.is_null() || password.is_null() || out_unlocked.is_null() {
-            set_last_error("Null pointer provided to oxidize_unlock_pdf");
-            return ErrorCode::NullPointer as c_int;
+    clear_last_error();
+    if pdf_bytes.is_null() || password.is_null() || out_unlocked.is_null() {
+        set_last_error("Null pointer provided to oxidize_unlock_pdf");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_unlocked = false;
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    let pw = match CStr::from_ptr(password).to_str() {
+        Ok(v) => v,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in password");
+            return ErrorCode::InvalidUtf8 as c_int;
         }
-        *out_unlocked = false;
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    };
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let mut reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
-        let pw = match CStr::from_ptr(password).to_str() {
-            Ok(v) => v,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in password");
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let mut reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-        if !reader.is_encrypted() {
-            *out_unlocked = true;
-            return ErrorCode::Success as c_int;
+    };
+    if !reader.is_encrypted() {
+        *out_unlocked = true;
+        return ErrorCode::Success as c_int;
+    }
+    match reader.unlock_with_password(pw) {
+        Ok(success) => {
+            *out_unlocked = success;
+            ErrorCode::Success as c_int
         }
-        match reader.unlock_with_password(pw) {
-            Ok(success) => {
-                *out_unlocked = success;
-                ErrorCode::Success as c_int
-            }
-            Err(e) => {
-                set_last_error(format!("Failed to unlock PDF: {e}"));
-                ErrorCode::EncryptionError as c_int
-            }
+        Err(e) => {
+            set_last_error(format!("Failed to unlock PDF: {e}"));
+            ErrorCode::EncryptionError as c_int
         }
-    })
+    }
 }
 
 /// Get the PDF version string (e.g. "1.4", "1.7").
@@ -833,36 +819,34 @@ pub unsafe extern "C" fn oxidize_get_pdf_version(
     pdf_len: usize,
     out_version: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
-        if pdf_bytes.is_null() || out_version.is_null() {
-            set_last_error("Null pointer provided to oxidize_get_pdf_version");
-            return ErrorCode::NullPointer as c_int;
-        }
-        *out_version = ptr::null_mut();
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    clear_last_error();
+    if pdf_bytes.is_null() || out_version.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_pdf_version");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_version = ptr::null_mut();
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-        let version = reader.version().to_string();
-        let c_string = match CString::new(version) {
-            Ok(s) => s,
-            Err(e) => {
-                set_last_error(format!("Version string contains invalid data: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-        *out_version = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    };
+    let version = reader.version().to_string();
+    let c_string = match CString::new(version) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Version string contains invalid data: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    *out_version = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Get the dimensions of a specific page from a parsed PDF (1-based page number).
@@ -879,43 +863,41 @@ pub unsafe extern "C" fn oxidize_get_page_dimensions(
     out_width: *mut f64,
     out_height: *mut f64,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
-        if pdf_bytes.is_null() || out_width.is_null() || out_height.is_null() {
-            set_last_error("Null pointer provided to oxidize_get_page_dimensions");
-            return ErrorCode::NullPointer as c_int;
-        }
-        *out_width = 0.0;
-        *out_height = 0.0;
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    clear_last_error();
+    if pdf_bytes.is_null() || out_width.is_null() || out_height.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_page_dimensions");
+        return ErrorCode::NullPointer as c_int;
+    }
+    *out_width = 0.0;
+    *out_height = 0.0;
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
-        if page_number == 0 {
-            set_last_error("Page number must be >= 1 (1-based indexing)");
+    };
+    let document = PdfDocument::new(reader);
+    let page_index = (page_number - 1) as u32;
+    let page = match document.get_page(page_index) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!("Failed to get page {page_number}: {e}"));
             return ErrorCode::PdfParseError as c_int;
         }
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-        let document = PdfDocument::new(reader);
-        let page_index = (page_number - 1) as u32;
-        let page = match document.get_page(page_index) {
-            Ok(p) => p,
-            Err(e) => {
-                set_last_error(format!("Failed to get page {page_number}: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-        *out_width = page.width();
-        *out_height = page.height();
-        ErrorCode::Success as c_int
-    })
+    };
+    *out_width = page.width();
+    *out_height = page.height();
+    ErrorCode::Success as c_int
 }
 
 /// Extract document metadata (Info dictionary + version + page count) from a PDF.
@@ -930,71 +912,69 @@ pub unsafe extern "C" fn oxidize_get_metadata(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_get_metadata");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_metadata");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let document = PdfDocument::new(reader);
+    let metadata = match document.metadata() {
+        Ok(m) => m,
+        Err(e) => {
+            set_last_error(format!("Failed to extract metadata: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let metadata = match document.metadata() {
-            Ok(m) => m,
-            Err(e) => {
-                set_last_error(format!("Failed to extract metadata: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let result = MetadataResult {
+        title: metadata.title,
+        author: metadata.author,
+        subject: metadata.subject,
+        keywords: metadata.keywords,
+        creator: metadata.creator,
+        producer: metadata.producer,
+        creation_date: metadata.creation_date,
+        modification_date: metadata.modification_date,
+        version: metadata.version,
+        page_count: metadata.page_count,
+    };
 
-        let result = MetadataResult {
-            title: metadata.title,
-            author: metadata.author,
-            subject: metadata.subject,
-            keywords: metadata.keywords,
-            creator: metadata.creator,
-            producer: metadata.producer,
-            creation_date: metadata.creation_date,
-            modification_date: metadata.modification_date,
-            version: metadata.version,
-            page_count: metadata.page_count,
-        };
+    let json = match serde_json::to_string(&result) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize metadata to JSON: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let json = match serde_json::to_string(&result) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize metadata to JSON: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Extract plain text from PDF bytes using custom extraction options.
@@ -1011,61 +991,59 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options(
     options: *const ExtractionOptionsFFI,
     out_text: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_text.is_null() {
-            set_last_error("Null pointer provided to oxidize_extract_text_with_options");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_text.is_null() {
+        set_last_error("Null pointer provided to oxidize_extract_text_with_options");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_text = ptr::null_mut();
+    *out_text = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let core_options = if options.is_null() {
+        oxidize_pdf::text::ExtractionOptions::default()
+    } else {
+        (*options).to_core()
+    };
+    let document = PdfDocument::new(reader);
+    let text_pages = match document.extract_text_with_options(core_options) {
+        Ok(pages) => pages,
+        Err(e) => {
+            set_last_error(format!("Failed to extract text with options: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let core_options = if options.is_null() {
-            oxidize_pdf::text::ExtractionOptions::default()
-        } else {
-            (*options).to_core()
-        };
-        let document = PdfDocument::new(reader);
-        let text_pages = match document.extract_text_with_options(core_options) {
-            Ok(pages) => pages,
-            Err(e) => {
-                set_last_error(format!("Failed to extract text with options: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let text = text_pages
+        .iter()
+        .map(|p| p.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n\n");
 
-        let text = text_pages
-            .iter()
-            .map(|p| p.text.as_str())
-            .collect::<Vec<_>>()
-            .join("\n\n");
+    let c_string = match CString::new(text) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Text contains invalid UTF-8: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let c_string = match CString::new(text) {
-            Ok(s) => s,
-            Err(e) => {
-                set_last_error(format!("Text contains invalid UTF-8: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_text = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_text = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 // ── Structured export helpers ────────────────────────────────────────────────
@@ -1165,124 +1143,119 @@ pub unsafe extern "C" fn oxidize_to_markdown_with_options(
     options_json: *const c_char,
     out_text: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || options_json.is_null() || out_text.is_null() {
-            set_last_error("Null pointer provided to oxidize_to_markdown_with_options");
-            return ErrorCode::NullPointer as c_int;
+    if pdf_bytes.is_null() || options_json.is_null() || out_text.is_null() {
+        set_last_error("Null pointer provided to oxidize_to_markdown_with_options");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_text = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let opts_str = match CStr::from_ptr(options_json).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in options_json: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
         }
+    };
 
-        *out_text = ptr::null_mut();
+    let opts: oxidize_pdf::ai::MarkdownOptions =
+        match serde_json::from_str::<crate::pipeline_config::MarkdownOptionsDto>(opts_str) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid MarkdownOptions JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let opts_str = match CStr::from_ptr(options_json).to_str() {
-            Ok(s) => s,
-            Err(e) => {
-                set_last_error(format!("invalid UTF-8 in options_json: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
+    let document = PdfDocument::new(reader);
 
-        let opts: oxidize_pdf::ai::MarkdownOptions =
-            match serde_json::from_str::<crate::pipeline_config::MarkdownOptionsDto>(opts_str) {
-                Ok(d) => d.into(),
+    // Extract per-page text once — used regardless of flag combination.
+    let extracted = match document.extract_text() {
+        Ok(t) => t,
+        Err(e) => {
+            set_last_error(format!("Failed to extract text: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+    let pages: Vec<(usize, String)> = extracted
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (i + 1, p.text.clone()))
+        .collect();
+    let flat_text = pages
+        .iter()
+        .map(|(_, t)| t.clone())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    // Dispatch by the flag matrix. Each branch uses the concrete static
+    // exporter that matches its semantics — we never call the Phase-1
+    // stub `MarkdownExporter::new(opts).export()`.
+    let md_result = match (opts.include_metadata, opts.include_page_numbers) {
+        (true, _) => {
+            // Need DocumentMetadata for any metadata-enabled path.
+            let parsed = match document.metadata() {
+                Ok(m) => m,
                 Err(e) => {
-                    set_last_error(format!("invalid MarkdownOptions JSON: {e}"));
-                    return ErrorCode::InvalidArgument as c_int;
+                    set_last_error(format!("Failed to read PDF metadata: {e}"));
+                    return ErrorCode::PdfParseError as c_int;
                 }
             };
-
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
+            let ai_metadata = oxidize_pdf::ai::DocumentMetadata {
+                title: parsed
+                    .title
+                    .unwrap_or_else(|| "Untitled Document".to_string()),
+                page_count: pages.len(),
+                created_at: parsed.creation_date.clone(),
+                author: parsed.author,
+            };
+            if opts.include_page_numbers {
+                oxidize_pdf::ai::MarkdownExporter::export_with_metadata_and_pages(
+                    &pages,
+                    &ai_metadata,
+                )
+            } else {
+                oxidize_pdf::ai::MarkdownExporter::export_with_metadata(&flat_text, &ai_metadata)
             }
-        };
+        }
+        (false, true) => oxidize_pdf::ai::MarkdownExporter::export_with_pages(&pages),
+        (false, false) => oxidize_pdf::ai::MarkdownExporter::export_text(&flat_text),
+    };
 
-        let document = PdfDocument::new(reader);
+    let md = match md_result {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Markdown export failed: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        // Extract per-page text once — used regardless of flag combination.
-        let extracted = match document.extract_text() {
-            Ok(t) => t,
-            Err(e) => {
-                set_last_error(format!("Failed to extract text: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-        let pages: Vec<(usize, String)> = extracted
-            .iter()
-            .enumerate()
-            .map(|(i, p)| (i + 1, p.text.clone()))
-            .collect();
-        let flat_text = pages
-            .iter()
-            .map(|(_, t)| t.clone())
-            .collect::<Vec<_>>()
-            .join("\n\n");
+    let c_string = match CString::new(md) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Markdown contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        // Dispatch by the flag matrix. Each branch uses the concrete static
-        // exporter that matches its semantics — we never call the Phase-1
-        // stub `MarkdownExporter::new(opts).export()`.
-        let md_result = match (opts.include_metadata, opts.include_page_numbers) {
-            (true, _) => {
-                // Need DocumentMetadata for any metadata-enabled path.
-                let parsed = match document.metadata() {
-                    Ok(m) => m,
-                    Err(e) => {
-                        set_last_error(format!("Failed to read PDF metadata: {e}"));
-                        return ErrorCode::PdfParseError as c_int;
-                    }
-                };
-                let ai_metadata = oxidize_pdf::ai::DocumentMetadata {
-                    title: parsed
-                        .title
-                        .unwrap_or_else(|| "Untitled Document".to_string()),
-                    page_count: pages.len(),
-                    created_at: parsed.creation_date.clone(),
-                    author: parsed.author,
-                };
-                if opts.include_page_numbers {
-                    oxidize_pdf::ai::MarkdownExporter::export_with_metadata_and_pages(
-                        &pages,
-                        &ai_metadata,
-                    )
-                } else {
-                    oxidize_pdf::ai::MarkdownExporter::export_with_metadata(
-                        &flat_text,
-                        &ai_metadata,
-                    )
-                }
-            }
-            (false, true) => oxidize_pdf::ai::MarkdownExporter::export_with_pages(&pages),
-            (false, false) => oxidize_pdf::ai::MarkdownExporter::export_text(&flat_text),
-        };
-
-        let md = match md_result {
-            Ok(s) => s,
-            Err(e) => {
-                set_last_error(format!("Markdown export failed: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        let c_string = match CString::new(md) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("Markdown contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_text = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_text = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Export PDF content as Markdown.
@@ -1296,10 +1269,8 @@ pub unsafe extern "C" fn oxidize_to_markdown(
     pdf_len: usize,
     out_text: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        structured_export_impl(pdf_bytes, pdf_len, out_text, "oxidize_to_markdown", |doc| {
-            doc.to_markdown()
-        })
+    structured_export_impl(pdf_bytes, pdf_len, out_text, "oxidize_to_markdown", |doc| {
+        doc.to_markdown()
     })
 }
 
@@ -1314,15 +1285,13 @@ pub unsafe extern "C" fn oxidize_to_contextual(
     pdf_len: usize,
     out_text: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        structured_export_impl(
-            pdf_bytes,
-            pdf_len,
-            out_text,
-            "oxidize_to_contextual",
-            |doc| doc.to_contextual(),
-        )
-    })
+    structured_export_impl(
+        pdf_bytes,
+        pdf_len,
+        out_text,
+        "oxidize_to_contextual",
+        |doc| doc.to_contextual(),
+    )
 }
 
 /// Export PDF content as structured JSON.
@@ -1336,10 +1305,8 @@ pub unsafe extern "C" fn oxidize_to_json(
     pdf_len: usize,
     out_text: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        structured_export_impl(pdf_bytes, pdf_len, out_text, "oxidize_to_json", |doc| {
-            doc.to_json()
-        })
+    structured_export_impl(pdf_bytes, pdf_len, out_text, "oxidize_to_json", |doc| {
+        doc.to_json()
     })
 }
 
@@ -1356,75 +1323,73 @@ pub unsafe extern "C" fn oxidize_partition(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_partition");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_partition");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition() {
+        Ok(elems) => elems,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<PdfElementResult> = elements
+        .iter()
+        .map(|el| {
+            let bbox = el.bbox();
+            PdfElementResult {
+                element_type: el.type_name().to_string(),
+                text: el.display_text(),
+                page_number: el.page() + 1, // Convert 0-based to 1-based
+                x: bbox.x,
+                y: bbox.y,
+                width: bbox.width,
+                height: bbox.height,
+                confidence: el.metadata().confidence,
             }
-        };
+        })
+        .collect();
 
-        let document = PdfDocument::new(reader);
-        let elements = match document.partition() {
-            Ok(elems) => elems,
-            Err(e) => {
-                set_last_error(format!("Failed to partition PDF: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize elements: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let results: Vec<PdfElementResult> = elements
-            .iter()
-            .map(|el| {
-                let bbox = el.bbox();
-                PdfElementResult {
-                    element_type: el.type_name().to_string(),
-                    text: el.display_text(),
-                    page_number: el.page() + 1, // Convert 0-based to 1-based
-                    x: bbox.x,
-                    y: bbox.y,
-                    width: bbox.width,
-                    height: bbox.height,
-                    confidence: el.metadata().confidence,
-                }
-            })
-            .collect();
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize elements: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
-
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Partition a PDF using a pre-configured extraction profile.
@@ -1462,83 +1427,81 @@ pub unsafe extern "C" fn oxidize_partition_with_profile(
     profile: u8,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_partition_with_profile");
-            return ErrorCode::NullPointer as c_int;
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_partition_with_profile");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let prof = match crate::pipeline_config::profile_from_u8(profile) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::InvalidArgument as c_int;
         }
+    };
 
-        *out_json = ptr::null_mut();
-
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let prof = match crate::pipeline_config::profile_from_u8(profile) {
-            Ok(p) => p,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::InvalidArgument as c_int;
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with_profile(prof) {
+        Ok(elems) => elems,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<PdfElementResult> = elements
+        .iter()
+        .map(|el| {
+            let bbox = el.bbox();
+            PdfElementResult {
+                element_type: el.type_name().to_string(),
+                text: el.display_text(),
+                page_number: el.page() + 1, // Convert 0-based to 1-based
+                x: bbox.x,
+                y: bbox.y,
+                width: bbox.width,
+                height: bbox.height,
+                confidence: el.metadata().confidence,
             }
-        };
+        })
+        .collect();
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize elements: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let elements = match document.partition_with_profile(prof) {
-            Ok(elems) => elems,
-            Err(e) => {
-                set_last_error(format!("Failed to partition PDF: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let results: Vec<PdfElementResult> = elements
-            .iter()
-            .map(|el| {
-                let bbox = el.bbox();
-                PdfElementResult {
-                    element_type: el.type_name().to_string(),
-                    text: el.display_text(),
-                    page_number: el.page() + 1, // Convert 0-based to 1-based
-                    x: bbox.x,
-                    y: bbox.y,
-                    width: bbox.width,
-                    height: bbox.height,
-                    confidence: el.metadata().confidence,
-                }
-            })
-            .collect();
-
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize elements: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
-
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Partition a PDF using an explicit `PartitionConfig` supplied as JSON.
@@ -1583,92 +1546,90 @@ pub unsafe extern "C" fn oxidize_partition_with_config(
     config_json: *const c_char,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || config_json.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_partition_with_config");
-            return ErrorCode::NullPointer as c_int;
+    if pdf_bytes.is_null() || config_json.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_partition_with_config");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let cfg_str = match CStr::from_ptr(config_json).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in config_json: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
         }
+    };
 
-        *out_json = ptr::null_mut();
+    let dto: crate::pipeline_config::PartitionConfigDto = match serde_json::from_str(cfg_str) {
+        Ok(d) => d,
+        Err(e) => {
+            set_last_error(format!("invalid PartitionConfig JSON: {e}"));
+            return ErrorCode::InvalidArgument as c_int;
+        }
+    };
+    let cfg: oxidize_pdf::pipeline::PartitionConfig = dto.into();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let cfg_str = match CStr::from_ptr(config_json).to_str() {
-            Ok(s) => s,
-            Err(e) => {
-                set_last_error(format!("invalid UTF-8 in config_json: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with(cfg) {
+        Ok(elems) => elems,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let results: Vec<PdfElementResult> = elements
+        .iter()
+        .map(|el| {
+            let bbox = el.bbox();
+            PdfElementResult {
+                element_type: el.type_name().to_string(),
+                text: el.display_text(),
+                page_number: el.page() + 1,
+                x: bbox.x,
+                y: bbox.y,
+                width: bbox.width,
+                height: bbox.height,
+                confidence: el.metadata().confidence,
             }
-        };
+        })
+        .collect();
 
-        let dto: crate::pipeline_config::PartitionConfigDto = match serde_json::from_str(cfg_str) {
-            Ok(d) => d,
-            Err(e) => {
-                set_last_error(format!("invalid PartitionConfig JSON: {e}"));
-                return ErrorCode::InvalidArgument as c_int;
-            }
-        };
-        let cfg: oxidize_pdf::pipeline::PartitionConfig = dto.into();
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize elements: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let elements = match document.partition_with(cfg) {
-            Ok(elems) => elems,
-            Err(e) => {
-                set_last_error(format!("Failed to partition PDF: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        let results: Vec<PdfElementResult> = elements
-            .iter()
-            .map(|el| {
-                let bbox = el.bbox();
-                PdfElementResult {
-                    element_type: el.type_name().to_string(),
-                    text: el.display_text(),
-                    page_number: el.page() + 1,
-                    x: bbox.x,
-                    y: bbox.y,
-                    width: bbox.width,
-                    height: bbox.height,
-                    confidence: el.metadata().confidence,
-                }
-            })
-            .collect();
-
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize elements: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
-
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Extract RAG chunks using a pre-configured extraction profile.
@@ -1702,81 +1663,79 @@ pub unsafe extern "C" fn oxidize_rag_chunks_with_profile(
     profile: u8,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_rag_chunks_with_profile");
-            return ErrorCode::NullPointer as c_int;
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_rag_chunks_with_profile");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let prof = match crate::pipeline_config::profile_from_u8(profile) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::InvalidArgument as c_int;
         }
+    };
 
-        *out_json = ptr::null_mut();
-
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let prof = match crate::pipeline_config::profile_from_u8(profile) {
-            Ok(p) => p,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::InvalidArgument as c_int;
-            }
-        };
+    let document = PdfDocument::new(reader);
+    let chunks = match document.rag_chunks_with_profile(prof) {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(format!("Failed to extract RAG chunks: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let results: Vec<RagChunkResult> = chunks
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| RagChunkResult {
+            chunk_index: i,
+            text: chunk.text.clone(),
+            full_text: chunk.full_text.clone(),
+            page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(), // 0-based to 1-based
+            element_types: chunk.element_types.clone(),
+            heading_context: chunk.heading_context.clone(),
+            token_estimate: chunk.token_estimate,
+            is_oversized: chunk.is_oversized,
+        })
+        .collect();
 
-        let document = PdfDocument::new(reader);
-        let chunks = match document.rag_chunks_with_profile(prof) {
-            Ok(c) => c,
-            Err(e) => {
-                set_last_error(format!("Failed to extract RAG chunks: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize RAG chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let results: Vec<RagChunkResult> = chunks
-            .iter()
-            .enumerate()
-            .map(|(i, chunk)| RagChunkResult {
-                chunk_index: i,
-                text: chunk.text.clone(),
-                full_text: chunk.full_text.clone(),
-                page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(), // 0-based to 1-based
-                element_types: chunk.element_types.clone(),
-                heading_context: chunk.heading_context.clone(),
-                token_estimate: chunk.token_estimate,
-                is_oversized: chunk.is_oversized,
-            })
-            .collect();
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize RAG chunks: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
-
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Extract semantic chunks (element-boundary-aware) from a PDF.
@@ -1826,109 +1785,106 @@ pub unsafe extern "C" fn oxidize_semantic_chunks(
     semantic_config_json: *const c_char,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || semantic_config_json.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_semantic_chunks");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || semantic_config_json.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_semantic_chunks");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
-            return ErrorCode::PdfParseError as c_int;
-        }
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
 
-        let partition_cfg: oxidize_pdf::pipeline::PartitionConfig =
-            if partition_config_json.is_null() {
-                oxidize_pdf::pipeline::PartitionConfig::default()
-            } else {
-                let s = match CStr::from_ptr(partition_config_json).to_str() {
-                    Ok(v) => v,
-                    Err(e) => {
-                        set_last_error(format!("invalid UTF-8 in partition_config_json: {e}"));
-                        return ErrorCode::InvalidUtf8 as c_int;
-                    }
-                };
-                match serde_json::from_str::<crate::pipeline_config::PartitionConfigDto>(s) {
-                    Ok(d) => d.into(),
-                    Err(e) => {
-                        set_last_error(format!("invalid PartitionConfig JSON: {e}"));
-                        return ErrorCode::InvalidArgument as c_int;
-                    }
-                }
-            };
-
-        let sem_str = match CStr::from_ptr(semantic_config_json).to_str() {
+    let partition_cfg: oxidize_pdf::pipeline::PartitionConfig = if partition_config_json.is_null() {
+        oxidize_pdf::pipeline::PartitionConfig::default()
+    } else {
+        let s = match CStr::from_ptr(partition_config_json).to_str() {
             Ok(v) => v,
             Err(e) => {
-                set_last_error(format!("invalid UTF-8 in semantic_config_json: {e}"));
+                set_last_error(format!("invalid UTF-8 in partition_config_json: {e}"));
                 return ErrorCode::InvalidUtf8 as c_int;
             }
         };
-        let sem_cfg: oxidize_pdf::pipeline::SemanticChunkConfig =
-            match serde_json::from_str::<crate::pipeline_config::SemanticChunkConfigDto>(sem_str) {
-                Ok(d) => d.into(),
-                Err(e) => {
-                    set_last_error(format!("invalid SemanticChunkConfig JSON: {e}"));
-                    return ErrorCode::InvalidArgument as c_int;
-                }
-            };
-
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
+        match serde_json::from_str::<crate::pipeline_config::PartitionConfigDto>(s) {
+            Ok(d) => d.into(),
             Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
+                set_last_error(format!("invalid PartitionConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        }
+    };
+
+    let sem_str = match CStr::from_ptr(semantic_config_json).to_str() {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in semantic_config_json: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+    let sem_cfg: oxidize_pdf::pipeline::SemanticChunkConfig =
+        match serde_json::from_str::<crate::pipeline_config::SemanticChunkConfigDto>(sem_str) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid SemanticChunkConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
             }
         };
 
-        let document = PdfDocument::new(reader);
-        let elements = match document.partition_with(partition_cfg) {
-            Ok(e) => e,
-            Err(e) => {
-                set_last_error(format!("Failed to partition PDF: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let chunker = oxidize_pdf::pipeline::SemanticChunker::new(sem_cfg);
-        let sem_chunks = chunker.chunk(&elements);
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with(partition_cfg) {
+        Ok(e) => e,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let results: Vec<SemanticChunkResult> = sem_chunks
-            .iter()
-            .enumerate()
-            .map(|(i, sc)| SemanticChunkResult {
-                chunk_index: i,
-                text: sc.text(),
-                page_numbers: sc.page_numbers().into_iter().map(|p| p + 1).collect(),
-                token_estimate: sc.token_estimate(),
-                is_oversized: sc.is_oversized(),
-            })
-            .collect();
+    let chunker = oxidize_pdf::pipeline::SemanticChunker::new(sem_cfg);
+    let sem_chunks = chunker.chunk(&elements);
 
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize semantic chunks: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
+    let results: Vec<SemanticChunkResult> = sem_chunks
+        .iter()
+        .enumerate()
+        .map(|(i, sc)| SemanticChunkResult {
+            chunk_index: i,
+            text: sc.text(),
+            page_numbers: sc.page_numbers().into_iter().map(|p| p + 1).collect(),
+            token_estimate: sc.token_estimate(),
+            is_oversized: sc.is_oversized(),
+        })
+        .collect();
 
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize semantic chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Extract RAG chunks using explicit partition and/or hybrid configs.
@@ -1973,120 +1929,117 @@ pub unsafe extern "C" fn oxidize_rag_chunks_with_config(
     hybrid_config_json: *const c_char,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_rag_chunks_with_config");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_rag_chunks_with_config");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
-            return ErrorCode::PdfParseError as c_int;
-        }
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
 
-        let partition_cfg: oxidize_pdf::pipeline::PartitionConfig =
-            if partition_config_json.is_null() {
-                oxidize_pdf::pipeline::PartitionConfig::default()
-            } else {
-                let s = match CStr::from_ptr(partition_config_json).to_str() {
-                    Ok(v) => v,
-                    Err(e) => {
-                        set_last_error(format!("invalid UTF-8 in partition_config_json: {e}"));
-                        return ErrorCode::InvalidUtf8 as c_int;
-                    }
-                };
-                match serde_json::from_str::<crate::pipeline_config::PartitionConfigDto>(s) {
-                    Ok(d) => d.into(),
-                    Err(e) => {
-                        set_last_error(format!("invalid PartitionConfig JSON: {e}"));
-                        return ErrorCode::InvalidArgument as c_int;
-                    }
-                }
-            };
-
-        let hybrid_cfg: oxidize_pdf::pipeline::HybridChunkConfig = if hybrid_config_json.is_null() {
-            oxidize_pdf::pipeline::HybridChunkConfig::default()
-        } else {
-            let s = match CStr::from_ptr(hybrid_config_json).to_str() {
-                Ok(v) => v,
-                Err(e) => {
-                    set_last_error(format!("invalid UTF-8 in hybrid_config_json: {e}"));
-                    return ErrorCode::InvalidUtf8 as c_int;
-                }
-            };
-            match serde_json::from_str::<crate::pipeline_config::HybridChunkConfigDto>(s) {
-                Ok(d) => d.into(),
-                Err(e) => {
-                    set_last_error(format!("invalid HybridChunkConfig JSON: {e}"));
-                    return ErrorCode::InvalidArgument as c_int;
-                }
-            }
-        };
-
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
+    let partition_cfg: oxidize_pdf::pipeline::PartitionConfig = if partition_config_json.is_null() {
+        oxidize_pdf::pipeline::PartitionConfig::default()
+    } else {
+        let s = match CStr::from_ptr(partition_config_json).to_str() {
+            Ok(v) => v,
             Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        let document = PdfDocument::new(reader);
-        let elements = match document.partition_with(partition_cfg) {
-            Ok(e) => e,
-            Err(e) => {
-                set_last_error(format!("Failed to partition PDF: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        let chunker = oxidize_pdf::pipeline::HybridChunker::new(hybrid_cfg);
-        let hybrid_chunks = chunker.chunk(&elements);
-        let chunks: Vec<oxidize_pdf::pipeline::RagChunk> = hybrid_chunks
-            .iter()
-            .enumerate()
-            .map(|(i, hc)| oxidize_pdf::pipeline::RagChunk::from_hybrid_chunk(i, hc))
-            .collect();
-
-        let results: Vec<RagChunkResult> = chunks
-            .iter()
-            .enumerate()
-            .map(|(i, chunk)| RagChunkResult {
-                chunk_index: i,
-                text: chunk.text.clone(),
-                full_text: chunk.full_text.clone(),
-                page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(),
-                element_types: chunk.element_types.clone(),
-                heading_context: chunk.heading_context.clone(),
-                token_estimate: chunk.token_estimate,
-                is_oversized: chunk.is_oversized,
-            })
-            .collect();
-
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize RAG chunks: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
-
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("JSON contains null bytes: {e}"));
+                set_last_error(format!("invalid UTF-8 in partition_config_json: {e}"));
                 return ErrorCode::InvalidUtf8 as c_int;
             }
         };
+        match serde_json::from_str::<crate::pipeline_config::PartitionConfigDto>(s) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid PartitionConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        }
+    };
 
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    let hybrid_cfg: oxidize_pdf::pipeline::HybridChunkConfig = if hybrid_config_json.is_null() {
+        oxidize_pdf::pipeline::HybridChunkConfig::default()
+    } else {
+        let s = match CStr::from_ptr(hybrid_config_json).to_str() {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("invalid UTF-8 in hybrid_config_json: {e}"));
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        match serde_json::from_str::<crate::pipeline_config::HybridChunkConfigDto>(s) {
+            Ok(d) => d.into(),
+            Err(e) => {
+                set_last_error(format!("invalid HybridChunkConfig JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        }
+    };
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let document = PdfDocument::new(reader);
+    let elements = match document.partition_with(partition_cfg) {
+        Ok(e) => e,
+        Err(e) => {
+            set_last_error(format!("Failed to partition PDF: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
+
+    let chunker = oxidize_pdf::pipeline::HybridChunker::new(hybrid_cfg);
+    let hybrid_chunks = chunker.chunk(&elements);
+    let chunks: Vec<oxidize_pdf::pipeline::RagChunk> = hybrid_chunks
+        .iter()
+        .enumerate()
+        .map(|(i, hc)| oxidize_pdf::pipeline::RagChunk::from_hybrid_chunk(i, hc))
+        .collect();
+
+    let results: Vec<RagChunkResult> = chunks
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| RagChunkResult {
+            chunk_index: i,
+            text: chunk.text.clone(),
+            full_text: chunk.full_text.clone(),
+            page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(),
+            element_types: chunk.element_types.clone(),
+            heading_context: chunk.heading_context.clone(),
+            token_estimate: chunk.token_estimate,
+            is_oversized: chunk.is_oversized,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize RAG chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Extract structure-aware RAG chunks from a PDF.
@@ -2100,73 +2053,71 @@ pub unsafe extern "C" fn oxidize_rag_chunks(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_rag_chunks");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_rag_chunks");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let document = PdfDocument::new(reader);
+    let chunks = match document.rag_chunks() {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(format!("Failed to extract RAG chunks: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let chunks = match document.rag_chunks() {
-            Ok(c) => c,
-            Err(e) => {
-                set_last_error(format!("Failed to extract RAG chunks: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let results: Vec<RagChunkResult> = chunks
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| RagChunkResult {
+            chunk_index: i,
+            text: chunk.text.clone(),
+            full_text: chunk.full_text.clone(),
+            page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(), // 0-based to 1-based
+            element_types: chunk.element_types.clone(),
+            heading_context: chunk.heading_context.clone(),
+            token_estimate: chunk.token_estimate,
+            is_oversized: chunk.is_oversized,
+        })
+        .collect();
 
-        let results: Vec<RagChunkResult> = chunks
-            .iter()
-            .enumerate()
-            .map(|(i, chunk)| RagChunkResult {
-                chunk_index: i,
-                text: chunk.text.clone(),
-                full_text: chunk.full_text.clone(),
-                page_numbers: chunk.page_numbers.iter().map(|p| p + 1).collect(), // 0-based to 1-based
-                element_types: chunk.element_types.clone(),
-                heading_context: chunk.heading_context.clone(),
-                token_estimate: chunk.token_estimate,
-                is_oversized: chunk.is_oversized,
-            })
-            .collect();
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize RAG chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize RAG chunks: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Estimate the number of tokens in a text string using the upstream
@@ -2189,25 +2140,23 @@ pub unsafe extern "C" fn oxidize_estimate_tokens(
     text: *const c_char,
     out_count: *mut usize,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if text.is_null() || out_count.is_null() {
-            set_last_error("Null pointer provided to oxidize_estimate_tokens");
-            return ErrorCode::NullPointer as c_int;
+    if text.is_null() || out_count.is_null() {
+        set_last_error("Null pointer provided to oxidize_estimate_tokens");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    let s = match CStr::from_ptr(text).to_str() {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in text: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
         }
+    };
 
-        let s = match CStr::from_ptr(text).to_str() {
-            Ok(v) => v,
-            Err(e) => {
-                set_last_error(format!("invalid UTF-8 in text: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_count = oxidize_pdf::ai::DocumentChunker::estimate_tokens(s);
-        ErrorCode::Success as c_int
-    })
+    *out_count = oxidize_pdf::ai::DocumentChunker::estimate_tokens(s);
+    ErrorCode::Success as c_int
 }
 
 /// Chunk arbitrary text using a fixed-size + overlap strategy. No PDF
@@ -2249,75 +2198,73 @@ pub unsafe extern "C" fn oxidize_chunk_text(
     overlap: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if text.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_chunk_text");
-            return ErrorCode::NullPointer as c_int;
+    if text.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_chunk_text");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if chunk_size == 0 {
+        set_last_error("chunk_size must be > 0");
+        return ErrorCode::InvalidArgument as c_int;
+    }
+
+    if overlap >= chunk_size {
+        set_last_error(format!(
+            "overlap ({overlap}) must be strictly less than chunk_size ({chunk_size})"
+        ));
+        return ErrorCode::InvalidArgument as c_int;
+    }
+
+    let s = match CStr::from_ptr(text).to_str() {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(format!("invalid UTF-8 in text: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
         }
+    };
 
-        *out_json = ptr::null_mut();
-
-        if chunk_size == 0 {
-            set_last_error("chunk_size must be > 0");
-            return ErrorCode::InvalidArgument as c_int;
+    let chunker = oxidize_pdf::ai::DocumentChunker::new(chunk_size, overlap);
+    let chunks = match chunker.chunk_text(s) {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(format!("chunk_text failed: {e}"));
+            return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        if overlap >= chunk_size {
-            set_last_error(format!(
-                "overlap ({overlap}) must be strictly less than chunk_size ({chunk_size})"
-            ));
-            return ErrorCode::InvalidArgument as c_int;
+    let results: Vec<TextChunkResult> = chunks
+        .into_iter()
+        .map(|c| TextChunkResult {
+            id: c.id,
+            content: c.content,
+            tokens: c.tokens,
+            page_numbers: c.page_numbers,
+            chunk_index: c.chunk_index,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize chunks: {e}"));
+            return ErrorCode::SerializationError as c_int;
         }
+    };
 
-        let s = match CStr::from_ptr(text).to_str() {
-            Ok(v) => v,
-            Err(e) => {
-                set_last_error(format!("invalid UTF-8 in text: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let chunker = oxidize_pdf::ai::DocumentChunker::new(chunk_size, overlap);
-        let chunks = match chunker.chunk_text(s) {
-            Ok(c) => c,
-            Err(e) => {
-                set_last_error(format!("chunk_text failed: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        let results: Vec<TextChunkResult> = chunks
-            .into_iter()
-            .map(|c| TextChunkResult {
-                id: c.id,
-                content: c.content,
-                tokens: c.tokens,
-                page_numbers: c.page_numbers,
-                chunk_index: c.chunk_index,
-            })
-            .collect();
-
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize chunks: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
-
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 // ── Annotations FFI ──────────────────────────────────────────────────────────
@@ -2336,103 +2283,101 @@ pub unsafe extern "C" fn oxidize_get_annotations(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_get_annotations");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_annotations");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let document = PdfDocument::new(reader);
+    let all_annotations = match document.get_all_annotations() {
+        Ok(a) => a,
+        Err(e) => {
+            set_last_error(format!("Failed to get annotations: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let all_annotations = match document.get_all_annotations() {
-            Ok(a) => a,
-            Err(e) => {
-                set_last_error(format!("Failed to get annotations: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let mut annotations: Vec<AnnotationResult> = Vec::new();
 
-        let mut annotations: Vec<AnnotationResult> = Vec::new();
+    for (page_index, dicts) in &all_annotations {
+        for dict in dicts {
+            let subtype = dict
+                .get("Subtype")
+                .and_then(|o| o.as_name())
+                .map(|n| n.as_str().to_string())
+                .unwrap_or_default();
 
-        for (page_index, dicts) in &all_annotations {
-            for dict in dicts {
-                let subtype = dict
-                    .get("Subtype")
-                    .and_then(|o| o.as_name())
-                    .map(|n| n.as_str().to_string())
-                    .unwrap_or_default();
+            let contents = dict
+                .get("Contents")
+                .and_then(|o| o.as_string())
+                .and_then(|s| s.as_str().ok())
+                .map(|s| s.to_string());
 
-                let contents = dict
-                    .get("Contents")
-                    .and_then(|o| o.as_string())
-                    .and_then(|s| s.as_str().ok())
-                    .map(|s| s.to_string());
+            let title = dict
+                .get("T")
+                .and_then(|o| o.as_string())
+                .and_then(|s| s.as_str().ok())
+                .map(|s| s.to_string());
 
-                let title = dict
-                    .get("T")
-                    .and_then(|o| o.as_string())
-                    .and_then(|s| s.as_str().ok())
-                    .map(|s| s.to_string());
-
-                let rect = dict.get("Rect").and_then(|o| o.as_array()).and_then(|arr| {
-                    if arr.0.len() == 4 {
-                        let values: Vec<f64> = arr.0.iter().filter_map(|v| v.as_real()).collect();
-                        if values.len() == 4 {
-                            Some([values[0], values[1], values[2], values[3]])
-                        } else {
-                            None
-                        }
+            let rect = dict.get("Rect").and_then(|o| o.as_array()).and_then(|arr| {
+                if arr.0.len() == 4 {
+                    let values: Vec<f64> = arr.0.iter().filter_map(|v| v.as_real()).collect();
+                    if values.len() == 4 {
+                        Some([values[0], values[1], values[2], values[3]])
                     } else {
                         None
                     }
-                });
+                } else {
+                    None
+                }
+            });
 
-                annotations.push(AnnotationResult {
-                    subtype,
-                    contents,
-                    title,
-                    page_number: page_index.saturating_add(1), // 0-based to 1-based
-                    rect,
-                });
-            }
+            annotations.push(AnnotationResult {
+                subtype,
+                contents,
+                title,
+                page_number: page_index.saturating_add(1), // 0-based to 1-based
+                rect,
+            });
         }
+    }
 
-        let json = match serde_json::to_string(&annotations) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize annotations: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
+    let json = match serde_json::to_string(&annotations) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize annotations: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("Annotations JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Annotations JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 // ── Page Resources FFI ───────────────────────────────────────────────────────
@@ -2450,95 +2395,93 @@ pub unsafe extern "C" fn oxidize_get_page_resources(
     page_number: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_get_page_resources");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_page_resources");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        if page_number == 0 {
-            set_last_error("Page number must be >= 1 (1-based indexing)");
+    let document = PdfDocument::new(reader);
+    let page_index = (page_number - 1) as u32;
+    let page = match document.get_page(page_index) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!("Failed to get page {page_number}: {e}"));
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
+    let mut font_names = Vec::new();
+    let mut has_xobjects = false;
+    let mut resource_keys = Vec::new();
+
+    if let Some(resources) = page.get_resources() {
+        // Collect top-level resource keys
+        for key in resources.0.keys() {
+            resource_keys.push(key.as_str().to_string());
+        }
+        resource_keys.sort();
+
+        // Extract font names
+        if let Some(fonts) = resources.get("Font").and_then(|f| f.as_dict()) {
+            for key in fonts.0.keys() {
+                font_names.push(key.as_str().to_string());
             }
-        };
-
-        let document = PdfDocument::new(reader);
-        let page_index = (page_number - 1) as u32;
-        let page = match document.get_page(page_index) {
-            Ok(p) => p,
-            Err(e) => {
-                set_last_error(format!("Failed to get page {page_number}: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        let mut font_names = Vec::new();
-        let mut has_xobjects = false;
-        let mut resource_keys = Vec::new();
-
-        if let Some(resources) = page.get_resources() {
-            // Collect top-level resource keys
-            for key in resources.0.keys() {
-                resource_keys.push(key.as_str().to_string());
-            }
-            resource_keys.sort();
-
-            // Extract font names
-            if let Some(fonts) = resources.get("Font").and_then(|f| f.as_dict()) {
-                for key in fonts.0.keys() {
-                    font_names.push(key.as_str().to_string());
-                }
-                font_names.sort();
-            }
-
-            // Check for images in XObjects
-            if let Some(xobjects) = resources.get("XObject").and_then(|x| x.as_dict()) {
-                has_xobjects = !xobjects.0.is_empty();
-            }
+            font_names.sort();
         }
 
-        let result = PageResourcesResult {
-            font_names,
-            has_xobjects,
-            resource_keys,
-        };
+        // Check for images in XObjects
+        if let Some(xobjects) = resources.get("XObject").and_then(|x| x.as_dict()) {
+            has_xobjects = !xobjects.0.is_empty();
+        }
+    }
 
-        let json = match serde_json::to_string(&result) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize page resources: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
+    let result = PageResourcesResult {
+        font_names,
+        has_xobjects,
+        resource_keys,
+    };
 
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("Page resources JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
+    let json = match serde_json::to_string(&result) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize page resources: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Page resources JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Get the raw content streams for a specific page as base64-encoded JSON.
@@ -2554,79 +2497,77 @@ pub unsafe extern "C" fn oxidize_get_page_content_stream(
     page_number: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_get_page_content_stream");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_page_content_stream");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        if page_number == 0 {
-            set_last_error("Page number must be >= 1 (1-based indexing)");
+    let document = PdfDocument::new(reader);
+    let page_index = (page_number - 1) as u32;
+    let page = match document.get_page(page_index) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!("Failed to get page {page_number}: {e}"));
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let raw_streams = match page.content_streams_with_document(&document) {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!(
+                "Failed to get content streams for page {page_number}: {e}"
+            ));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let page_index = (page_number - 1) as u32;
-        let page = match document.get_page(page_index) {
-            Ok(p) => p,
-            Err(e) => {
-                set_last_error(format!("Failed to get page {page_number}: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let b64_engine = base64::engine::general_purpose::STANDARD;
+    let streams: Vec<String> = raw_streams.iter().map(|s| b64_engine.encode(s)).collect();
 
-        let raw_streams = match page.content_streams_with_document(&document) {
-            Ok(s) => s,
-            Err(e) => {
-                set_last_error(format!(
-                    "Failed to get content streams for page {page_number}: {e}"
-                ));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let result = ContentStreamResult { streams };
 
-        let b64_engine = base64::engine::general_purpose::STANDARD;
-        let streams: Vec<String> = raw_streams.iter().map(|s| b64_engine.encode(s)).collect();
+    let json = match serde_json::to_string(&result) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize content streams: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let result = ContentStreamResult { streams };
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Content stream JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        let json = match serde_json::to_string(&result) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize content streams: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
-
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("Content stream JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 // ── Page Content Analysis FFI ────────────────────────────────────────────────
@@ -2650,102 +2591,100 @@ pub unsafe extern "C" fn oxidize_analyze_page_content(
     page_number: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_analyze_page_content");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_analyze_page_content");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    if page_number == 0 {
+        set_last_error("Page number must be >= 1 (1-based indexing)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        if page_number == 0 {
-            set_last_error("Page number must be >= 1 (1-based indexing)");
+    let document = PdfDocument::new(reader);
+    let page_index = (page_number - 1) as u32;
+    let page = match document.get_page(page_index) {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error(format!("Failed to get page {page_number}: {e}"));
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    // Count characters from extracted text for this specific page only
+    let character_count = match document.extract_text_from_page(page_index) {
+        Ok(extracted) => extracted.text.chars().count(),
+        Err(_) => 0,
+    };
 
-        let document = PdfDocument::new(reader);
-        let page_index = (page_number - 1) as u32;
-        let page = match document.get_page(page_index) {
-            Ok(p) => p,
-            Err(e) => {
-                set_last_error(format!("Failed to get page {page_number}: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    // Check for content streams
+    let has_content_stream = page.get_contents().is_some();
 
-        // Count characters from extracted text for this specific page only
-        let character_count = match document.extract_text_from_page(page_index) {
-            Ok(extracted) => extracted.text.chars().count(),
-            Err(_) => 0,
-        };
-
-        // Check for content streams
-        let has_content_stream = page.get_contents().is_some();
-
-        // Count image XObjects
-        let image_count = if let Some(resources) = page.get_resources() {
-            if let Some(xobjects) = resources.get("XObject").and_then(|x| x.as_dict()) {
-                xobjects.0.len()
-            } else {
-                0
-            }
+    // Count image XObjects
+    let image_count = if let Some(resources) = page.get_resources() {
+        if let Some(xobjects) = resources.get("XObject").and_then(|x| x.as_dict()) {
+            xobjects.0.len()
         } else {
             0
-        };
+        }
+    } else {
+        0
+    };
 
-        // Determine page type using heuristic
-        let page_type = if character_count > 0 && image_count > 0 {
-            "Mixed"
-        } else if character_count == 0 && image_count > 0 {
-            "Scanned"
-        } else if character_count > 0 {
-            "Text"
-        } else {
-            "Unknown" // truly empty page — no text, no images
-        };
+    // Determine page type using heuristic
+    let page_type = if character_count > 0 && image_count > 0 {
+        "Mixed"
+    } else if character_count == 0 && image_count > 0 {
+        "Scanned"
+    } else if character_count > 0 {
+        "Text"
+    } else {
+        "Unknown" // truly empty page — no text, no images
+    };
 
-        let result = ContentAnalysisResult {
-            page_type: page_type.to_string(),
-            character_count,
-            has_content_stream,
-            image_count,
-        };
+    let result = ContentAnalysisResult {
+        page_type: page_type.to_string(),
+        character_count,
+        has_content_stream,
+        image_count,
+    };
 
-        let json = match serde_json::to_string(&result) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize content analysis: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
+    let json = match serde_json::to_string(&result) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize content analysis: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("Content analysis JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Content analysis JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 // ── Digital Signatures FFI ───────────────────────────────────────────────────
@@ -2795,30 +2734,28 @@ pub unsafe extern "C" fn oxidize_has_signatures(
     pdf_len: usize,
     out_has_signatures: *mut bool,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_has_signatures.is_null() {
-            set_last_error("Null pointer provided to oxidize_has_signatures");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_has_signatures.is_null() {
+        set_last_error("Null pointer provided to oxidize_has_signatures");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_has_signatures = false;
+    *out_has_signatures = false;
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
-            return ErrorCode::PdfParseError as c_int;
-        }
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let sigs = match detect_sigs(bytes) {
-            Ok(s) => s,
-            Err(code) => return code,
-        };
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let sigs = match detect_sigs(bytes) {
+        Ok(s) => s,
+        Err(code) => return code,
+    };
 
-        *out_has_signatures = !sigs.is_empty();
-        ErrorCode::Success as c_int
-    })
+    *out_has_signatures = !sigs.is_empty();
+    ErrorCode::Success as c_int
 }
 
 /// Extract all digital signature fields from a PDF as JSON.
@@ -2832,48 +2769,46 @@ pub unsafe extern "C" fn oxidize_get_signatures(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_get_signatures");
-            return ErrorCode::NullPointer as c_int;
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_signatures");
+        return ErrorCode::NullPointer as c_int;
+    }
+
+    *out_json = ptr::null_mut();
+
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let sigs = match detect_sigs(bytes) {
+        Ok(s) => s,
+        Err(code) => return code,
+    };
+
+    let results: Vec<SignatureFieldResult> = sigs.iter().map(build_signature_result).collect();
+
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize signatures: {e}"));
+            return ErrorCode::SerializationError as c_int;
         }
+    };
 
-        *out_json = ptr::null_mut();
-
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
-            return ErrorCode::PdfParseError as c_int;
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Signatures JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let sigs = match detect_sigs(bytes) {
-            Ok(s) => s,
-            Err(code) => return code,
-        };
-
-        let results: Vec<SignatureFieldResult> = sigs.iter().map(build_signature_result).collect();
-
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize signatures: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
-
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("Signatures JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
-
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 /// Verify all digital signatures in a PDF and return detailed results as JSON.
@@ -2887,154 +2822,152 @@ pub unsafe extern "C" fn oxidize_verify_signatures(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_verify_signatures");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_verify_signatures");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
-            return ErrorCode::PdfParseError as c_int;
-        }
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let sigs = match detect_sigs(bytes) {
-            Ok(s) => s,
-            Err(code) => return code,
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let sigs = match detect_sigs(bytes) {
+        Ok(s) => s,
+        Err(code) => return code,
+    };
+
+    let mut results: Vec<SignatureVerificationFFIResult> = Vec::new();
+
+    for sig in &sigs {
+        let has_modifications = signatures::has_incremental_update(bytes, &sig.byte_range);
+
+        // Parse CMS and verify
+        let parsed = signatures::parse_pkcs7_signature(&sig.contents);
+
+        let (
+            signer_name,
+            hash_valid,
+            signature_valid,
+            digest_algorithm,
+            signature_algorithm,
+            certificate,
+            errors,
+            mut warnings,
+        ) = match &parsed {
+            Ok(p) => {
+                let signer = p.signer_common_name().ok();
+                let verify_result = signatures::verify_signature(bytes, p, &sig.byte_range);
+                let (hv, sv, da, sa, mut errs) = match verify_result {
+                    Ok(vr) => (
+                        vr.hash_valid,
+                        vr.signature_valid,
+                        Some(vr.digest_algorithm.name().to_string()),
+                        Some(vr.signature_algorithm.name().to_string()),
+                        vec![],
+                    ),
+                    Err(e) => (
+                        false,
+                        false,
+                        None,
+                        None,
+                        vec![format!("Verify failed: {e}")],
+                    ),
+                };
+
+                let cert_result = signatures::validate_certificate(
+                    &p.signer_certificate_der,
+                    &signatures::TrustStore::default(),
+                );
+                let (cert_info, cert_warnings) = match cert_result {
+                    Ok(cr) => {
+                        let w = cr.warnings.clone();
+                        (
+                            Some(CertificateInfoResult {
+                                subject: cr.subject,
+                                issuer: cr.issuer,
+                                valid_from: cr.valid_from,
+                                valid_to: cr.valid_to,
+                                is_time_valid: cr.is_time_valid,
+                                is_trusted: cr.is_trusted,
+                                is_signature_capable: cr.is_signature_capable,
+                                warnings: cr.warnings,
+                            }),
+                            w,
+                        )
+                    }
+                    Err(e) => {
+                        errs.push(format!("Certificate validation failed: {e}"));
+                        (None, vec![])
+                    }
+                };
+
+                (signer, hv, sv, da, sa, cert_info, errs, cert_warnings)
+            }
+            Err(e) => (
+                None,
+                false,
+                false,
+                None,
+                None,
+                None,
+                vec![format!("CMS parsing failed: {e}")],
+                vec![],
+            ),
         };
 
-        let mut results: Vec<SignatureVerificationFFIResult> = Vec::new();
-
-        for sig in &sigs {
-            let has_modifications = signatures::has_incremental_update(bytes, &sig.byte_range);
-
-            // Parse CMS and verify
-            let parsed = signatures::parse_pkcs7_signature(&sig.contents);
-
-            let (
-                signer_name,
-                hash_valid,
-                signature_valid,
-                digest_algorithm,
-                signature_algorithm,
-                certificate,
-                errors,
-                mut warnings,
-            ) = match &parsed {
-                Ok(p) => {
-                    let signer = p.signer_common_name().ok();
-                    let verify_result = signatures::verify_signature(bytes, p, &sig.byte_range);
-                    let (hv, sv, da, sa, mut errs) = match verify_result {
-                        Ok(vr) => (
-                            vr.hash_valid,
-                            vr.signature_valid,
-                            Some(vr.digest_algorithm.name().to_string()),
-                            Some(vr.signature_algorithm.name().to_string()),
-                            vec![],
-                        ),
-                        Err(e) => (
-                            false,
-                            false,
-                            None,
-                            None,
-                            vec![format!("Verify failed: {e}")],
-                        ),
-                    };
-
-                    let cert_result = signatures::validate_certificate(
-                        &p.signer_certificate_der,
-                        &signatures::TrustStore::default(),
-                    );
-                    let (cert_info, cert_warnings) = match cert_result {
-                        Ok(cr) => {
-                            let w = cr.warnings.clone();
-                            (
-                                Some(CertificateInfoResult {
-                                    subject: cr.subject,
-                                    issuer: cr.issuer,
-                                    valid_from: cr.valid_from,
-                                    valid_to: cr.valid_to,
-                                    is_time_valid: cr.is_time_valid,
-                                    is_trusted: cr.is_trusted,
-                                    is_signature_capable: cr.is_signature_capable,
-                                    warnings: cr.warnings,
-                                }),
-                                w,
-                            )
-                        }
-                        Err(e) => {
-                            errs.push(format!("Certificate validation failed: {e}"));
-                            (None, vec![])
-                        }
-                    };
-
-                    (signer, hv, sv, da, sa, cert_info, errs, cert_warnings)
-                }
-                Err(e) => (
-                    None,
-                    false,
-                    false,
-                    None,
-                    None,
-                    None,
-                    vec![format!("CMS parsing failed: {e}")],
-                    vec![],
-                ),
-            };
-
-            if has_modifications {
-                warnings.push("Document was modified after signing".to_string());
-            }
-
-            let is_valid = hash_valid
-                && signature_valid
-                && errors.is_empty()
-                && !has_modifications
-                && certificate
-                    .as_ref()
-                    .map(|c| c.is_time_valid && c.is_trusted && c.is_signature_capable)
-                    .unwrap_or(false);
-
-            results.push(SignatureVerificationFFIResult {
-                field_name: sig.name.clone(),
-                signer_name,
-                signing_time: sig.signing_time.clone(),
-                hash_valid,
-                signature_valid,
-                is_valid,
-                has_modifications_after_signing: has_modifications,
-                errors,
-                warnings,
-                digest_algorithm,
-                signature_algorithm,
-                certificate,
-            });
+        if has_modifications {
+            warnings.push("Document was modified after signing".to_string());
         }
 
-        let json = match serde_json::to_string(&results) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize verification results: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
+        let is_valid = hash_valid
+            && signature_valid
+            && errors.is_empty()
+            && !has_modifications
+            && certificate
+                .as_ref()
+                .map(|c| c.is_time_valid && c.is_trusted && c.is_signature_capable)
+                .unwrap_or(false);
 
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("Verification JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
+        results.push(SignatureVerificationFFIResult {
+            field_name: sig.name.clone(),
+            signer_name,
+            signing_time: sig.signing_time.clone(),
+            hash_valid,
+            signature_valid,
+            is_valid,
+            has_modifications_after_signing: has_modifications,
+            errors,
+            warnings,
+            digest_algorithm,
+            signature_algorithm,
+            certificate,
+        });
+    }
 
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    let json = match serde_json::to_string(&results) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize verification results: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
+
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Verification JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
+
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 // ── Form Fields FFI ──────────────────────────────────────────────────────────
@@ -3231,50 +3164,48 @@ pub unsafe extern "C" fn oxidize_has_form_fields(
     pdf_len: usize,
     out_has: *mut bool,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_has.is_null() {
-            set_last_error("Null pointer provided to oxidize_has_form_fields");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_has.is_null() {
+        set_last_error("Null pointer provided to oxidize_has_form_fields");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_has = false;
+    *out_has = false;
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let document = PdfDocument::new(reader);
+    let all_annots = match document.get_all_annotations() {
+        Ok(a) => a,
+        Err(e) => {
+            set_last_error(format!("Failed to get annotations: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let all_annots = match document.get_all_annotations() {
-            Ok(a) => a,
-            Err(e) => {
-                set_last_error(format!("Failed to get annotations: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        for (page_index, dicts) in &all_annots {
-            for dict in dicts {
-                if classify_form_field(&document, dict, page_index.saturating_add(1)).is_some() {
-                    *out_has = true;
-                    return ErrorCode::Success as c_int;
-                }
+    for (page_index, dicts) in &all_annots {
+        for dict in dicts {
+            if classify_form_field(&document, dict, page_index.saturating_add(1)).is_some() {
+                *out_has = true;
+                return ErrorCode::Success as c_int;
             }
         }
+    }
 
-        ErrorCode::Success as c_int
-    })
+    ErrorCode::Success as c_int
 }
 
 /// Extract all form fields from a PDF as JSON.
@@ -3288,81 +3219,77 @@ pub unsafe extern "C" fn oxidize_get_form_fields(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    crate::ffi_guard(move || {
-        clear_last_error();
+    clear_last_error();
 
-        if pdf_bytes.is_null() || out_json.is_null() {
-            set_last_error("Null pointer provided to oxidize_get_form_fields");
-            return ErrorCode::NullPointer as c_int;
-        }
+    if pdf_bytes.is_null() || out_json.is_null() {
+        set_last_error("Null pointer provided to oxidize_get_form_fields");
+        return ErrorCode::NullPointer as c_int;
+    }
 
-        *out_json = ptr::null_mut();
+    *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+    if pdf_len == 0 {
+        set_last_error("PDF data is empty (0 bytes)");
+        return ErrorCode::PdfParseError as c_int;
+    }
+
+    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+    let reader = match open_lenient(bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            set_last_error(e);
             return ErrorCode::PdfParseError as c_int;
         }
+    };
 
-        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-        let reader = match open_lenient(bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                set_last_error(e);
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
+    let document = PdfDocument::new(reader);
+    let all_annots = match document.get_all_annotations() {
+        Ok(a) => a,
+        Err(e) => {
+            set_last_error(format!("Failed to get annotations: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+    };
 
-        let document = PdfDocument::new(reader);
-        let all_annots = match document.get_all_annotations() {
-            Ok(a) => a,
-            Err(e) => {
-                set_last_error(format!("Failed to get annotations: {e}"));
-                return ErrorCode::PdfParseError as c_int;
-            }
-        };
-
-        let mut fields: Vec<FormFieldResult> = Vec::new();
-        // A field with several widgets (e.g. a radio group) appears once per
-        // widget annotation, each resolving to the same `/Parent` field object.
-        // Dedup by that parent reference so the group is reported as one field;
-        // widgets carrying their own `/FT` (merged/standalone fields) have no
-        // `/Parent` and are never collapsed.
-        let mut seen_parents: std::collections::HashSet<(u32, u16)> =
-            std::collections::HashSet::new();
-        for (page_index, dicts) in &all_annots {
-            for dict in dicts {
-                if let Some(field) =
-                    classify_form_field(&document, dict, page_index.saturating_add(1))
-                {
-                    if let Some(parent_ref) = dict.get("Parent").and_then(|o| o.as_reference()) {
-                        if !seen_parents.insert(parent_ref) {
-                            continue;
-                        }
+    let mut fields: Vec<FormFieldResult> = Vec::new();
+    // A field with several widgets (e.g. a radio group) appears once per
+    // widget annotation, each resolving to the same `/Parent` field object.
+    // Dedup by that parent reference so the group is reported as one field;
+    // widgets carrying their own `/FT` (merged/standalone fields) have no
+    // `/Parent` and are never collapsed.
+    let mut seen_parents: std::collections::HashSet<(u32, u16)> = std::collections::HashSet::new();
+    for (page_index, dicts) in &all_annots {
+        for dict in dicts {
+            if let Some(field) = classify_form_field(&document, dict, page_index.saturating_add(1))
+            {
+                if let Some(parent_ref) = dict.get("Parent").and_then(|o| o.as_reference()) {
+                    if !seen_parents.insert(parent_ref) {
+                        continue;
                     }
-                    fields.push(field);
                 }
+                fields.push(field);
             }
         }
+    }
 
-        let json = match serde_json::to_string(&fields) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize form fields: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
+    let json = match serde_json::to_string(&fields) {
+        Ok(j) => j,
+        Err(e) => {
+            set_last_error(format!("Failed to serialize form fields: {e}"));
+            return ErrorCode::SerializationError as c_int;
+        }
+    };
 
-        let c_string = match CString::new(json) {
-            Ok(cs) => cs,
-            Err(e) => {
-                set_last_error(format!("Form fields JSON contains null bytes: {e}"));
-                return ErrorCode::InvalidUtf8 as c_int;
-            }
-        };
+    let c_string = match CString::new(json) {
+        Ok(cs) => cs,
+        Err(e) => {
+            set_last_error(format!("Form fields JSON contains null bytes: {e}"));
+            return ErrorCode::InvalidUtf8 as c_int;
+        }
+    };
 
-        *out_json = c_string.into_raw();
-        ErrorCode::Success as c_int
-    })
+    *out_json = c_string.into_raw();
+    ErrorCode::Success as c_int
 }
 
 #[cfg(test)]

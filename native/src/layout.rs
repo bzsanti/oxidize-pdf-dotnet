@@ -24,20 +24,22 @@ pub struct FlowLayoutHandle {
 pub unsafe extern "C" fn oxidize_flow_layout_create_a4(
     out_handle: *mut *mut FlowLayoutHandle,
 ) -> c_int {
-    clear_last_error();
-    if out_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_create_a4");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_handle = std::ptr::null_mut();
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if out_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_create_a4");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_handle = std::ptr::null_mut();
 
-    let config = oxidize_pdf::layout::PageConfig::a4();
-    let layout = oxidize_pdf::layout::FlowLayout::new(config.clone());
-    *out_handle = Box::into_raw(Box::new(FlowLayoutHandle {
-        inner: layout,
-        config,
-    }));
-    ErrorCode::Success as c_int
+        let config = oxidize_pdf::layout::PageConfig::a4();
+        let layout = oxidize_pdf::layout::FlowLayout::new(config.clone());
+        *out_handle = Box::into_raw(Box::new(FlowLayoutHandle {
+            inner: layout,
+            config,
+        }));
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Create a FlowLayout with custom dimensions and margins.
@@ -54,27 +56,29 @@ pub unsafe extern "C" fn oxidize_flow_layout_create(
     margin_bottom: f64,
     out_handle: *mut *mut FlowLayoutHandle,
 ) -> c_int {
-    clear_last_error();
-    if out_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_create");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_handle = std::ptr::null_mut();
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if out_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_create");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_handle = std::ptr::null_mut();
 
-    let config = oxidize_pdf::layout::PageConfig::new(
-        width,
-        height,
-        margin_left,
-        margin_right,
-        margin_top,
-        margin_bottom,
-    );
-    let layout = oxidize_pdf::layout::FlowLayout::new(config.clone());
-    *out_handle = Box::into_raw(Box::new(FlowLayoutHandle {
-        inner: layout,
-        config,
-    }));
-    ErrorCode::Success as c_int
+        let config = oxidize_pdf::layout::PageConfig::new(
+            width,
+            height,
+            margin_left,
+            margin_right,
+            margin_top,
+            margin_bottom,
+        );
+        let layout = oxidize_pdf::layout::FlowLayout::new(config.clone());
+        *out_handle = Box::into_raw(Box::new(FlowLayoutHandle {
+            inner: layout,
+            config,
+        }));
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Free a FlowLayout handle.
@@ -83,10 +87,12 @@ pub unsafe extern "C" fn oxidize_flow_layout_create(
 /// - `handle` must have been returned by `oxidize_flow_layout_create*`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_flow_layout_free(handle: *mut FlowLayoutHandle) {
-    if handle.is_null() {
-        return;
-    }
-    drop(Box::from_raw(handle));
+    crate::ffi_guard_unit(move || {
+        if handle.is_null() {
+            return;
+        }
+        drop(Box::from_raw(handle));
+    })
 }
 
 /// Add a text block with default line height (1.2).
@@ -101,22 +107,24 @@ pub unsafe extern "C" fn oxidize_flow_layout_add_text(
     font: StandardFont,
     font_size: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_add_text");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let text_str = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in text");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_add_text");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle)
-        .inner
-        .add_text(text_str, font.to_oxidize(), font_size);
-    ErrorCode::Success as c_int
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in text");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*handle)
+            .inner
+            .add_text(text_str, font.to_oxidize(), font_size);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add a text block with custom line height.
@@ -132,22 +140,29 @@ pub unsafe extern "C" fn oxidize_flow_layout_add_text_with_line_height(
     font_size: f64,
     line_height: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_add_text_with_line_height");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let text_str = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in text");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error(
+                "Null pointer provided to oxidize_flow_layout_add_text_with_line_height",
+            );
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle)
-        .inner
-        .add_text_with_line_height(text_str, font.to_oxidize(), font_size, line_height);
-    ErrorCode::Success as c_int
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in text");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*handle).inner.add_text_with_line_height(
+            text_str,
+            font.to_oxidize(),
+            font_size,
+            line_height,
+        );
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add vertical spacing in points.
@@ -159,13 +174,15 @@ pub unsafe extern "C" fn oxidize_flow_layout_add_spacer(
     handle: *mut FlowLayoutHandle,
     points: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_add_spacer");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*handle).inner.add_spacer(points);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_add_spacer");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*handle).inner.add_spacer(points);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add a simple table to the layout from JSON.
@@ -180,17 +197,19 @@ pub unsafe extern "C" fn oxidize_flow_layout_add_table(
     handle: *mut FlowLayoutHandle,
     table_json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || table_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_add_table");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let table = match parse_simple_table(table_json) {
-        Ok(t) => t,
-        Err(code) => return code,
-    };
-    (*handle).inner.add_table(table);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || table_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_add_table");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let table = match parse_simple_table(table_json) {
+            Ok(t) => t,
+            Err(code) => return code,
+        };
+        (*handle).inner.add_table(table);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add rich text (mixed-style single line) from a JSON array of spans.
@@ -205,17 +224,19 @@ pub unsafe extern "C" fn oxidize_flow_layout_add_rich_text(
     handle: *mut FlowLayoutHandle,
     spans_json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || spans_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_add_rich_text");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let rich = match parse_rich_text(spans_json) {
-        Ok(r) => r,
-        Err(code) => return code,
-    };
-    (*handle).inner.add_rich_text(rich);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || spans_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_add_rich_text");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let rich = match parse_rich_text(spans_json) {
+            Ok(r) => r,
+            Err(code) => return code,
+        };
+        (*handle).inner.add_rich_text(rich);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add an image to the layout, left-aligned.
@@ -232,23 +253,25 @@ pub unsafe extern "C" fn oxidize_flow_layout_add_image(
     max_width: f64,
     max_height: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || name.is_null() || image_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_add_image");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in image name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || image_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_add_image");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let img = Arc::new((*image_handle).inner.clone());
-    (*handle)
-        .inner
-        .add_image(name_str, img, max_width, max_height);
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in image name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let img = Arc::new((*image_handle).inner.clone());
+        (*handle)
+            .inner
+            .add_image(name_str, img, max_width, max_height);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add an image to the layout, centered horizontally.
@@ -265,23 +288,25 @@ pub unsafe extern "C" fn oxidize_flow_layout_add_image_centered(
     max_width: f64,
     max_height: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || name.is_null() || image_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_add_image_centered");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in image name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || image_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_add_image_centered");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let img = Arc::new((*image_handle).inner.clone());
-    (*handle)
-        .inner
-        .add_image_centered(name_str, img, max_width, max_height);
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in image name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let img = Arc::new((*image_handle).inner.clone());
+        (*handle)
+            .inner
+            .add_image_centered(name_str, img, max_width, max_height);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Build the layout into a document, creating pages as needed.
@@ -294,16 +319,18 @@ pub unsafe extern "C" fn oxidize_flow_layout_build_into(
     handle: *const FlowLayoutHandle,
     doc: *mut DocumentHandle,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || doc.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_build_into");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if let Err(e) = (*handle).inner.build_into(&mut (*doc).inner) {
-        set_last_error(format!("Failed to build layout into document: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || doc.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_build_into");
+            return ErrorCode::NullPointer as c_int;
+        }
+        if let Err(e) = (*handle).inner.build_into(&mut (*doc).inner) {
+            set_last_error(format!("Failed to build layout into document: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Get the content width (page width minus margins).
@@ -316,13 +343,15 @@ pub unsafe extern "C" fn oxidize_flow_layout_content_width(
     handle: *const FlowLayoutHandle,
     out_width: *mut f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_width.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_content_width");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_width = (*handle).config.content_width();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_width.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_content_width");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_width = (*handle).config.content_width();
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Get the usable height (page height minus margins).
@@ -335,13 +364,15 @@ pub unsafe extern "C" fn oxidize_flow_layout_usable_height(
     handle: *const FlowLayoutHandle,
     out_height: *mut f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_height.is_null() {
-        set_last_error("Null pointer provided to oxidize_flow_layout_usable_height");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_height = (*handle).config.usable_height();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_height.is_null() {
+            set_last_error("Null pointer provided to oxidize_flow_layout_usable_height");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_height = (*handle).config.usable_height();
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── DocumentBuilder ──────────────────────────────────────────────────────────
@@ -360,18 +391,20 @@ pub struct DocumentBuilderHandle {
 pub unsafe extern "C" fn oxidize_document_builder_create_a4(
     out_handle: *mut *mut DocumentBuilderHandle,
 ) -> c_int {
-    clear_last_error();
-    if out_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_builder_create_a4");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_handle = std::ptr::null_mut();
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if out_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_builder_create_a4");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_handle = std::ptr::null_mut();
 
-    let builder = oxidize_pdf::layout::DocumentBuilder::a4();
-    *out_handle = Box::into_raw(Box::new(DocumentBuilderHandle {
-        inner: Some(builder),
-    }));
-    ErrorCode::Success as c_int
+        let builder = oxidize_pdf::layout::DocumentBuilder::a4();
+        *out_handle = Box::into_raw(Box::new(DocumentBuilderHandle {
+            inner: Some(builder),
+        }));
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Create a DocumentBuilder with custom dimensions and margins.
@@ -388,26 +421,28 @@ pub unsafe extern "C" fn oxidize_document_builder_create(
     margin_bottom: f64,
     out_handle: *mut *mut DocumentBuilderHandle,
 ) -> c_int {
-    clear_last_error();
-    if out_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_builder_create");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_handle = std::ptr::null_mut();
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if out_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_builder_create");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_handle = std::ptr::null_mut();
 
-    let config = oxidize_pdf::layout::PageConfig::new(
-        width,
-        height,
-        margin_left,
-        margin_right,
-        margin_top,
-        margin_bottom,
-    );
-    let builder = oxidize_pdf::layout::DocumentBuilder::new(config);
-    *out_handle = Box::into_raw(Box::new(DocumentBuilderHandle {
-        inner: Some(builder),
-    }));
-    ErrorCode::Success as c_int
+        let config = oxidize_pdf::layout::PageConfig::new(
+            width,
+            height,
+            margin_left,
+            margin_right,
+            margin_top,
+            margin_bottom,
+        );
+        let builder = oxidize_pdf::layout::DocumentBuilder::new(config);
+        *out_handle = Box::into_raw(Box::new(DocumentBuilderHandle {
+            inner: Some(builder),
+        }));
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Free a DocumentBuilder handle.
@@ -416,10 +451,12 @@ pub unsafe extern "C" fn oxidize_document_builder_create(
 /// - `handle` must have been returned by `oxidize_document_builder_create*`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_document_builder_free(handle: *mut DocumentBuilderHandle) {
-    if handle.is_null() {
-        return;
-    }
-    drop(Box::from_raw(handle));
+    crate::ffi_guard_unit(move || {
+        if handle.is_null() {
+            return;
+        }
+        drop(Box::from_raw(handle));
+    })
 }
 
 /// Helper macro for DocumentBuilder take/replace pattern.
@@ -453,25 +490,27 @@ pub unsafe extern "C" fn oxidize_document_builder_add_text(
     font: StandardFont,
     font_size: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_builder_add_text");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let text_str = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in text");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_builder_add_text");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    builder_take_replace!(
-        handle,
-        "add_text",
-        |b: oxidize_pdf::layout::DocumentBuilder| {
-            b.add_text(text_str, font.to_oxidize(), font_size)
-        }
-    )
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in text");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        builder_take_replace!(
+            handle,
+            "add_text",
+            |b: oxidize_pdf::layout::DocumentBuilder| {
+                b.add_text(text_str, font.to_oxidize(), font_size)
+            }
+        )
+    })
 }
 
 /// Add a text block with custom line height.
@@ -487,27 +526,29 @@ pub unsafe extern "C" fn oxidize_document_builder_add_text_with_line_height(
     font_size: f64,
     line_height: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error(
-            "Null pointer provided to oxidize_document_builder_add_text_with_line_height",
-        );
-        return ErrorCode::NullPointer as c_int;
-    }
-    let text_str = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in text");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error(
+                "Null pointer provided to oxidize_document_builder_add_text_with_line_height",
+            );
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    builder_take_replace!(
-        handle,
-        "add_text_with_line_height",
-        |b: oxidize_pdf::layout::DocumentBuilder| {
-            b.add_text_with_line_height(text_str, font.to_oxidize(), font_size, line_height)
-        }
-    )
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in text");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        builder_take_replace!(
+            handle,
+            "add_text_with_line_height",
+            |b: oxidize_pdf::layout::DocumentBuilder| {
+                b.add_text_with_line_height(text_str, font.to_oxidize(), font_size, line_height)
+            }
+        )
+    })
 }
 
 /// Add vertical spacing in points.
@@ -519,16 +560,18 @@ pub unsafe extern "C" fn oxidize_document_builder_add_spacer(
     handle: *mut DocumentBuilderHandle,
     points: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_builder_add_spacer");
-        return ErrorCode::NullPointer as c_int;
-    }
-    builder_take_replace!(
-        handle,
-        "add_spacer",
-        |b: oxidize_pdf::layout::DocumentBuilder| { b.add_spacer(points) }
-    )
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_builder_add_spacer");
+            return ErrorCode::NullPointer as c_int;
+        }
+        builder_take_replace!(
+            handle,
+            "add_spacer",
+            |b: oxidize_pdf::layout::DocumentBuilder| { b.add_spacer(points) }
+        )
+    })
 }
 
 /// Add a simple table to the builder from JSON.
@@ -543,20 +586,22 @@ pub unsafe extern "C" fn oxidize_document_builder_add_table(
     handle: *mut DocumentBuilderHandle,
     table_json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || table_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_builder_add_table");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let table = match parse_simple_table(table_json) {
-        Ok(t) => t,
-        Err(code) => return code,
-    };
-    builder_take_replace!(
-        handle,
-        "add_table",
-        |b: oxidize_pdf::layout::DocumentBuilder| { b.add_table(table) }
-    )
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || table_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_builder_add_table");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let table = match parse_simple_table(table_json) {
+            Ok(t) => t,
+            Err(code) => return code,
+        };
+        builder_take_replace!(
+            handle,
+            "add_table",
+            |b: oxidize_pdf::layout::DocumentBuilder| { b.add_table(table) }
+        )
+    })
 }
 
 /// Add rich text from a JSON array of spans.
@@ -569,20 +614,22 @@ pub unsafe extern "C" fn oxidize_document_builder_add_rich_text(
     handle: *mut DocumentBuilderHandle,
     spans_json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || spans_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_builder_add_rich_text");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let rich = match parse_rich_text(spans_json) {
-        Ok(r) => r,
-        Err(code) => return code,
-    };
-    builder_take_replace!(
-        handle,
-        "add_rich_text",
-        |b: oxidize_pdf::layout::DocumentBuilder| { b.add_rich_text(rich) }
-    )
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || spans_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_builder_add_rich_text");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let rich = match parse_rich_text(spans_json) {
+            Ok(r) => r,
+            Err(code) => return code,
+        };
+        builder_take_replace!(
+            handle,
+            "add_rich_text",
+            |b: oxidize_pdf::layout::DocumentBuilder| { b.add_rich_text(rich) }
+        )
+    })
 }
 
 /// Add an image to the builder, left-aligned.
@@ -599,26 +646,28 @@ pub unsafe extern "C" fn oxidize_document_builder_add_image(
     max_width: f64,
     max_height: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || name.is_null() || image_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_builder_add_image");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in image name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || image_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_builder_add_image");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let img = Arc::new((*image_handle).inner.clone());
-    builder_take_replace!(
-        handle,
-        "add_image",
-        |b: oxidize_pdf::layout::DocumentBuilder| {
-            b.add_image(name_str, img, max_width, max_height)
-        }
-    )
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in image name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let img = Arc::new((*image_handle).inner.clone());
+        builder_take_replace!(
+            handle,
+            "add_image",
+            |b: oxidize_pdf::layout::DocumentBuilder| {
+                b.add_image(name_str, img, max_width, max_height)
+            }
+        )
+    })
 }
 
 /// Add an image to the builder, centered horizontally.
@@ -635,26 +684,28 @@ pub unsafe extern "C" fn oxidize_document_builder_add_image_centered(
     max_width: f64,
     max_height: f64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || name.is_null() || image_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_builder_add_image_centered");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in image name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || image_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_builder_add_image_centered");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let img = Arc::new((*image_handle).inner.clone());
-    builder_take_replace!(
-        handle,
-        "add_image_centered",
-        |b: oxidize_pdf::layout::DocumentBuilder| {
-            b.add_image_centered(name_str, img, max_width, max_height)
-        }
-    )
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in image name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let img = Arc::new((*image_handle).inner.clone());
+        builder_take_replace!(
+            handle,
+            "add_image_centered",
+            |b: oxidize_pdf::layout::DocumentBuilder| {
+                b.add_image_centered(name_str, img, max_width, max_height)
+            }
+        )
+    })
 }
 
 /// Build the document, creating pages as needed. The builder is consumed by this call.
@@ -667,32 +718,34 @@ pub unsafe extern "C" fn oxidize_document_builder_build(
     handle: *mut DocumentBuilderHandle,
     out_doc: *mut *mut DocumentHandle,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_doc.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_builder_build");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_doc = std::ptr::null_mut();
-
-    let h = &mut *handle;
-    let builder = match h.inner.take() {
-        Some(b) => b,
-        None => {
-            set_last_error("DocumentBuilder has already been consumed (built)");
-            return ErrorCode::PdfParseError as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_doc.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_builder_build");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        *out_doc = std::ptr::null_mut();
 
-    let doc = match builder.build() {
-        Ok(d) => d,
-        Err(e) => {
-            set_last_error(format!("Failed to build document: {e}"));
-            return ErrorCode::PdfParseError as c_int;
-        }
-    };
+        let h = &mut *handle;
+        let builder = match h.inner.take() {
+            Some(b) => b,
+            None => {
+                set_last_error("DocumentBuilder has already been consumed (built)");
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
 
-    *out_doc = Box::into_raw(Box::new(DocumentHandle { inner: doc }));
-    ErrorCode::Success as c_int
+        let doc = match builder.build() {
+            Ok(d) => d,
+            Err(e) => {
+                set_last_error(format!("Failed to build document: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
+
+        *out_doc = Box::into_raw(Box::new(DocumentHandle { inner: doc }));
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Shared helpers ───────────────────────────────────────────────────────────

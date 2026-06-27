@@ -27,7 +27,7 @@ lto = true              # Link-time optimization
 codegen-units = 1       # Better optimization
 opt-level = 3           # Maximum optimization
 strip = true            # Strip debug symbols
-panic = "abort"         # Smaller binary size
+panic = "unwind"        # Required: FFI guards catch_unwind panics at the boundary (#53)
 
 [profile.dev]
 opt-level = 0

@@ -40,69 +40,71 @@ pub unsafe extern "C" fn oxidize_document_add_cid_keyed_font(
     font_len: usize,
     mapping_json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || name.is_null() || font_bytes.is_null() || mapping_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_add_cid_keyed_font");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if font_len == 0 {
-        set_last_error("Font data is empty (0 bytes)");
-        return ErrorCode::IoError as c_int;
-    }
-    let font_name = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in font name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || font_bytes.is_null() || mapping_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_add_cid_keyed_font");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let json = match CStr::from_ptr(mapping_json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in CID mapping JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+        if font_len == 0 {
+            set_last_error("Font data is empty (0 bytes)");
+            return ErrorCode::IoError as c_int;
         }
-    };
+        let font_name = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in font name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let json = match CStr::from_ptr(mapping_json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in CID mapping JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    #[derive(serde::Deserialize)]
-    struct MappingDto {
-        cid_to_gid: HashMap<u16, u16>,
-        #[serde(default)]
-        cid_to_unicode: HashMap<u16, u32>,
-        #[serde(default)]
-        cid_to_unicode_str: HashMap<u16, String>,
-    }
-
-    let dto: MappingDto = match serde_json::from_str(json) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid CID mapping JSON: {e}"));
-            return ErrorCode::PdfParseError as c_int;
+        #[derive(serde::Deserialize)]
+        struct MappingDto {
+            cid_to_gid: HashMap<u16, u16>,
+            #[serde(default)]
+            cid_to_unicode: HashMap<u16, u32>,
+            #[serde(default)]
+            cid_to_unicode_str: HashMap<u16, String>,
         }
-    };
 
-    // Derive max_cid from the supplied CIDs so callers need not track it.
-    let max_cid = dto
-        .cid_to_gid
-        .keys()
-        .chain(dto.cid_to_unicode.keys())
-        .chain(dto.cid_to_unicode_str.keys())
-        .copied()
-        .max()
-        .unwrap_or(0);
+        let dto: MappingDto = match serde_json::from_str(json) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid CID mapping JSON: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
 
-    let mut mapping = oxidize_pdf::fonts::CidMapping::new();
-    mapping.cid_to_gid = dto.cid_to_gid;
-    mapping.cid_to_unicode = dto.cid_to_unicode;
-    mapping.cid_to_unicode_str = dto.cid_to_unicode_str;
-    mapping.max_cid = max_cid;
+        // Derive max_cid from the supplied CIDs so callers need not track it.
+        let max_cid = dto
+            .cid_to_gid
+            .keys()
+            .chain(dto.cid_to_unicode.keys())
+            .chain(dto.cid_to_unicode_str.keys())
+            .copied()
+            .max()
+            .unwrap_or(0);
 
-    let data = std::slice::from_raw_parts(font_bytes, font_len).to_vec();
-    if let Err(e) = (*handle).inner.add_cid_keyed_font(font_name, data, mapping) {
-        set_last_error(format!("Failed to add CID-keyed font: {e}"));
-        return ErrorCode::InvalidArgument as c_int;
-    }
-    ErrorCode::Success as c_int
+        let mut mapping = oxidize_pdf::fonts::CidMapping::new();
+        mapping.cid_to_gid = dto.cid_to_gid;
+        mapping.cid_to_unicode = dto.cid_to_unicode;
+        mapping.cid_to_unicode_str = dto.cid_to_unicode_str;
+        mapping.max_cid = max_cid;
+
+        let data = std::slice::from_raw_parts(font_bytes, font_len).to_vec();
+        if let Err(e) = (*handle).inner.add_cid_keyed_font(font_name, data, mapping) {
+            set_last_error(format!("Failed to add CID-keyed font: {e}"));
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Draw a positioned glyph run over a CID-keyed font on the page.
@@ -126,54 +128,57 @@ pub unsafe extern "C" fn oxidize_page_show_cid_array(
     x: f64,
     y: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || font_name.is_null() || elements_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_show_cid_array");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name = match CStr::from_ptr(font_name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in font name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || font_name.is_null() || elements_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_show_cid_array");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let json = match CStr::from_ptr(elements_json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in CID elements JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+        let name = match CStr::from_ptr(font_name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in font name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let json = match CStr::from_ptr(elements_json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in CID elements JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+
+        #[derive(serde::Deserialize)]
+        struct ElementDto {
+            cid: u16,
+            #[serde(default)]
+            adjust: f32,
+            #[serde(default)]
+            x_offset: f32,
         }
-    };
 
-    #[derive(serde::Deserialize)]
-    struct ElementDto {
-        cid: u16,
-        #[serde(default)]
-        adjust: f32,
-        #[serde(default)]
-        x_offset: f32,
-    }
+        let dtos: Vec<ElementDto> = match serde_json::from_str(json) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid CID elements JSON: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
 
-    let dtos: Vec<ElementDto> = match serde_json::from_str(json) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid CID elements JSON: {e}"));
-            return ErrorCode::PdfParseError as c_int;
-        }
-    };
+        let elements: Vec<oxidize_pdf::graphics::CidShowElement> = dtos
+            .iter()
+            .map(|d| {
+                oxidize_pdf::graphics::CidShowElement::new(d.cid, d.adjust)
+                    .with_x_offset(d.x_offset)
+            })
+            .collect();
 
-    let elements: Vec<oxidize_pdf::graphics::CidShowElement> = dtos
-        .iter()
-        .map(|d| {
-            oxidize_pdf::graphics::CidShowElement::new(d.cid, d.adjust).with_x_offset(d.x_offset)
-        })
-        .collect();
-
-    let g = (*page).inner.graphics();
-    g.set_custom_font(name, size);
-    g.show_cid_array(&elements, x, y);
-    ErrorCode::Success as c_int
+        let g = (*page).inner.graphics();
+        g.set_custom_font(name, size);
+        g.show_cid_array(&elements, x, y);
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]

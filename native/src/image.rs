@@ -21,29 +21,31 @@ pub unsafe extern "C" fn oxidize_image_from_jpeg(
     data_len: usize,
     out_handle: *mut *mut ImageHandle,
 ) -> c_int {
-    clear_last_error();
-    if data.is_null() || out_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_image_from_jpeg");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_handle = std::ptr::null_mut();
-
-    if data_len == 0 {
-        set_last_error("Image data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let bytes = std::slice::from_raw_parts(data, data_len).to_vec();
-    match oxidize_pdf::Image::from_jpeg_data(bytes) {
-        Ok(img) => {
-            *out_handle = Box::into_raw(Box::new(ImageHandle { inner: img }));
-            ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if data.is_null() || out_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_image_from_jpeg");
+            return ErrorCode::NullPointer as c_int;
         }
-        Err(e) => {
-            set_last_error(format!("Failed to create image from JPEG: {e}"));
-            ErrorCode::PdfParseError as c_int
+        *out_handle = std::ptr::null_mut();
+
+        if data_len == 0 {
+            set_last_error("Image data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
         }
-    }
+
+        let bytes = std::slice::from_raw_parts(data, data_len).to_vec();
+        match oxidize_pdf::Image::from_jpeg_data(bytes) {
+            Ok(img) => {
+                *out_handle = Box::into_raw(Box::new(ImageHandle { inner: img }));
+                ErrorCode::Success as c_int
+            }
+            Err(e) => {
+                set_last_error(format!("Failed to create image from JPEG: {e}"));
+                ErrorCode::PdfParseError as c_int
+            }
+        }
+    })
 }
 
 /// Create an image from PNG byte data.
@@ -58,29 +60,31 @@ pub unsafe extern "C" fn oxidize_image_from_png(
     data_len: usize,
     out_handle: *mut *mut ImageHandle,
 ) -> c_int {
-    clear_last_error();
-    if data.is_null() || out_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_image_from_png");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_handle = std::ptr::null_mut();
-
-    if data_len == 0 {
-        set_last_error("Image data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let bytes = std::slice::from_raw_parts(data, data_len).to_vec();
-    match oxidize_pdf::Image::from_png_data(bytes) {
-        Ok(img) => {
-            *out_handle = Box::into_raw(Box::new(ImageHandle { inner: img }));
-            ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if data.is_null() || out_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_image_from_png");
+            return ErrorCode::NullPointer as c_int;
         }
-        Err(e) => {
-            set_last_error(format!("Failed to create image from PNG: {e}"));
-            ErrorCode::PdfParseError as c_int
+        *out_handle = std::ptr::null_mut();
+
+        if data_len == 0 {
+            set_last_error("Image data is empty (0 bytes)");
+            return ErrorCode::PdfParseError as c_int;
         }
-    }
+
+        let bytes = std::slice::from_raw_parts(data, data_len).to_vec();
+        match oxidize_pdf::Image::from_png_data(bytes) {
+            Ok(img) => {
+                *out_handle = Box::into_raw(Box::new(ImageHandle { inner: img }));
+                ErrorCode::Success as c_int
+            }
+            Err(e) => {
+                set_last_error(format!("Failed to create image from PNG: {e}"));
+                ErrorCode::PdfParseError as c_int
+            }
+        }
+    })
 }
 
 /// Create an image from a file path (auto-detects JPEG/PNG/TIFF).
@@ -94,30 +98,32 @@ pub unsafe extern "C" fn oxidize_image_from_file(
     path: *const c_char,
     out_handle: *mut *mut ImageHandle,
 ) -> c_int {
-    clear_last_error();
-    if path.is_null() || out_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_image_from_file");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_handle = std::ptr::null_mut();
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if path.is_null() || out_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_image_from_file");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_handle = std::ptr::null_mut();
 
-    let p = match CStr::from_ptr(path).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in file path");
-            return ErrorCode::InvalidUtf8 as c_int;
+        let p = match CStr::from_ptr(path).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in file path");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        match oxidize_pdf::Image::from_file(p) {
+            Ok(img) => {
+                *out_handle = Box::into_raw(Box::new(ImageHandle { inner: img }));
+                ErrorCode::Success as c_int
+            }
+            Err(e) => {
+                set_last_error(format!("Failed to load image from file: {e}"));
+                ErrorCode::IoError as c_int
+            }
         }
-    };
-    match oxidize_pdf::Image::from_file(p) {
-        Ok(img) => {
-            *out_handle = Box::into_raw(Box::new(ImageHandle { inner: img }));
-            ErrorCode::Success as c_int
-        }
-        Err(e) => {
-            set_last_error(format!("Failed to load image from file: {e}"));
-            ErrorCode::IoError as c_int
-        }
-    }
+    })
 }
 
 /// Free an image handle.
@@ -127,10 +133,12 @@ pub unsafe extern "C" fn oxidize_image_from_file(
 /// - `handle` must not have been freed previously.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_image_free(handle: *mut ImageHandle) {
-    if handle.is_null() {
-        return;
-    }
-    drop(Box::from_raw(handle));
+    crate::ffi_guard_unit(move || {
+        if handle.is_null() {
+            return;
+        }
+        drop(Box::from_raw(handle));
+    })
 }
 
 /// Get the image width in pixels.
@@ -143,13 +151,15 @@ pub unsafe extern "C" fn oxidize_image_get_width(
     handle: *const ImageHandle,
     out_width: *mut u32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_width.is_null() {
-        set_last_error("Null pointer provided to oxidize_image_get_width");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_width = (*handle).inner.width();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_width.is_null() {
+            set_last_error("Null pointer provided to oxidize_image_get_width");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_width = (*handle).inner.width();
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Get the image height in pixels.
@@ -162,13 +172,15 @@ pub unsafe extern "C" fn oxidize_image_get_height(
     handle: *const ImageHandle,
     out_height: *mut u32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_height.is_null() {
-        set_last_error("Null pointer provided to oxidize_image_get_height");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_height = (*handle).inner.height();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_height.is_null() {
+            set_last_error("Null pointer provided to oxidize_image_get_height");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_height = (*handle).inner.height();
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add an image to a page by name (clones the image internally).
@@ -183,20 +195,22 @@ pub unsafe extern "C" fn oxidize_page_add_image(
     name: *const c_char,
     image: *const ImageHandle,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() || image.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_image");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in image name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() || image.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_image");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*page).inner.add_image(s, (*image).inner.clone());
-    ErrorCode::Success as c_int
+        let s = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in image name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*page).inner.add_image(s, (*image).inner.clone());
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Draw a previously added image at the specified position and dimensions.
@@ -213,23 +227,25 @@ pub unsafe extern "C" fn oxidize_page_draw_image(
     width: f64,
     height: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_draw_image");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in image name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_draw_image");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    if let Err(e) = (*page).inner.draw_image(s, x, y, width, height) {
-        set_last_error(format!("Failed to draw image: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        let s = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in image name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        if let Err(e) = (*page).inner.draw_image(s, x, y, width, height) {
+            set_last_error(format!("Failed to draw image: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Draw a previously added image through the graphics context (GFX-023),
@@ -259,38 +275,40 @@ pub unsafe extern "C" fn oxidize_page_draw_image_with_transparency(
     height: f64,
     mask_name: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || image_name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_draw_image_with_transparency");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let image = match CStr::from_ptr(image_name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in image name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || image_name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_draw_image_with_transparency");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let mask: Option<String> = if mask_name.is_null() {
-        None
-    } else {
-        match CStr::from_ptr(mask_name).to_str() {
-            Ok(v) => Some(v.to_owned()),
+        let image = match CStr::from_ptr(image_name).to_str() {
+            Ok(v) => v,
             Err(_) => {
-                set_last_error("Invalid UTF-8 in soft mask name");
+                set_last_error("Invalid UTF-8 in image name");
                 return ErrorCode::InvalidUtf8 as c_int;
             }
-        }
-    };
-    (*page).inner.graphics().draw_image_with_transparency(
-        image,
-        x,
-        y,
-        width,
-        height,
-        mask.as_deref(),
-    );
-    ErrorCode::Success as c_int
+        };
+        let mask: Option<String> = if mask_name.is_null() {
+            None
+        } else {
+            match CStr::from_ptr(mask_name).to_str() {
+                Ok(v) => Some(v.to_owned()),
+                Err(_) => {
+                    set_last_error("Invalid UTF-8 in soft mask name");
+                    return ErrorCode::InvalidUtf8 as c_int;
+                }
+            }
+        };
+        (*page).inner.graphics().draw_image_with_transparency(
+            image,
+            x,
+            y,
+            width,
+            height,
+            mask.as_deref(),
+        );
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]

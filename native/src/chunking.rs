@@ -204,64 +204,66 @@ pub unsafe extern "C" fn oxidize_chunk_pdf(
     detect_language: u8,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
+    crate::ffi_guard(move || {
+        clear_last_error();
 
-    if pdf_bytes.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_chunk_pdf");
-        return ErrorCode::NullPointer as c_int;
-    }
+        if pdf_bytes.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_chunk_pdf");
+            return ErrorCode::NullPointer as c_int;
+        }
 
-    *out_json = ptr::null_mut();
+        *out_json = ptr::null_mut();
 
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
-    let reader = match open_lenient(bytes) {
-        Ok(r) => r,
-        Err(e) => {
-            set_last_error(e);
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
             return ErrorCode::PdfParseError as c_int;
         }
-    };
 
-    let document = PdfDocument::new(reader);
-    let text_pages = match document.extract_text() {
-        Ok(pages) => pages,
-        Err(e) => {
-            set_last_error(format!("Failed to extract text from PDF: {e}"));
-            return ErrorCode::PdfParseError as c_int;
-        }
-    };
+        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+        let reader = match open_lenient(bytes) {
+            Ok(r) => r,
+            Err(e) => {
+                set_last_error(e);
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
 
-    let page_texts: Vec<(usize, String)> = text_pages
-        .iter()
-        .enumerate()
-        .map(|(i, page)| (i + 1, page.text.clone()))
-        .collect();
+        let document = PdfDocument::new(reader);
+        let text_pages = match document.extract_text() {
+            Ok(pages) => pages,
+            Err(e) => {
+                set_last_error(format!("Failed to extract text from PDF: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
 
-    let chunker =
-        DocumentChunker::new(chunk_size, overlap).with_language_detection(detect_language != 0);
-    let chunks = match chunker.chunk_text_with_pages(&page_texts) {
-        Ok(c) => c,
-        Err(e) => {
-            set_last_error(format!("Failed to chunk PDF text: {e}"));
-            return ErrorCode::PdfParseError as c_int;
-        }
-    };
+        let page_texts: Vec<(usize, String)> = text_pages
+            .iter()
+            .enumerate()
+            .map(|(i, page)| (i + 1, page.text.clone()))
+            .collect();
 
-    let dtos: Vec<DocumentChunkDto> = chunks.iter().map(DocumentChunkDto::from_core).collect();
-    let json = match serde_json::to_string(&dtos) {
-        Ok(j) => j,
-        Err(e) => {
-            set_last_error(format!("Failed to serialize chunks: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
+        let chunker =
+            DocumentChunker::new(chunk_size, overlap).with_language_detection(detect_language != 0);
+        let chunks = match chunker.chunk_text_with_pages(&page_texts) {
+            Ok(c) => c,
+            Err(e) => {
+                set_last_error(format!("Failed to chunk PDF text: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
 
-    emit_cstring(json, out_json)
+        let dtos: Vec<DocumentChunkDto> = chunks.iter().map(DocumentChunkDto::from_core).collect();
+        let json = match serde_json::to_string(&dtos) {
+            Ok(j) => j,
+            Err(e) => {
+                set_last_error(format!("Failed to serialize chunks: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+
+        emit_cstring(json, out_json)
+    })
 }
 
 /// Compute the dominant language across a set of chunks that already carry a
@@ -286,32 +288,34 @@ pub unsafe extern "C" fn oxidize_document_language(
     chunks_json: *const c_char,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
+    crate::ffi_guard(move || {
+        clear_last_error();
 
-    if chunks_json.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_language");
-        return ErrorCode::NullPointer as c_int;
-    }
+        if chunks_json.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_language");
+            return ErrorCode::NullPointer as c_int;
+        }
 
-    *out_json = ptr::null_mut();
+        *out_json = ptr::null_mut();
 
-    let chunks = match read_chunks(chunks_json) {
-        Ok(c) => c,
-        Err(code) => return code,
-    };
+        let chunks = match read_chunks(chunks_json) {
+            Ok(c) => c,
+            Err(code) => return code,
+        };
 
-    let json = match DocumentChunker::document_language(&chunks) {
-        Some(lang) => match serde_json::to_string(&DetectedLanguageDto::from_core(&lang)) {
-            Ok(j) => j,
-            Err(e) => {
-                set_last_error(format!("Failed to serialize detected language: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        },
-        None => "null".to_string(),
-    };
+        let json = match DocumentChunker::document_language(&chunks) {
+            Some(lang) => match serde_json::to_string(&DetectedLanguageDto::from_core(&lang)) {
+                Ok(j) => j,
+                Err(e) => {
+                    set_last_error(format!("Failed to serialize detected language: {e}"));
+                    return ErrorCode::SerializationError as c_int;
+                }
+            },
+            None => "null".to_string(),
+        };
 
-    emit_cstring(json, out_json)
+        emit_cstring(json, out_json)
+    })
 }
 
 /// Serialize a set of chunks into the token-efficient TOON-style payload
@@ -334,29 +338,31 @@ pub unsafe extern "C" fn oxidize_export_chunks_token_efficient(
     chunks_json: *const c_char,
     out_str: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
+    crate::ffi_guard(move || {
+        clear_last_error();
 
-    if chunks_json.is_null() || out_str.is_null() {
-        set_last_error("Null pointer provided to oxidize_export_chunks_token_efficient");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    *out_str = ptr::null_mut();
-
-    let chunks = match read_chunks(chunks_json) {
-        Ok(c) => c,
-        Err(code) => return code,
-    };
-
-    let payload = match TokenEfficientExporter::new().export_chunks(&chunks) {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("Failed to export chunks: {e}"));
-            return ErrorCode::SerializationError as c_int;
+        if chunks_json.is_null() || out_str.is_null() {
+            set_last_error("Null pointer provided to oxidize_export_chunks_token_efficient");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
 
-    emit_cstring(payload, out_str)
+        *out_str = ptr::null_mut();
+
+        let chunks = match read_chunks(chunks_json) {
+            Ok(c) => c,
+            Err(code) => return code,
+        };
+
+        let payload = match TokenEfficientExporter::new().export_chunks(&chunks) {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("Failed to export chunks: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+
+        emit_cstring(payload, out_str)
+    })
 }
 
 /// Parse a token-efficient payload back into chunks
@@ -381,41 +387,43 @@ pub unsafe extern "C" fn oxidize_parse_chunks_token_efficient(
     input: *const c_char,
     out_json: *mut *mut c_char,
 ) -> c_int {
-    clear_last_error();
+    crate::ffi_guard(move || {
+        clear_last_error();
 
-    if input.is_null() || out_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_parse_chunks_token_efficient");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    *out_json = ptr::null_mut();
-
-    let s = match CStr::from_ptr(input).to_str() {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("invalid UTF-8 in token-efficient payload: {e}"));
-            return ErrorCode::InvalidUtf8 as c_int;
+        if input.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_parse_chunks_token_efficient");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
 
-    let chunks = match TokenEfficientExporter::parse_chunks(s) {
-        Ok(c) => c,
-        Err(e) => {
-            set_last_error(format!("Failed to parse token-efficient payload: {e}"));
-            return ErrorCode::InvalidArgument as c_int;
-        }
-    };
+        *out_json = ptr::null_mut();
 
-    let dtos: Vec<DocumentChunkDto> = chunks.iter().map(DocumentChunkDto::from_core).collect();
-    let json = match serde_json::to_string(&dtos) {
-        Ok(j) => j,
-        Err(e) => {
-            set_last_error(format!("Failed to serialize parsed chunks: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
+        let s = match CStr::from_ptr(input).to_str() {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("invalid UTF-8 in token-efficient payload: {e}"));
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    emit_cstring(json, out_json)
+        let chunks = match TokenEfficientExporter::parse_chunks(s) {
+            Ok(c) => c,
+            Err(e) => {
+                set_last_error(format!("Failed to parse token-efficient payload: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+
+        let dtos: Vec<DocumentChunkDto> = chunks.iter().map(DocumentChunkDto::from_core).collect();
+        let json = match serde_json::to_string(&dtos) {
+            Ok(j) => j,
+            Err(e) => {
+                set_last_error(format!("Failed to serialize parsed chunks: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+
+        emit_cstring(json, out_json)
+    })
 }
 
 #[cfg(test)]
