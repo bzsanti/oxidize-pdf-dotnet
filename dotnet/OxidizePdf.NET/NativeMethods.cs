@@ -1951,6 +1951,18 @@ internal static class NativeMethods
     /// Gets the last error message from the native library and clears it
     /// </summary>
     /// <returns>The error message, or null if no error was set</returns>
+    /// <summary>
+    /// Reads the native library's last error message for the current thread.
+    /// </summary>
+    /// <remarks>
+    /// The native error channel is THREAD-LOCAL (issue #55). This MUST be called
+    /// synchronously, on the same thread, immediately after the failing native
+    /// call — before any <c>await</c>. An <c>await</c> may resume the
+    /// continuation on a different thread-pool thread, which would read that
+    /// thread's (empty or unrelated) error slot. All wrappers satisfy this by
+    /// invoking it from synchronous <c>ThrowIfError</c> helpers; async methods
+    /// keep the whole call+check sequence inside a single <c>Task.Run</c> body.
+    /// </remarks>
     internal static string? GetLastError()
     {
         IntPtr errorPtr = IntPtr.Zero;
