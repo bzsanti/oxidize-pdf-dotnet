@@ -15,7 +15,7 @@
 - ⚖️ **MIT-licensed** - No AGPL/commercial-license friction
 - 🛡️ **Memory Safe** - Zero-copy FFI with automatic resource management
 - 📦 **Zero Dependencies** - Self-contained native binaries in NuGet package
-- 🌍 **Cross-Platform** - Linux, Windows, macOS (x64)
+- 🌍 **Cross-Platform** - Linux, Windows, macOS — x64 & ARM64, including musl/Alpine
 - 🛠️ **Full PDF toolkit** - Also creates and manipulates PDFs (text, graphics, merge, split, rotate, page extraction)
 
 ## Installation
