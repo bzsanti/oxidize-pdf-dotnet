@@ -1990,37 +1990,63 @@ internal static class NativeMethods
         else
             throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}");
 
-        // Determine runtime identifier
-        string rid;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            rid = "win-x64";
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            rid = "linux-x64";
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            rid = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "osx-arm64" : "osx-x64";
-        else
-            throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}");
+        // Runtime identifiers to probe, most specific first. Must account for
+        // both architecture (x64/arm64) and, on Linux, the C library
+        // (glibc vs musl) — otherwise ARM and Alpine consumers get a spurious
+        // DllNotFoundException even when the matching native binary is shipped.
+        var rids = GetCandidateRids();
 
-        // Try to load from runtimes folder
         var baseDirectory = AppContext.BaseDirectory;
-        var libraryPath = Path.Combine(baseDirectory, "runtimes", rid, "native", fileName);
-
-        if (File.Exists(libraryPath))
+        foreach (var rid in rids)
         {
-            if (NativeLibrary.TryLoad(libraryPath, out var handle))
+            var ridPath = Path.Combine(baseDirectory, "runtimes", rid, "native", fileName);
+            if (File.Exists(ridPath) && NativeLibrary.TryLoad(ridPath, out var handle))
                 return handle;
         }
 
-        // Try to load from current directory (development scenario)
-        libraryPath = Path.Combine(baseDirectory, fileName);
-        if (File.Exists(libraryPath))
-        {
-            if (NativeLibrary.TryLoad(libraryPath, out var handle))
-                return handle;
-        }
+        // Fall back to the application base directory (development scenario).
+        var localPath = Path.Combine(baseDirectory, fileName);
+        if (File.Exists(localPath) && NativeLibrary.TryLoad(localPath, out var localHandle))
+            return localHandle;
 
         throw new DllNotFoundException(
-            $"Unable to load native library '{fileName}' for runtime '{rid}'. " +
-            $"Searched paths: {baseDirectory}");
+            $"Unable to load native library '{fileName}' for runtime(s) '{string.Join(", ", rids)}'. " +
+            $"Searched under '{Path.Combine(baseDirectory, "runtimes")}' and '{baseDirectory}'.");
+    }
+
+    /// <summary>
+    /// Builds the ordered list of runtime identifiers to probe for the native
+    /// binary, derived from the current OS, process architecture, and (on
+    /// Linux) the C library implementation.
+    /// </summary>
+    private static string[] GetCandidateRids()
+    {
+        string arch = RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X64 => "x64",
+            Architecture.Arm64 => "arm64",
+            Architecture.X86 => "x86",
+            _ => throw new PlatformNotSupportedException(
+                $"Unsupported process architecture: {RuntimeInformation.ProcessArchitecture}"),
+        };
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return new[] { $"win-{arch}" };
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            return new[] { $"osx-{arch}" };
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            // The musl build of .NET (Alpine) reports a musl RID; use that as
+            // the signal and try the matching libc first, the other as fallback.
+            bool isMusl = RuntimeInformation.RuntimeIdentifier
+                .Contains("musl", StringComparison.OrdinalIgnoreCase);
+            return isMusl
+                ? new[] { $"linux-musl-{arch}", $"linux-{arch}" }
+                : new[] { $"linux-{arch}", $"linux-musl-{arch}" };
+        }
+
+        throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}");
     }
 }
