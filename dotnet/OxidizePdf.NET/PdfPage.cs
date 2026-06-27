@@ -20,6 +20,17 @@ public sealed class PdfPage : IDisposable
     // Bridge: existing call sites read `_handle` as an IntPtr unchanged.
     private IntPtr _handle => _safeHandle.DangerousGetHandle();
 
+    // Set once the page is added to a document. AddPage snapshots (clones) the
+    // page natively, so any later mutation would be silently dropped; reject it
+    // instead (issue #58).
+    private bool _consumed;
+
+    /// <summary>
+    /// Marks this page as added to a document. Subsequent mutating operations
+    /// throw <see cref="InvalidOperationException"/>.
+    /// </summary>
+    internal void MarkConsumed() => _consumed = true;
+
     /// <summary>
     /// Exposes the native page handle for use by <see cref="PdfDocument.AddPage"/>.
     /// </summary>
@@ -2181,6 +2192,10 @@ public sealed class PdfPage : IDisposable
 
     private void ThrowIfDisposed()
     {
+        if (_consumed)
+            throw new InvalidOperationException(
+                "This page has already been added to a document and cannot be modified. "
+                + "AddPage snapshots the page; create a new page for further content.");
         if (_safeHandle.IsClosed)
             throw new ObjectDisposedException(nameof(PdfPage));
     }

@@ -146,6 +146,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # No native binary may be committed: the release pipeline builds the
+      # native library fresh from source for every RID, so a tracked binary
+      # could only ever ship stale (issue #59).
+      - name: No native binaries committed
+        run: |
+          tracked=$(git ls-files '*.so' '*.dll' '*.dylib')
+          if [ -n "$tracked" ]; then
+            echo "::error::Native binaries must not be committed (they ship stale). Found:"
+            echo "$tracked"
+            exit 1
+          fi
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
