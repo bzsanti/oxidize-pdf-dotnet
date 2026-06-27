@@ -61,35 +61,37 @@ pub unsafe extern "C" fn oxidize_page_add_ordered_list(
     y: f64,
     style: OrderedListStyle,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || items_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_ordered_list");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let json_str = match CStr::from_ptr(items_json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in items_json");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || items_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_ordered_list");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let items: Vec<String> = match serde_json::from_str(json_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Failed to parse items_json: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
+        let json_str = match CStr::from_ptr(items_json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in items_json");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let items: Vec<String> = match serde_json::from_str(json_str) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Failed to parse items_json: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
 
-    use oxidize_pdf::PageLists;
-    if let Err(e) = (*page)
-        .inner
-        .add_quick_ordered_list(items, x, y, style.to_oxidize())
-    {
-        set_last_error(format!("Failed to add ordered list: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        use oxidize_pdf::PageLists;
+        if let Err(e) = (*page)
+            .inner
+            .add_quick_ordered_list(items, x, y, style.to_oxidize())
+        {
+            set_last_error(format!("Failed to add ordered list: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add a quick unordered list to a page. Items are passed as a JSON array of strings.
@@ -105,33 +107,35 @@ pub unsafe extern "C" fn oxidize_page_add_unordered_list(
     y: f64,
     style: BulletStyle,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || items_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_unordered_list");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let json_str = match CStr::from_ptr(items_json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in items_json");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || items_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_unordered_list");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let items: Vec<String> = match serde_json::from_str(json_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Failed to parse items_json: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
+        let json_str = match CStr::from_ptr(items_json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in items_json");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let items: Vec<String> = match serde_json::from_str(json_str) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Failed to parse items_json: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
 
-    use oxidize_pdf::PageLists;
-    if let Err(e) = (*page)
-        .inner
-        .add_quick_unordered_list(items, x, y, style.to_oxidize())
-    {
-        set_last_error(format!("Failed to add unordered list: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        use oxidize_pdf::PageLists;
+        if let Err(e) = (*page)
+            .inner
+            .add_quick_unordered_list(items, x, y, style.to_oxidize())
+        {
+            set_last_error(format!("Failed to add unordered list: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }

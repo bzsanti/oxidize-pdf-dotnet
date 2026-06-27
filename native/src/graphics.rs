@@ -19,16 +19,18 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_rgb(
     g: f64,
     b: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_rgb");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page)
-        .inner
-        .graphics()
-        .set_fill_color(oxidize_pdf::Color::rgb(r, g, b));
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_rgb");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page)
+            .inner
+            .graphics()
+            .set_fill_color(oxidize_pdf::Color::rgb(r, g, b));
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics fill color using a gray value (0.0 = black, 1.0 = white).
@@ -41,16 +43,18 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_gray(
     page: *mut PageHandle,
     value: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_gray");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page)
-        .inner
-        .graphics()
-        .set_fill_color(oxidize_pdf::Color::gray(value));
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_gray");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page)
+            .inner
+            .graphics()
+            .set_fill_color(oxidize_pdf::Color::gray(value));
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics fill color using CMYK components (each in 0.0–1.0).
@@ -66,16 +70,18 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_cmyk(
     y: f64,
     k: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_cmyk");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page)
-        .inner
-        .graphics()
-        .set_fill_color(oxidize_pdf::Color::cmyk(c, m, y, k));
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_cmyk");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page)
+            .inner
+            .graphics()
+            .set_fill_color(oxidize_pdf::Color::cmyk(c, m, y, k));
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Stroke color ──────────────────────────────────────────────────────────────
@@ -92,16 +98,18 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_rgb(
     g: f64,
     b: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_rgb");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page)
-        .inner
-        .graphics()
-        .set_stroke_color(oxidize_pdf::Color::rgb(r, g, b));
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_rgb");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page)
+            .inner
+            .graphics()
+            .set_stroke_color(oxidize_pdf::Color::rgb(r, g, b));
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics stroke color using a gray value (0.0 = black, 1.0 = white).
@@ -114,16 +122,18 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_gray(
     page: *mut PageHandle,
     value: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_gray");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page)
-        .inner
-        .graphics()
-        .set_stroke_color(oxidize_pdf::Color::gray(value));
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_gray");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page)
+            .inner
+            .graphics()
+            .set_stroke_color(oxidize_pdf::Color::gray(value));
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics stroke color using CMYK components (each in 0.0–1.0).
@@ -139,16 +149,18 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_cmyk(
     y: f64,
     k: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cmyk");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page)
-        .inner
-        .graphics()
-        .set_stroke_color(oxidize_pdf::Color::cmyk(c, m, y, k));
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cmyk");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page)
+            .inner
+            .graphics()
+            .set_stroke_color(oxidize_pdf::Color::cmyk(c, m, y, k));
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Line style ────────────────────────────────────────────────────────────────
@@ -160,13 +172,15 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_cmyk(
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_set_line_width(page: *mut PageHandle, width: f64) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_line_width");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().set_line_width(width);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_line_width");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().set_line_width(width);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set fill opacity (0.0 = fully transparent, 1.0 = fully opaque).
@@ -179,13 +193,15 @@ pub unsafe extern "C" fn oxidize_page_set_fill_opacity(
     page: *mut PageHandle,
     opacity: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_opacity");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().set_fill_opacity(opacity);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_opacity");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().set_fill_opacity(opacity);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set stroke opacity (0.0 = fully transparent, 1.0 = fully opaque).
@@ -198,13 +214,15 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_opacity(
     page: *mut PageHandle,
     opacity: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_opacity");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().set_stroke_opacity(opacity);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_opacity");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().set_stroke_opacity(opacity);
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Shape drawing ─────────────────────────────────────────────────────────────
@@ -222,13 +240,15 @@ pub unsafe extern "C" fn oxidize_page_rect(
     width: f64,
     height: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_rect");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().rect(x, y, width, height);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_rect");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().rect(x, y, width, height);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add a circle to the current path.
@@ -243,13 +263,15 @@ pub unsafe extern "C" fn oxidize_page_circle(
     cy: f64,
     radius: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_circle");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().circle(cx, cy, radius);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_circle");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().circle(cx, cy, radius);
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Path construction ─────────────────────────────────────────────────────────
@@ -261,13 +283,15 @@ pub unsafe extern "C" fn oxidize_page_circle(
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_move_to(page: *mut PageHandle, x: f64, y: f64) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_move_to");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().move_to(x, y);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_move_to");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().move_to(x, y);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Draw a line from the current point to (x, y).
@@ -277,13 +301,15 @@ pub unsafe extern "C" fn oxidize_page_move_to(page: *mut PageHandle, x: f64, y: 
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_line_to(page: *mut PageHandle, x: f64, y: f64) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_line_to");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().line_to(x, y);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_line_to");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().line_to(x, y);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Draw a cubic Bézier curve from the current point using two control points and an endpoint.
@@ -301,13 +327,15 @@ pub unsafe extern "C" fn oxidize_page_curve_to(
     x3: f64,
     y3: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_curve_to");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().curve_to(x1, y1, x2, y2, x3, y3);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_curve_to");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().curve_to(x1, y1, x2, y2, x3, y3);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Close the current path by drawing a line back to its starting point.
@@ -317,13 +345,15 @@ pub unsafe extern "C" fn oxidize_page_curve_to(
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_close_path(page: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_close_path");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().close_path();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_close_path");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().close_path();
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Paint ─────────────────────────────────────────────────────────────────────
@@ -335,13 +365,15 @@ pub unsafe extern "C" fn oxidize_page_close_path(page: *mut PageHandle) -> c_int
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_fill(page: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_fill");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().fill();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_fill");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().fill();
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Stroke the current path.
@@ -351,13 +383,15 @@ pub unsafe extern "C" fn oxidize_page_fill(page: *mut PageHandle) -> c_int {
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_stroke(page: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_stroke");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().stroke();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_stroke");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().stroke();
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Fill and then stroke the current path.
@@ -367,13 +401,15 @@ pub unsafe extern "C" fn oxidize_page_stroke(page: *mut PageHandle) -> c_int {
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_fill_and_stroke(page: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_fill_and_stroke");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().fill_stroke();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_fill_and_stroke");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().fill_stroke();
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Line style (advanced) ────────────────────────────────────────────────────
@@ -385,13 +421,15 @@ pub unsafe extern "C" fn oxidize_page_fill_and_stroke(page: *mut PageHandle) -> 
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_set_line_cap(page: *mut PageHandle, cap: LineCap) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_line_cap");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().set_line_cap(cap.to_oxidize());
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_line_cap");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().set_line_cap(cap.to_oxidize());
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the line join style for stroke operations.
@@ -404,13 +442,15 @@ pub unsafe extern "C" fn oxidize_page_set_line_join(
     page: *mut PageHandle,
     join: LineJoin,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_line_join");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().set_line_join(join.to_oxidize());
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_line_join");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().set_line_join(join.to_oxidize());
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the miter limit for stroke joins.
@@ -420,13 +460,15 @@ pub unsafe extern "C" fn oxidize_page_set_line_join(
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_set_miter_limit(page: *mut PageHandle, limit: f64) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_miter_limit");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().set_miter_limit(limit);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_miter_limit");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().set_miter_limit(limit);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set a dash pattern for stroke operations.
@@ -440,14 +482,16 @@ pub unsafe extern "C" fn oxidize_page_set_dash_pattern(
     dash_length: f64,
     gap_length: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_dash_pattern");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let pattern = oxidize_pdf::graphics::LineDashPattern::dashed(dash_length, gap_length);
-    (*page).inner.graphics().set_line_dash_pattern(pattern);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_dash_pattern");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let pattern = oxidize_pdf::graphics::LineDashPattern::dashed(dash_length, gap_length);
+        (*page).inner.graphics().set_line_dash_pattern(pattern);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Reset stroke to solid line (no dash pattern).
@@ -457,13 +501,15 @@ pub unsafe extern "C" fn oxidize_page_set_dash_pattern(
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_set_line_solid(page: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_line_solid");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().set_line_solid();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_line_solid");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().set_line_solid();
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Graphics state ───────────────────────────────────────────────────────────
@@ -475,13 +521,15 @@ pub unsafe extern "C" fn oxidize_page_set_line_solid(page: *mut PageHandle) -> c
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_save_state(page: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_save_state");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().save_state();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_save_state");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().save_state();
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Restore the most recently saved graphics state.
@@ -491,13 +539,15 @@ pub unsafe extern "C" fn oxidize_page_save_state(page: *mut PageHandle) -> c_int
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_restore_state(page: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_restore_state");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().restore_state();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_restore_state");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().restore_state();
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Clipping ─────────────────────────────────────────────────────────────────
@@ -515,16 +565,18 @@ pub unsafe extern "C" fn oxidize_page_clip_rect(
     width: f64,
     height: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_clip_rect");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if let Err(e) = (*page).inner.graphics().clip_rect(x, y, width, height) {
-        set_last_error(format!("Failed to set clipping rect: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_clip_rect");
+            return ErrorCode::NullPointer as c_int;
+        }
+        if let Err(e) = (*page).inner.graphics().clip_rect(x, y, width, height) {
+            set_last_error(format!("Failed to set clipping rect: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set a circular clipping region.
@@ -539,16 +591,18 @@ pub unsafe extern "C" fn oxidize_page_clip_circle(
     cy: f64,
     radius: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_clip_circle");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if let Err(e) = (*page).inner.graphics().clip_circle(cx, cy, radius) {
-        set_last_error(format!("Failed to set clipping circle: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_clip_circle");
+            return ErrorCode::NullPointer as c_int;
+        }
+        if let Err(e) = (*page).inner.graphics().clip_circle(cx, cy, radius) {
+            set_last_error(format!("Failed to set clipping circle: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Clear all clipping regions.
@@ -558,13 +612,15 @@ pub unsafe extern "C" fn oxidize_page_clip_circle(
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_clear_clipping(page: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_clear_clipping");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().clear_clipping();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_clear_clipping");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().clear_clipping();
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Blend mode ───────────────────────────────────────────────────────────────
@@ -579,16 +635,18 @@ pub unsafe extern "C" fn oxidize_page_set_blend_mode(
     page: *mut PageHandle,
     mode: BlendMode,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_blend_mode");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if let Err(e) = (*page).inner.graphics().set_blend_mode(mode.to_oxidize()) {
-        set_last_error(format!("Failed to set blend mode: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_blend_mode");
+            return ErrorCode::NullPointer as c_int;
+        }
+        if let Err(e) = (*page).inner.graphics().set_blend_mode(mode.to_oxidize()) {
+            set_last_error(format!("Failed to set blend mode: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Coordinate transforms ─────────────────────────────────────────────────────
@@ -600,13 +658,15 @@ pub unsafe extern "C" fn oxidize_page_set_blend_mode(
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_translate(page: *mut PageHandle, tx: f64, ty: f64) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_translate");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().translate(tx, ty);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_translate");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().translate(tx, ty);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Scale the current coordinate system.
@@ -616,13 +676,15 @@ pub unsafe extern "C" fn oxidize_page_translate(page: *mut PageHandle, tx: f64, 
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_scale(page: *mut PageHandle, sx: f64, sy: f64) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_scale");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().scale(sx, sy);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_scale");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().scale(sx, sy);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Rotate the coordinate system by the given angle in radians.
@@ -632,13 +694,15 @@ pub unsafe extern "C" fn oxidize_page_scale(page: *mut PageHandle, sx: f64, sy: 
 ///   `oxidize_page_create_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_rotate_radians(page: *mut PageHandle, angle: f64) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_rotate_radians");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().rotate(angle);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_rotate_radians");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().rotate(angle);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Apply a full 6-element transformation matrix [a b c d e f].
@@ -656,13 +720,15 @@ pub unsafe extern "C" fn oxidize_page_transform(
     e: f64,
     f: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_transform");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().transform(a, b, c, d, e, f);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_transform");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().transform(a, b, c, d, e, f);
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── ICC draw ──────────────────────────────────────────────────────────────────
@@ -686,25 +752,27 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_icc(
     components: *const f64,
     components_len: usize,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_icc");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if components.is_null() || components_len == 0 {
-        set_last_error("ICC fill color components must not be empty");
-        return ErrorCode::InvalidArgument as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in ICC color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_icc");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let comps = std::slice::from_raw_parts(components, components_len).to_vec();
-    (*page).inner.graphics().set_fill_color_icc(name_str, comps);
-    ErrorCode::Success as c_int
+        if components.is_null() || components_len == 0 {
+            set_last_error("ICC fill color components must not be empty");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in ICC color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let comps = std::slice::from_raw_parts(components, components_len).to_vec();
+        (*page).inner.graphics().set_fill_color_icc(name_str, comps);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set stroke color using an ICC-based color space registered under `name`.
@@ -724,28 +792,30 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_icc(
     components: *const f64,
     components_len: usize,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_icc");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if components.is_null() || components_len == 0 {
-        set_last_error("ICC stroke color components must not be empty");
-        return ErrorCode::InvalidArgument as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in ICC color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_icc");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let comps = std::slice::from_raw_parts(components, components_len).to_vec();
-    (*page)
-        .inner
-        .graphics()
-        .set_stroke_color_icc(name_str, comps);
-    ErrorCode::Success as c_int
+        if components.is_null() || components_len == 0 {
+            set_last_error("ICC stroke color components must not be empty");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in ICC color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let comps = std::slice::from_raw_parts(components, components_len).to_vec();
+        (*page)
+            .inner
+            .graphics()
+            .set_stroke_color_icc(name_str, comps);
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── CalGray color (hardcoded name "CalGray1" via upstream) ────────────────────
@@ -767,19 +837,21 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_cal_gray(
     bp_z: f64,
     gamma: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_gray");
-        return ErrorCode::NullPointer as c_int;
-    }
-    use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
-    let cs = CalGrayColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma(gamma);
-    let color = CalibratedColor::cal_gray(value, cs);
-    (*page).inner.graphics().set_fill_color_calibrated(color);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_gray");
+            return ErrorCode::NullPointer as c_int;
+        }
+        use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
+        let cs = CalGrayColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma(gamma);
+        let color = CalibratedColor::cal_gray(value, cs);
+        (*page).inner.graphics().set_fill_color_calibrated(color);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics stroke color using a calibrated gray color space.
@@ -799,19 +871,21 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_cal_gray(
     bp_z: f64,
     gamma: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_gray");
-        return ErrorCode::NullPointer as c_int;
-    }
-    use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
-    let cs = CalGrayColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma(gamma);
-    let color = CalibratedColor::cal_gray(value, cs);
-    (*page).inner.graphics().set_stroke_color_calibrated(color);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_gray");
+            return ErrorCode::NullPointer as c_int;
+        }
+        use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
+        let cs = CalGrayColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma(gamma);
+        let color = CalibratedColor::cal_gray(value, cs);
+        (*page).inner.graphics().set_stroke_color_calibrated(color);
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]
@@ -875,19 +949,21 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_lab(
     range_bmin: f64,
     range_bmax: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_lab");
-        return ErrorCode::NullPointer as c_int;
-    }
-    use oxidize_pdf::graphics::{LabColor, LabColorSpace};
-    let cs = LabColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_range(range_amin, range_amax, range_bmin, range_bmax);
-    let color = LabColor::new(l, a, b, cs);
-    (*page).inner.graphics().set_fill_color_lab(color);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_lab");
+            return ErrorCode::NullPointer as c_int;
+        }
+        use oxidize_pdf::graphics::{LabColor, LabColorSpace};
+        let cs = LabColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_range(range_amin, range_amax, range_bmin, range_bmax);
+        let color = LabColor::new(l, a, b, cs);
+        (*page).inner.graphics().set_fill_color_lab(color);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics stroke color using a CIE L*a*b* color space.
@@ -912,19 +988,21 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_lab(
     range_bmin: f64,
     range_bmax: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_lab");
-        return ErrorCode::NullPointer as c_int;
-    }
-    use oxidize_pdf::graphics::{LabColor, LabColorSpace};
-    let cs = LabColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_range(range_amin, range_amax, range_bmin, range_bmax);
-    let color = LabColor::new(l, a, b, cs);
-    (*page).inner.graphics().set_stroke_color_lab(color);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_lab");
+            return ErrorCode::NullPointer as c_int;
+        }
+        use oxidize_pdf::graphics::{LabColor, LabColorSpace};
+        let cs = LabColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_range(range_amin, range_amax, range_bmin, range_bmax);
+        let color = LabColor::new(l, a, b, cs);
+        (*page).inner.graphics().set_stroke_color_lab(color);
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]
@@ -1002,20 +1080,22 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_cal_rgb(
     m7: f64,
     m8: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_rgb");
-        return ErrorCode::NullPointer as c_int;
-    }
-    use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
-    let cs = CalRgbColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma([gamma_r, gamma_g, gamma_b])
-        .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
-    let color = CalibratedColor::cal_rgb([r, g, b], cs);
-    (*page).inner.graphics().set_fill_color_calibrated(color);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_rgb");
+            return ErrorCode::NullPointer as c_int;
+        }
+        use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
+        let cs = CalRgbColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma([gamma_r, gamma_g, gamma_b])
+            .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
+        let color = CalibratedColor::cal_rgb([r, g, b], cs);
+        (*page).inner.graphics().set_fill_color_calibrated(color);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics stroke color using a calibrated RGB color space.
@@ -1048,20 +1128,22 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_cal_rgb(
     m7: f64,
     m8: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_rgb");
-        return ErrorCode::NullPointer as c_int;
-    }
-    use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
-    let cs = CalRgbColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma([gamma_r, gamma_g, gamma_b])
-        .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
-    let color = CalibratedColor::cal_rgb([r, g, b], cs);
-    (*page).inner.graphics().set_stroke_color_calibrated(color);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_rgb");
+            return ErrorCode::NullPointer as c_int;
+        }
+        use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
+        let cs = CalRgbColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma([gamma_r, gamma_g, gamma_b])
+            .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
+        let color = CalibratedColor::cal_rgb([r, g, b], cs);
+        (*page).inner.graphics().set_stroke_color_calibrated(color);
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]
@@ -1136,29 +1218,31 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_cal_gray_named(
     bp_z: f64,
     gamma: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_gray_named");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_gray_named");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
-    let cs = CalGrayColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma(gamma);
-    let color = CalibratedColor::cal_gray(value, cs);
-    (*page)
-        .inner
-        .graphics()
-        .set_fill_color_calibrated_named(name_str, color);
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
+        let cs = CalGrayColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma(gamma);
+        let color = CalibratedColor::cal_gray(value, cs);
+        (*page)
+            .inner
+            .graphics()
+            .set_fill_color_calibrated_named(name_str, color);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics stroke color using a named calibrated gray color space.
@@ -1180,29 +1264,31 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_cal_gray_named(
     bp_z: f64,
     gamma: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_gray_named");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_gray_named");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
-    let cs = CalGrayColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma(gamma);
-    let color = CalibratedColor::cal_gray(value, cs);
-    (*page)
-        .inner
-        .graphics()
-        .set_stroke_color_calibrated_named(name_str, color);
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{CalGrayColorSpace, CalibratedColor};
+        let cs = CalGrayColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma(gamma);
+        let color = CalibratedColor::cal_gray(value, cs);
+        (*page)
+            .inner
+            .graphics()
+            .set_stroke_color_calibrated_named(name_str, color);
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── CalRGB named ──────────────────────────────────────────────────────────────
@@ -1240,30 +1326,32 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_cal_rgb_named(
     m7: f64,
     m8: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_rgb_named");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_cal_rgb_named");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
-    let cs = CalRgbColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma([gamma_r, gamma_g, gamma_b])
-        .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
-    let color = CalibratedColor::cal_rgb([r, g, b], cs);
-    (*page)
-        .inner
-        .graphics()
-        .set_fill_color_calibrated_named(name_str, color);
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
+        let cs = CalRgbColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma([gamma_r, gamma_g, gamma_b])
+            .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
+        let color = CalibratedColor::cal_rgb([r, g, b], cs);
+        (*page)
+            .inner
+            .graphics()
+            .set_fill_color_calibrated_named(name_str, color);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics stroke color using a named calibrated RGB color space.
@@ -1299,30 +1387,32 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_cal_rgb_named(
     m7: f64,
     m8: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_rgb_named");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_cal_rgb_named");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
-    let cs = CalRgbColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_gamma([gamma_r, gamma_g, gamma_b])
-        .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
-    let color = CalibratedColor::cal_rgb([r, g, b], cs);
-    (*page)
-        .inner
-        .graphics()
-        .set_stroke_color_calibrated_named(name_str, color);
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{CalRgbColorSpace, CalibratedColor};
+        let cs = CalRgbColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_gamma([gamma_r, gamma_g, gamma_b])
+            .with_matrix([m0, m1, m2, m3, m4, m5, m6, m7, m8]);
+        let color = CalibratedColor::cal_rgb([r, g, b], cs);
+        (*page)
+            .inner
+            .graphics()
+            .set_stroke_color_calibrated_named(name_str, color);
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Lab named ─────────────────────────────────────────────────────────────────
@@ -1352,29 +1442,31 @@ pub unsafe extern "C" fn oxidize_page_set_fill_color_lab_named(
     range_bmin: f64,
     range_bmax: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_color_lab_named");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_color_lab_named");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{LabColor, LabColorSpace};
-    let cs = LabColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_range(range_amin, range_amax, range_bmin, range_bmax);
-    let color = LabColor::new(l, a, b, cs);
-    (*page)
-        .inner
-        .graphics()
-        .set_fill_color_lab_named(name_str, color);
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{LabColor, LabColorSpace};
+        let cs = LabColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_range(range_amin, range_amax, range_bmin, range_bmax);
+        let color = LabColor::new(l, a, b, cs);
+        (*page)
+            .inner
+            .graphics()
+            .set_fill_color_lab_named(name_str, color);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the graphics stroke color using a named CIE L*a*b* color space.
@@ -1402,29 +1494,31 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_color_lab_named(
     range_bmin: f64,
     range_bmax: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_color_lab_named");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in color space name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_color_lab_named");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{LabColor, LabColorSpace};
-    let cs = LabColorSpace::new()
-        .with_white_point([wp_x, wp_y, wp_z])
-        .with_black_point([bp_x, bp_y, bp_z])
-        .with_range(range_amin, range_amax, range_bmin, range_bmax);
-    let color = LabColor::new(l, a, b, cs);
-    (*page)
-        .inner
-        .graphics()
-        .set_stroke_color_lab_named(name_str, color);
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in color space name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{LabColor, LabColorSpace};
+        let cs = LabColorSpace::new()
+            .with_white_point([wp_x, wp_y, wp_z])
+            .with_black_point([bp_x, bp_y, bp_z])
+            .with_range(range_amin, range_amax, range_bmin, range_bmax);
+        let color = LabColor::new(l, a, b, cs);
+        (*page)
+            .inner
+            .graphics()
+            .set_stroke_color_lab_named(name_str, color);
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]
@@ -1581,59 +1675,61 @@ pub unsafe extern "C" fn oxidize_page_add_tiling_pattern(
     content_len: usize,
     matrix: *const f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_tiling_pattern");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in pattern name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_tiling_pattern");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::{PaintType, PatternMatrix, TilingPattern, TilingType};
-    let paint = match paint_type {
-        1 => PaintType::Colored,
-        2 => PaintType::Uncolored,
-        _ => {
-            set_last_error("Invalid paint_type (expected 1=Colored, 2=Uncolored)");
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in pattern name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::{PaintType, PatternMatrix, TilingPattern, TilingType};
+        let paint = match paint_type {
+            1 => PaintType::Colored,
+            2 => PaintType::Uncolored,
+            _ => {
+                set_last_error("Invalid paint_type (expected 1=Colored, 2=Uncolored)");
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+        let tiling = match tiling_type {
+            1 => TilingType::ConstantSpacing,
+            2 => TilingType::NoDistortion,
+            3 => TilingType::ConstantSpacingFaster,
+            _ => {
+                set_last_error("Invalid tiling_type (expected 1, 2, or 3)");
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+        if x_step <= 0.0 || y_step <= 0.0 {
+            set_last_error("Tiling pattern x_step and y_step must be positive");
             return ErrorCode::InvalidArgument as c_int;
         }
-    };
-    let tiling = match tiling_type {
-        1 => TilingType::ConstantSpacing,
-        2 => TilingType::NoDistortion,
-        3 => TilingType::ConstantSpacingFaster,
-        _ => {
-            set_last_error("Invalid tiling_type (expected 1, 2, or 3)");
-            return ErrorCode::InvalidArgument as c_int;
+        let bbox = [bbox_x, bbox_y, bbox_x + bbox_w, bbox_y + bbox_h];
+        let content_vec = if content.is_null() || content_len == 0 {
+            Vec::new()
+        } else {
+            std::slice::from_raw_parts(content, content_len).to_vec()
+        };
+        let mut pattern = TilingPattern::new(name_str.clone(), paint, tiling, bbox, x_step, y_step)
+            .with_content_stream(content_vec);
+        if !matrix.is_null() {
+            let m = std::slice::from_raw_parts(matrix, 6);
+            pattern = pattern.with_matrix(PatternMatrix {
+                matrix: [m[0], m[1], m[2], m[3], m[4], m[5]],
+            });
         }
-    };
-    if x_step <= 0.0 || y_step <= 0.0 {
-        set_last_error("Tiling pattern x_step and y_step must be positive");
-        return ErrorCode::InvalidArgument as c_int;
-    }
-    let bbox = [bbox_x, bbox_y, bbox_x + bbox_w, bbox_y + bbox_h];
-    let content_vec = if content.is_null() || content_len == 0 {
-        Vec::new()
-    } else {
-        std::slice::from_raw_parts(content, content_len).to_vec()
-    };
-    let mut pattern = TilingPattern::new(name_str.clone(), paint, tiling, bbox, x_step, y_step)
-        .with_content_stream(content_vec);
-    if !matrix.is_null() {
-        let m = std::slice::from_raw_parts(matrix, 6);
-        pattern = pattern.with_matrix(PatternMatrix {
-            matrix: [m[0], m[1], m[2], m[3], m[4], m[5]],
-        });
-    }
-    if let Err(e) = (*page).inner.add_pattern(name_str, pattern) {
-        set_last_error(format!("Failed to add tiling pattern: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        if let Err(e) = (*page).inner.add_pattern(name_str, pattern) {
+            set_last_error(format!("Failed to add tiling pattern: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Select a previously registered tiling pattern as the fill color.
@@ -1647,24 +1743,26 @@ pub unsafe extern "C" fn oxidize_page_set_fill_pattern(
     page: *mut PageHandle,
     name: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_fill_pattern");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in pattern name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_fill_pattern");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::PatternGraphicsContext;
-    if let Err(e) = (*page).inner.graphics().set_fill_pattern(name_str) {
-        set_last_error(format!("Failed to set fill pattern: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in pattern name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::PatternGraphicsContext;
+        if let Err(e) = (*page).inner.graphics().set_fill_pattern(name_str) {
+            set_last_error(format!("Failed to set fill pattern: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Select a previously registered tiling pattern as the stroke color.
@@ -1678,24 +1776,26 @@ pub unsafe extern "C" fn oxidize_page_set_stroke_pattern(
     page: *mut PageHandle,
     name: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_set_stroke_pattern");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in pattern name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_set_stroke_pattern");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::PatternGraphicsContext;
-    if let Err(e) = (*page).inner.graphics().set_stroke_pattern(name_str) {
-        set_last_error(format!("Failed to set stroke pattern: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in pattern name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        use oxidize_pdf::graphics::PatternGraphicsContext;
+        if let Err(e) = (*page).inner.graphics().set_stroke_pattern(name_str) {
+            set_last_error(format!("Failed to set stroke pattern: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]
@@ -1813,51 +1913,53 @@ pub unsafe extern "C" fn oxidize_page_add_form_xobject(
     isolated: c_int,
     knockout: c_int,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_form_xobject");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in form XObject name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_form_xobject");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    use oxidize_pdf::graphics::FormXObject;
-    use oxidize_pdf::Rectangle;
-    let bbox = Rectangle::from_position_and_size(x, y, width, height);
-    let content_vec = if content.is_null() || content_len == 0 {
-        Vec::new()
-    } else {
-        std::slice::from_raw_parts(content, content_len).to_vec()
-    };
-    let mut form = FormXObject::new(bbox).with_content(content_vec);
-    if !matrix.is_null() {
-        let m = std::slice::from_raw_parts(matrix, 6);
-        form = form.with_matrix([m[0], m[1], m[2], m[3], m[4], m[5]]);
-    }
-    if !group_color_space.is_null() {
-        let cs = match CStr::from_ptr(group_color_space).to_str() {
+        let name_str = match CStr::from_ptr(name).to_str() {
             Ok(s) => s.to_owned(),
             Err(_) => {
-                set_last_error("Invalid UTF-8 in transparency group color space");
+                set_last_error("Invalid UTF-8 in form XObject name");
                 return ErrorCode::InvalidUtf8 as c_int;
             }
         };
-        use oxidize_pdf::graphics::FormTransparencyGroup;
-        form = form.with_transparency_group(FormTransparencyGroup {
-            color_space: cs,
-            isolated: isolated != 0,
-            knockout: knockout != 0,
-        });
-    }
-    if let Err(e) = (*page).inner.add_form_xobject(name_str, form) {
-        set_last_error(format!("Failed to add form XObject: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        use oxidize_pdf::graphics::FormXObject;
+        use oxidize_pdf::Rectangle;
+        let bbox = Rectangle::from_position_and_size(x, y, width, height);
+        let content_vec = if content.is_null() || content_len == 0 {
+            Vec::new()
+        } else {
+            std::slice::from_raw_parts(content, content_len).to_vec()
+        };
+        let mut form = FormXObject::new(bbox).with_content(content_vec);
+        if !matrix.is_null() {
+            let m = std::slice::from_raw_parts(matrix, 6);
+            form = form.with_matrix([m[0], m[1], m[2], m[3], m[4], m[5]]);
+        }
+        if !group_color_space.is_null() {
+            let cs = match CStr::from_ptr(group_color_space).to_str() {
+                Ok(s) => s.to_owned(),
+                Err(_) => {
+                    set_last_error("Invalid UTF-8 in transparency group color space");
+                    return ErrorCode::InvalidUtf8 as c_int;
+                }
+            };
+            use oxidize_pdf::graphics::FormTransparencyGroup;
+            form = form.with_transparency_group(FormTransparencyGroup {
+                color_space: cs,
+                isolated: isolated != 0,
+                knockout: knockout != 0,
+            });
+        }
+        if let Err(e) = (*page).inner.add_form_xobject(name_str, form) {
+            set_last_error(format!("Failed to add form XObject: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Invoke (paint) a previously registered Form XObject, emitting `/name Do`.
@@ -1871,23 +1973,25 @@ pub unsafe extern "C" fn oxidize_page_invoke_xobject(
     page: *mut PageHandle,
     name: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_invoke_xobject");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in form XObject name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_invoke_xobject");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*page)
-        .inner
-        .graphics()
-        .add_command(&format!("/{name_str} Do"));
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in form XObject name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*page)
+            .inner
+            .graphics()
+            .add_command(&format!("/{name_str} Do"));
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Apply a soft mask (GFX-021) to the page via an ExtGState `/SMask` entry
@@ -1908,44 +2012,48 @@ pub unsafe extern "C" fn oxidize_page_apply_soft_mask(
     mask_type: c_int,
     group_ref: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_apply_soft_mask");
-        return ErrorCode::NullPointer as c_int;
-    }
-    use oxidize_pdf::graphics::{ExtGState, SoftMask};
-    let mask = match mask_type {
-        0 => SoftMask::none(),
-        1 | 2 => {
-            if group_ref.is_null() {
-                set_last_error("Alpha/Luminosity soft mask requires a non-null group reference");
-                return ErrorCode::NullPointer as c_int;
-            }
-            let name = match CStr::from_ptr(group_ref).to_str() {
-                Ok(s) => s.to_owned(),
-                Err(_) => {
-                    set_last_error("Invalid UTF-8 in soft mask group reference");
-                    return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_apply_soft_mask");
+            return ErrorCode::NullPointer as c_int;
+        }
+        use oxidize_pdf::graphics::{ExtGState, SoftMask};
+        let mask = match mask_type {
+            0 => SoftMask::none(),
+            1 | 2 => {
+                if group_ref.is_null() {
+                    set_last_error(
+                        "Alpha/Luminosity soft mask requires a non-null group reference",
+                    );
+                    return ErrorCode::NullPointer as c_int;
                 }
-            };
-            if mask_type == 1 {
-                SoftMask::alpha(name)
-            } else {
-                SoftMask::luminosity(name)
+                let name = match CStr::from_ptr(group_ref).to_str() {
+                    Ok(s) => s.to_owned(),
+                    Err(_) => {
+                        set_last_error("Invalid UTF-8 in soft mask group reference");
+                        return ErrorCode::InvalidUtf8 as c_int;
+                    }
+                };
+                if mask_type == 1 {
+                    SoftMask::alpha(name)
+                } else {
+                    SoftMask::luminosity(name)
+                }
             }
+            _ => {
+                set_last_error("Invalid soft mask type (expected 0=None, 1=Alpha, 2=Luminosity)");
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+        let mut state = ExtGState::new();
+        state.set_soft_mask(mask);
+        if let Err(e) = (*page).inner.graphics().apply_extgstate(state) {
+            set_last_error(format!("Failed to apply soft mask: {e}"));
+            return ErrorCode::PdfParseError as c_int;
         }
-        _ => {
-            set_last_error("Invalid soft mask type (expected 0=None, 1=Alpha, 2=Luminosity)");
-            return ErrorCode::InvalidArgument as c_int;
-        }
-    };
-    let mut state = ExtGState::new();
-    state.set_soft_mask(mask);
-    if let Err(e) = (*page).inner.graphics().apply_extgstate(state) {
-        set_last_error(format!("Failed to apply soft mask: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Draw text through the page's graphics context (GFX-022), emitting a
@@ -1966,28 +2074,30 @@ pub unsafe extern "C" fn oxidize_page_draw_text_at(
     y: f64,
     text: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_draw_text_at");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let text_str = match CStr::from_ptr(text).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in text");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || text.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_draw_text_at");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let result = (*page)
-        .inner
-        .graphics()
-        .set_font(font.to_oxidize(), size)
-        .draw_text(text_str, x, y);
-    if let Err(e) = result {
-        set_last_error(format!("Failed to draw text: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in text");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let result = (*page)
+            .inner
+            .graphics()
+            .set_font(font.to_oxidize(), size)
+            .draw_text(text_str, x, y);
+        if let Err(e) = result {
+            set_last_error(format!("Failed to draw text: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Intersect the current clipping region with an ellipse (GFX-024), emitting the
@@ -2005,20 +2115,22 @@ pub unsafe extern "C" fn oxidize_page_clip_ellipse(
     rx: f64,
     ry: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_clip_ellipse");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if rx <= 0.0 || ry <= 0.0 || rx.is_nan() || ry.is_nan() {
-        set_last_error("Ellipse radii (rx, ry) must be strictly positive");
-        return ErrorCode::InvalidArgument as c_int;
-    }
-    if let Err(e) = (*page).inner.graphics().clip_ellipse(cx, cy, rx, ry) {
-        set_last_error(format!("Failed to set elliptical clip: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_clip_ellipse");
+            return ErrorCode::NullPointer as c_int;
+        }
+        if rx <= 0.0 || ry <= 0.0 || rx.is_nan() || ry.is_nan() {
+            set_last_error("Ellipse radii (rx, ry) must be strictly positive");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        if let Err(e) = (*page).inner.graphics().clip_ellipse(cx, cy, rx, ry) {
+            set_last_error(format!("Failed to set elliptical clip: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Shadings / gradients (GFX-017, upstream `sh` operator added in 2.14.0) ─────
@@ -2082,92 +2194,94 @@ pub unsafe extern "C" fn oxidize_page_add_shading_json(
     name: *const c_char,
     json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() || json.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_shading_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in shading name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() || json.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_shading_json");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let json_str = match CStr::from_ptr(json).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in shading JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
-    let dto: ShadingJson = match serde_json::from_str(json_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid shading JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
-    if dto.stops.len() < 2 {
-        set_last_error("Shading requires at least two color stops");
-        return ErrorCode::InvalidArgument as c_int;
-    }
-
-    use oxidize_pdf::graphics::{
-        AxialShading, Point as ShadingPoint, RadialShading, ShadingDefinition,
-    };
-    let stops = color_stops_from(&dto.stops);
-
-    let definition = match dto.kind.as_str() {
-        "axial" => {
-            let (Some(start), Some(end)) = (dto.start, dto.end) else {
-                set_last_error("axial shading requires 'start' and 'end'");
-                return ErrorCode::InvalidArgument as c_int;
-            };
-            let shading = AxialShading::new(
-                name_str.clone(),
-                ShadingPoint::new(start[0], start[1]),
-                ShadingPoint::new(end[0], end[1]),
-                stops,
-            )
-            .with_extend(dto.extend_start, dto.extend_end);
-            ShadingDefinition::Axial(shading)
-        }
-        "radial" => {
-            let (Some(sc), Some(sr), Some(ec), Some(er)) = (
-                dto.start_center,
-                dto.start_radius,
-                dto.end_center,
-                dto.end_radius,
-            ) else {
-                set_last_error(
-                    "radial shading requires 'start_center', 'start_radius', \
-                     'end_center', 'end_radius'",
-                );
-                return ErrorCode::InvalidArgument as c_int;
-            };
-            let shading = RadialShading::new(
-                name_str.clone(),
-                ShadingPoint::new(sc[0], sc[1]),
-                sr,
-                ShadingPoint::new(ec[0], ec[1]),
-                er,
-                stops,
-            )
-            .with_extend(dto.extend_start, dto.extend_end);
-            ShadingDefinition::Radial(shading)
-        }
-        other => {
-            set_last_error(format!("Unknown shading kind: {other}"));
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in shading name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let json_str = match CStr::from_ptr(json).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in shading JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let dto: ShadingJson = match serde_json::from_str(json_str) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid shading JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+        if dto.stops.len() < 2 {
+            set_last_error("Shading requires at least two color stops");
             return ErrorCode::InvalidArgument as c_int;
         }
-    };
 
-    if let Err(e) = (*page).inner.add_shading(name_str, definition) {
-        set_last_error(format!("Failed to add shading: {e}"));
-        return ErrorCode::PdfParseError as c_int;
-    }
-    ErrorCode::Success as c_int
+        use oxidize_pdf::graphics::{
+            AxialShading, Point as ShadingPoint, RadialShading, ShadingDefinition,
+        };
+        let stops = color_stops_from(&dto.stops);
+
+        let definition = match dto.kind.as_str() {
+            "axial" => {
+                let (Some(start), Some(end)) = (dto.start, dto.end) else {
+                    set_last_error("axial shading requires 'start' and 'end'");
+                    return ErrorCode::InvalidArgument as c_int;
+                };
+                let shading = AxialShading::new(
+                    name_str.clone(),
+                    ShadingPoint::new(start[0], start[1]),
+                    ShadingPoint::new(end[0], end[1]),
+                    stops,
+                )
+                .with_extend(dto.extend_start, dto.extend_end);
+                ShadingDefinition::Axial(shading)
+            }
+            "radial" => {
+                let (Some(sc), Some(sr), Some(ec), Some(er)) = (
+                    dto.start_center,
+                    dto.start_radius,
+                    dto.end_center,
+                    dto.end_radius,
+                ) else {
+                    set_last_error(
+                        "radial shading requires 'start_center', 'start_radius', \
+                     'end_center', 'end_radius'",
+                    );
+                    return ErrorCode::InvalidArgument as c_int;
+                };
+                let shading = RadialShading::new(
+                    name_str.clone(),
+                    ShadingPoint::new(sc[0], sc[1]),
+                    sr,
+                    ShadingPoint::new(ec[0], ec[1]),
+                    er,
+                    stops,
+                )
+                .with_extend(dto.extend_start, dto.extend_end);
+                ShadingDefinition::Radial(shading)
+            }
+            other => {
+                set_last_error(format!("Unknown shading kind: {other}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+
+        if let Err(e) = (*page).inner.add_shading(name_str, definition) {
+            set_last_error(format!("Failed to add shading: {e}"));
+            return ErrorCode::PdfParseError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Paint a registered shading with the `sh` operator (ISO 32000-1 §8.7.4.2).
@@ -2185,20 +2299,22 @@ pub unsafe extern "C" fn oxidize_page_paint_shading(
     page: *mut PageHandle,
     name: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || name.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_paint_shading");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_str = match CStr::from_ptr(name).to_str() {
-        Ok(s) => s.to_owned(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in shading name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || name.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_paint_shading");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*page).inner.graphics().paint_shading(name_str);
-    ErrorCode::Success as c_int
+        let name_str = match CStr::from_ptr(name).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in shading name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*page).inner.graphics().paint_shading(name_str);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// End the current path without filling or stroking (the `n` operator).
@@ -2212,13 +2328,15 @@ pub unsafe extern "C" fn oxidize_page_paint_shading(
 /// - `page` must be a valid pointer from `oxidize_page_create`/`_preset`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_page_end_path(page: *mut PageHandle) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_end_path");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*page).inner.graphics().end_path();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_end_path");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*page).inner.graphics().end_path();
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]

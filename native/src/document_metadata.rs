@@ -70,49 +70,51 @@ pub unsafe extern "C" fn oxidize_document_set_open_action_json(
     handle: *mut DocumentHandle,
     json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || json.is_null() {
-        set_last_error("Null pointer to oxidize_document_set_open_action_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in open action JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || json.is_null() {
+            set_last_error("Null pointer to oxidize_document_set_open_action_json");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let payload: OpenActionJson = match serde_json::from_str(s) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid open action JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
+        let s = match CStr::from_ptr(json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in open action JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let payload: OpenActionJson = match serde_json::from_str(s) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid open action JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
 
-    let action = match payload.kind.as_str() {
-        "goto" => match payload.destination {
-            Some(dest) => Action::goto(dest.to_core()),
-            None => {
-                set_last_error("goto open action requires 'destination'");
+        let action = match payload.kind.as_str() {
+            "goto" => match payload.destination {
+                Some(dest) => Action::goto(dest.to_core()),
+                None => {
+                    set_last_error("goto open action requires 'destination'");
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+            },
+            "uri" => match payload.uri {
+                Some(uri) => Action::uri(uri),
+                None => {
+                    set_last_error("uri open action requires 'uri'");
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+            },
+            other => {
+                set_last_error(format!("Unknown open action kind: {other}"));
                 return ErrorCode::InvalidArgument as c_int;
             }
-        },
-        "uri" => match payload.uri {
-            Some(uri) => Action::uri(uri),
-            None => {
-                set_last_error("uri open action requires 'uri'");
-                return ErrorCode::InvalidArgument as c_int;
-            }
-        },
-        other => {
-            set_last_error(format!("Unknown open action kind: {other}"));
-            return ErrorCode::InvalidArgument as c_int;
-        }
-    };
+        };
 
-    (*handle).inner.set_open_action(action);
-    ErrorCode::Success as c_int
+        (*handle).inner.set_open_action(action);
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── DOC-015: Viewer preferences ──────────────────────────────────────────────
@@ -215,27 +217,29 @@ pub unsafe extern "C" fn oxidize_document_set_viewer_preferences_json(
     handle: *mut DocumentHandle,
     json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || json.is_null() {
-        set_last_error("Null pointer to oxidize_document_set_viewer_preferences_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in viewer preferences JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || json.is_null() {
+            set_last_error("Null pointer to oxidize_document_set_viewer_preferences_json");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let payload: ViewerPrefsJson = match serde_json::from_str(s) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid viewer preferences JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
-    (*handle).inner.set_viewer_preferences(payload.to_core());
-    ErrorCode::Success as c_int
+        let s = match CStr::from_ptr(json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in viewer preferences JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let payload: ViewerPrefsJson = match serde_json::from_str(s) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid viewer preferences JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+        (*handle).inner.set_viewer_preferences(payload.to_core());
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── DOC-017: Named destinations ──────────────────────────────────────────────
@@ -257,40 +261,42 @@ pub unsafe extern "C" fn oxidize_document_add_named_destination_json(
     handle: *mut DocumentHandle,
     json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || json.is_null() {
-        set_last_error("Null pointer to oxidize_document_add_named_destination_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in named destination JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || json.is_null() {
+            set_last_error("Null pointer to oxidize_document_add_named_destination_json");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let payload: NamedDestJson = match serde_json::from_str(s) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid named destination JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
+        let s = match CStr::from_ptr(json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in named destination JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let payload: NamedDestJson = match serde_json::from_str(s) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid named destination JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+        if payload.name.is_empty() {
+            set_last_error("Named destination name must not be empty");
+            return ErrorCode::InvalidArgument as c_int;
         }
-    };
-    if payload.name.is_empty() {
-        set_last_error("Named destination name must not be empty");
-        return ErrorCode::InvalidArgument as c_int;
-    }
 
-    let doc = &mut (*handle).inner;
-    if doc.named_destinations().is_none() {
-        doc.set_named_destinations(NamedDestinations::new());
-    }
-    let dests = doc
-        .named_destinations_mut()
-        .expect("named_destinations was just set");
-    let array = payload.destination.to_core().to_array();
-    dests.add_destination(payload.name, array);
-    ErrorCode::Success as c_int
+        let doc = &mut (*handle).inner;
+        if doc.named_destinations().is_none() {
+            doc.set_named_destinations(NamedDestinations::new());
+        }
+        let dests = doc
+            .named_destinations_mut()
+            .expect("named_destinations was just set");
+        let array = payload.destination.to_core().to_array();
+        dests.add_destination(payload.name, array);
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── DOC-018: Page labels ─────────────────────────────────────────────────────
@@ -343,36 +349,38 @@ pub unsafe extern "C" fn oxidize_document_set_page_labels_json(
     handle: *mut DocumentHandle,
     json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || json.is_null() {
-        set_last_error("Null pointer to oxidize_document_set_page_labels_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in page labels JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || json.is_null() {
+            set_last_error("Null pointer to oxidize_document_set_page_labels_json");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let payload: PageLabelsJson = match serde_json::from_str(s) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid page labels JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
+        let s = match CStr::from_ptr(json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in page labels JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let payload: PageLabelsJson = match serde_json::from_str(s) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid page labels JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+        if payload.ranges.is_empty() {
+            set_last_error("Page labels require at least one range");
+            return ErrorCode::InvalidArgument as c_int;
         }
-    };
-    if payload.ranges.is_empty() {
-        set_last_error("Page labels require at least one range");
-        return ErrorCode::InvalidArgument as c_int;
-    }
 
-    let mut tree = PageLabelTree::new();
-    for range in &payload.ranges {
-        tree.add_range(range.start_page, range.to_core_label());
-    }
-    (*handle).inner.set_page_labels(tree);
-    ErrorCode::Success as c_int
+        let mut tree = PageLabelTree::new();
+        for range in &payload.ranges {
+            tree.add_range(range.start_page, range.to_core_label());
+        }
+        (*handle).inner.set_page_labels(tree);
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── DOC-020: Save with WriterConfig ──────────────────────────────────────────
@@ -398,45 +406,47 @@ pub unsafe extern "C" fn oxidize_document_save_to_bytes_with_config(
     out_ptr: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || pdf_version.is_null() || out_ptr.is_null() || out_len.is_null() {
-        set_last_error("Null pointer to oxidize_document_save_to_bytes_with_config");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_ptr = ptr::null_mut();
-    *out_len = 0;
-
-    let version = match CStr::from_ptr(pdf_version).to_str() {
-        Ok(v) => v.to_string(),
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in pdf_version");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || pdf_version.is_null() || out_ptr.is_null() || out_len.is_null() {
+            set_last_error("Null pointer to oxidize_document_save_to_bytes_with_config");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        *out_ptr = ptr::null_mut();
+        *out_len = 0;
 
-    let config = WriterConfig {
-        use_xref_streams: use_xref_streams != 0,
-        use_object_streams: use_object_streams != 0,
-        pdf_version: version,
-        compress_streams: compress_streams != 0,
-        incremental_update: false,
-    };
+        let version = match CStr::from_ptr(pdf_version).to_str() {
+            Ok(v) => v.to_string(),
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in pdf_version");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    let bytes = match (*handle).inner.to_bytes_with_config(config) {
-        Ok(b) => b,
-        Err(e) => {
-            set_last_error(format!("Failed to serialize document: {e}"));
-            return ErrorCode::IoError as c_int;
-        }
-    };
+        let config = WriterConfig {
+            use_xref_streams: use_xref_streams != 0,
+            use_object_streams: use_object_streams != 0,
+            pdf_version: version,
+            compress_streams: compress_streams != 0,
+            incremental_update: false,
+        };
 
-    let len = bytes.len();
-    let mut boxed = bytes.into_boxed_slice();
-    *out_ptr = boxed.as_mut_ptr();
-    *out_len = len;
-    std::mem::forget(boxed);
+        let bytes = match (*handle).inner.to_bytes_with_config(config) {
+            Ok(b) => b,
+            Err(e) => {
+                set_last_error(format!("Failed to serialize document: {e}"));
+                return ErrorCode::IoError as c_int;
+            }
+        };
 
-    ErrorCode::Success as c_int
+        let len = bytes.len();
+        let mut boxed = bytes.into_boxed_slice();
+        *out_ptr = boxed.as_mut_ptr();
+        *out_len = len;
+        std::mem::forget(boxed);
+
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]

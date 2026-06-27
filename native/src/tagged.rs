@@ -153,34 +153,36 @@ pub unsafe extern "C" fn oxidize_document_set_struct_tree_json(
     handle: *mut DocumentHandle,
     json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || json.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_struct_tree_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let json_str = match CStr::from_ptr(json).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in structure-tree JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || json.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_struct_tree_json");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let dto: StructTreeDto = match serde_json::from_str(json_str) {
-        Ok(d) => d,
-        Err(e) => {
-            set_last_error(format!("Failed to parse structure-tree JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
-    let tree = match build_struct_tree(&dto) {
-        Ok(t) => t,
-        Err(e) => {
-            set_last_error(format!("Invalid structure tree: {e}"));
-            return ErrorCode::InvalidArgument as c_int;
-        }
-    };
-    (*handle).inner.set_struct_tree(tree);
-    ErrorCode::Success as c_int
+        let json_str = match CStr::from_ptr(json).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in structure-tree JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let dto: StructTreeDto = match serde_json::from_str(json_str) {
+            Ok(d) => d,
+            Err(e) => {
+                set_last_error(format!("Failed to parse structure-tree JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+        let tree = match build_struct_tree(&dto) {
+            Ok(t) => t,
+            Err(e) => {
+                set_last_error(format!("Invalid structure tree: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+        (*handle).inner.set_struct_tree(tree);
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]

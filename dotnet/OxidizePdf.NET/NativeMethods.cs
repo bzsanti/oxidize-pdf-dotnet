@@ -24,6 +24,9 @@ internal static class NativeMethods
         EncryptionError = 7,
         PermissionError = 8,
         InvalidArgument = 9,
+
+        /// <summary>A Rust panic was caught at the FFI boundary (see last error message).</summary>
+        Panic = 10,
     }
 
     /// <summary>

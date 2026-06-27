@@ -17,11 +17,13 @@ pub struct DocumentHandle {
 /// - Returns null on allocation failure (sets last error).
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_document_create() -> *mut DocumentHandle {
-    clear_last_error();
-    let handle = Box::new(DocumentHandle {
-        inner: oxidize_pdf::Document::new(),
-    });
-    Box::into_raw(handle)
+    crate::ffi_guard_ptr(move || {
+        clear_last_error();
+        let handle = Box::new(DocumentHandle {
+            inner: oxidize_pdf::Document::new(),
+        });
+        Box::into_raw(handle)
+    })
 }
 
 /// Free a document handle previously created by `oxidize_document_create`.
@@ -32,10 +34,12 @@ pub unsafe extern "C" fn oxidize_document_create() -> *mut DocumentHandle {
 /// - After calling this function, `handle` must not be used again.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_document_free(handle: *mut DocumentHandle) {
-    if handle.is_null() {
-        return;
-    }
-    drop(Box::from_raw(handle));
+    crate::ffi_guard_unit(move || {
+        if handle.is_null() {
+            return;
+        }
+        drop(Box::from_raw(handle));
+    })
 }
 
 /// Set the document title metadata.
@@ -48,20 +52,22 @@ pub unsafe extern "C" fn oxidize_document_set_title(
     handle: *mut DocumentHandle,
     text: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_title");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in title");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_title");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle).inner.set_title(s);
-    ErrorCode::Success as c_int
+        let s = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in title");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*handle).inner.set_title(s);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the document author metadata.
@@ -74,20 +80,22 @@ pub unsafe extern "C" fn oxidize_document_set_author(
     handle: *mut DocumentHandle,
     text: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_author");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in author");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_author");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle).inner.set_author(s);
-    ErrorCode::Success as c_int
+        let s = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in author");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*handle).inner.set_author(s);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the document subject metadata.
@@ -100,20 +108,22 @@ pub unsafe extern "C" fn oxidize_document_set_subject(
     handle: *mut DocumentHandle,
     text: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_subject");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in subject");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_subject");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle).inner.set_subject(s);
-    ErrorCode::Success as c_int
+        let s = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in subject");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*handle).inner.set_subject(s);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the document keywords metadata.
@@ -126,20 +136,22 @@ pub unsafe extern "C" fn oxidize_document_set_keywords(
     handle: *mut DocumentHandle,
     text: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_keywords");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in keywords");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_keywords");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle).inner.set_keywords(s);
-    ErrorCode::Success as c_int
+        let s = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in keywords");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*handle).inner.set_keywords(s);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the document creator metadata.
@@ -152,20 +164,22 @@ pub unsafe extern "C" fn oxidize_document_set_creator(
     handle: *mut DocumentHandle,
     text: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_creator");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in creator");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_creator");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle).inner.set_creator(s);
-    ErrorCode::Success as c_int
+        let s = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in creator");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*handle).inner.set_creator(s);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the document producer metadata.
@@ -178,20 +192,22 @@ pub unsafe extern "C" fn oxidize_document_set_producer(
     handle: *mut DocumentHandle,
     text: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || text.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_producer");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(text).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in producer");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || text.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_producer");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle).inner.set_producer(s);
-    ErrorCode::Success as c_int
+        let s = match CStr::from_ptr(text).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in producer");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        (*handle).inner.set_producer(s);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the document creation date from a Unix timestamp (seconds since epoch).
@@ -203,20 +219,22 @@ pub unsafe extern "C" fn oxidize_document_set_creation_date(
     handle: *mut DocumentHandle,
     unix_timestamp_secs: i64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_creation_date");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let date = match chrono::DateTime::from_timestamp(unix_timestamp_secs, 0) {
-        Some(d) => d,
-        None => {
-            set_last_error(format!("Invalid Unix timestamp: {unix_timestamp_secs}"));
-            return ErrorCode::PdfParseError as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_creation_date");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle).inner.set_creation_date(date);
-    ErrorCode::Success as c_int
+        let date = match chrono::DateTime::from_timestamp(unix_timestamp_secs, 0) {
+            Some(d) => d,
+            None => {
+                set_last_error(format!("Invalid Unix timestamp: {unix_timestamp_secs}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
+        (*handle).inner.set_creation_date(date);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the document modification date from a Unix timestamp (seconds since epoch).
@@ -228,20 +246,22 @@ pub unsafe extern "C" fn oxidize_document_set_modification_date(
     handle: *mut DocumentHandle,
     unix_timestamp_secs: i64,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_modification_date");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let date = match chrono::DateTime::from_timestamp(unix_timestamp_secs, 0) {
-        Some(d) => d,
-        None => {
-            set_last_error(format!("Invalid Unix timestamp: {unix_timestamp_secs}"));
-            return ErrorCode::PdfParseError as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_modification_date");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    (*handle).inner.set_modification_date(date);
-    ErrorCode::Success as c_int
+        let date = match chrono::DateTime::from_timestamp(unix_timestamp_secs, 0) {
+            Some(d) => d,
+            None => {
+                set_last_error(format!("Invalid Unix timestamp: {unix_timestamp_secs}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
+        (*handle).inner.set_modification_date(date);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Save the document to a file at the given path.
@@ -254,23 +274,25 @@ pub unsafe extern "C" fn oxidize_document_save_to_file(
     handle: *mut DocumentHandle,
     path: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || path.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_save_to_file");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let p = match CStr::from_ptr(path).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in file path");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || path.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_save_to_file");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    if let Err(e) = (*handle).inner.save(p) {
-        set_last_error(format!("Failed to save document to file: {e}"));
-        return ErrorCode::IoError as c_int;
-    }
-    ErrorCode::Success as c_int
+        let p = match CStr::from_ptr(path).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in file path");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        if let Err(e) = (*handle).inner.save(p) {
+            set_last_error(format!("Failed to save document to file: {e}"));
+            return ErrorCode::IoError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Create a new A4 page bound to this document's `FontMetricsStore`.
@@ -297,13 +319,15 @@ pub unsafe extern "C" fn oxidize_document_save_to_file(
 pub unsafe extern "C" fn oxidize_document_new_page_a4(
     handle: *const DocumentHandle,
 ) -> *mut crate::page::PageHandle {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_new_page_a4");
-        return ptr::null_mut();
-    }
-    let page = (*handle).inner.new_page_a4();
-    Box::into_raw(Box::new(crate::page::PageHandle { inner: page }))
+    crate::ffi_guard_ptr(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_new_page_a4");
+            return ptr::null_mut();
+        }
+        let page = (*handle).inner.new_page_a4();
+        Box::into_raw(Box::new(crate::page::PageHandle { inner: page }))
+    })
 }
 
 /// Create a new US Letter page bound to this document's `FontMetricsStore`.
@@ -317,13 +341,15 @@ pub unsafe extern "C" fn oxidize_document_new_page_a4(
 pub unsafe extern "C" fn oxidize_document_new_page_letter(
     handle: *const DocumentHandle,
 ) -> *mut crate::page::PageHandle {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_new_page_letter");
-        return ptr::null_mut();
-    }
-    let page = (*handle).inner.new_page_letter();
-    Box::into_raw(Box::new(crate::page::PageHandle { inner: page }))
+    crate::ffi_guard_ptr(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_new_page_letter");
+            return ptr::null_mut();
+        }
+        let page = (*handle).inner.new_page_letter();
+        Box::into_raw(Box::new(crate::page::PageHandle { inner: page }))
+    })
 }
 
 /// Create a new page with explicit dimensions bound to this document's
@@ -342,20 +368,22 @@ pub unsafe extern "C" fn oxidize_document_new_page(
     width: f64,
     height: f64,
 ) -> *mut crate::page::PageHandle {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_new_page");
-        return ptr::null_mut();
-    }
-    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
-        set_last_error(format!(
-            "Invalid page dimensions for oxidize_document_new_page: \
+    crate::ffi_guard_ptr(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_new_page");
+            return ptr::null_mut();
+        }
+        if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+            set_last_error(format!(
+                "Invalid page dimensions for oxidize_document_new_page: \
              width={width}, height={height} (must be finite and positive)"
-        ));
-        return ptr::null_mut();
-    }
-    let page = (*handle).inner.new_page(width, height);
-    Box::into_raw(Box::new(crate::page::PageHandle { inner: page }))
+            ));
+            return ptr::null_mut();
+        }
+        let page = (*handle).inner.new_page(width, height);
+        Box::into_raw(Box::new(crate::page::PageHandle { inner: page }))
+    })
 }
 
 /// Add a page to the document. The page is cloned internally; the caller retains ownership.
@@ -386,13 +414,15 @@ pub unsafe extern "C" fn oxidize_document_add_page(
     handle: *mut DocumentHandle,
     page_handle: *const crate::page::PageHandle,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || page_handle.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_add_page");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*handle).inner.add_page((*page_handle).inner.clone());
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || page_handle.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_add_page");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*handle).inner.add_page((*page_handle).inner.clone());
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Serialize the document to PDF bytes.
@@ -408,29 +438,31 @@ pub unsafe extern "C" fn oxidize_document_save_to_bytes(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_save_to_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = ptr::null_mut();
-    *out_len = 0;
-
-    let bytes = match (*handle).inner.to_bytes() {
-        Ok(b) => b,
-        Err(e) => {
-            set_last_error(format!("Failed to serialize document: {e}"));
-            return ErrorCode::IoError as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_bytes.is_null() || out_len.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_save_to_bytes");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
 
-    let len = bytes.len();
-    let mut boxed = bytes.into_boxed_slice();
-    *out_bytes = boxed.as_mut_ptr();
-    *out_len = len;
-    std::mem::forget(boxed);
+        let bytes = match (*handle).inner.to_bytes() {
+            Ok(b) => b,
+            Err(e) => {
+                set_last_error(format!("Failed to serialize document: {e}"));
+                return ErrorCode::IoError as c_int;
+            }
+        };
 
-    ErrorCode::Success as c_int
+        let len = bytes.len();
+        let mut boxed = bytes.into_boxed_slice();
+        *out_bytes = boxed.as_mut_ptr();
+        *out_len = len;
+        std::mem::forget(boxed);
+
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Get the number of pages in the document.
@@ -443,13 +475,15 @@ pub unsafe extern "C" fn oxidize_document_page_count(
     handle: *const DocumentHandle,
     out_count: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || out_count.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_page_count");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_count = (*handle).inner.page_count();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || out_count.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_page_count");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_count = (*handle).inner.page_count();
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Register a custom font from byte data (e.g., TTF/OTF).
@@ -465,28 +499,30 @@ pub unsafe extern "C" fn oxidize_document_add_font_from_bytes(
     font_bytes: *const u8,
     font_len: usize,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || name.is_null() || font_bytes.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_add_font_from_bytes");
-        return ErrorCode::NullPointer as c_int;
-    }
-    if font_len == 0 {
-        set_last_error("Font data is empty (0 bytes)");
-        return ErrorCode::IoError as c_int;
-    }
-    let font_name = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in font name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || font_bytes.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_add_font_from_bytes");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let data = std::slice::from_raw_parts(font_bytes, font_len).to_vec();
-    if let Err(e) = (*handle).inner.add_font_from_bytes(font_name, data) {
-        set_last_error(format!("Failed to add font: {e}"));
-        return ErrorCode::IoError as c_int;
-    }
-    ErrorCode::Success as c_int
+        if font_len == 0 {
+            set_last_error("Font data is empty (0 bytes)");
+            return ErrorCode::IoError as c_int;
+        }
+        let font_name = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in font name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let data = std::slice::from_raw_parts(font_bytes, font_len).to_vec();
+        if let Err(e) = (*handle).inner.add_font_from_bytes(font_name, data) {
+            set_last_error(format!("Failed to add font: {e}"));
+            return ErrorCode::IoError as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Set the document outline (bookmarks/table of contents) from a JSON tree.
@@ -503,76 +539,78 @@ pub unsafe extern "C" fn oxidize_document_set_outline(
     handle: *mut DocumentHandle,
     outline_json: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || outline_json.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_set_outline");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let json_str = match CStr::from_ptr(outline_json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in outline JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || outline_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_set_outline");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        let json_str = match CStr::from_ptr(outline_json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in outline JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    #[derive(serde::Deserialize)]
-    struct ItemJson {
-        title: String,
-        page: u32,
-        #[serde(default)]
-        bold: bool,
-        #[serde(default)]
-        italic: bool,
-        #[serde(default = "default_true")]
-        open: bool,
-        #[serde(default)]
-        children: Vec<ItemJson>,
-    }
-
-    fn default_true() -> bool {
-        true
-    }
-
-    #[derive(serde::Deserialize)]
-    struct OutlineJson {
-        items: Vec<ItemJson>,
-    }
-
-    fn build_item(json: ItemJson) -> oxidize_pdf::OutlineItem {
-        let dest =
-            oxidize_pdf::Destination::fit(oxidize_pdf::PageDestination::PageNumber(json.page));
-        let mut item = oxidize_pdf::OutlineItem::new(json.title).with_destination(dest);
-        if json.bold {
-            item = item.bold();
+        #[derive(serde::Deserialize)]
+        struct ItemJson {
+            title: String,
+            page: u32,
+            #[serde(default)]
+            bold: bool,
+            #[serde(default)]
+            italic: bool,
+            #[serde(default = "default_true")]
+            open: bool,
+            #[serde(default)]
+            children: Vec<ItemJson>,
         }
-        if json.italic {
-            item = item.italic();
-        }
-        if !json.open {
-            item = item.closed();
-        }
-        for child in json.children {
-            item.add_child(build_item(child));
-        }
-        item
-    }
 
-    let parsed: OutlineJson = match serde_json::from_str(json_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Failed to parse outline JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
+        fn default_true() -> bool {
+            true
         }
-    };
 
-    let mut tree = oxidize_pdf::OutlineTree::new();
-    for item_json in parsed.items {
-        tree.add_item(build_item(item_json));
-    }
+        #[derive(serde::Deserialize)]
+        struct OutlineJson {
+            items: Vec<ItemJson>,
+        }
 
-    (*handle).inner.set_outline(tree);
-    ErrorCode::Success as c_int
+        fn build_item(json: ItemJson) -> oxidize_pdf::OutlineItem {
+            let dest =
+                oxidize_pdf::Destination::fit(oxidize_pdf::PageDestination::PageNumber(json.page));
+            let mut item = oxidize_pdf::OutlineItem::new(json.title).with_destination(dest);
+            if json.bold {
+                item = item.bold();
+            }
+            if json.italic {
+                item = item.italic();
+            }
+            if !json.open {
+                item = item.closed();
+            }
+            for child in json.children {
+                item.add_child(build_item(child));
+            }
+            item
+        }
+
+        let parsed: OutlineJson = match serde_json::from_str(json_str) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Failed to parse outline JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+
+        let mut tree = oxidize_pdf::OutlineTree::new();
+        for item_json in parsed.items {
+            tree.add_item(build_item(item_json));
+        }
+
+        (*handle).inner.set_outline(tree);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Register a custom font from a file path (TTF/OTF).
@@ -586,30 +624,32 @@ pub unsafe extern "C" fn oxidize_document_add_font_from_file(
     name: *const c_char,
     path: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || name.is_null() || path.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_add_font_from_file");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let font_name = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in font name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || path.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_add_font_from_file");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let font_path = match CStr::from_ptr(path).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in font path");
-            return ErrorCode::InvalidUtf8 as c_int;
+        let font_name = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in font name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let font_path = match CStr::from_ptr(path).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in font path");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        if let Err(e) = (*handle).inner.add_font(font_name, font_path) {
+            set_last_error(format!("Failed to add font from file: {e}"));
+            return ErrorCode::IoError as c_int;
         }
-    };
-    if let Err(e) = (*handle).inner.add_font(font_name, font_path) {
-        set_last_error(format!("Failed to add font from file: {e}"));
-        return ErrorCode::IoError as c_int;
-    }
-    ErrorCode::Success as c_int
+        ErrorCode::Success as c_int
+    })
 }
 
 #[cfg(test)]

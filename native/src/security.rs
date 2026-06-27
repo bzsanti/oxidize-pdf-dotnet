@@ -15,29 +15,31 @@ pub unsafe extern "C" fn oxidize_document_encrypt(
     user_pw: *const c_char,
     owner_pw: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_encrypt");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    let user = match CStr::from_ptr(user_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in user_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_encrypt");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let owner = match CStr::from_ptr(owner_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in owner_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
 
-    (*handle).inner.encrypt_with_passwords(user, owner);
-    ErrorCode::Success as c_int
+        let user = match CStr::from_ptr(user_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in user_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let owner = match CStr::from_ptr(owner_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in owner_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+
+        (*handle).inner.encrypt_with_passwords(user, owner);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Encrypt a document with user and owner passwords and explicit permission flags.
@@ -62,37 +64,39 @@ pub unsafe extern "C" fn oxidize_document_encrypt_with_permissions(
     owner_pw: *const c_char,
     permissions_flags: u32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_encrypt_with_permissions");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    let user = match CStr::from_ptr(user_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in user_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_encrypt_with_permissions");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let owner = match CStr::from_ptr(owner_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in owner_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
 
-    let perms = permissions_from_flags(permissions_flags);
-    let enc = oxidize_pdf::document::DocumentEncryption::new(
-        user,
-        owner,
-        perms,
-        oxidize_pdf::document::EncryptionStrength::Rc4_128bit,
-    );
-    (*handle).inner.set_encryption(enc);
+        let user = match CStr::from_ptr(user_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in user_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let owner = match CStr::from_ptr(owner_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in owner_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    ErrorCode::Success as c_int
+        let perms = permissions_from_flags(permissions_flags);
+        let enc = oxidize_pdf::document::DocumentEncryption::new(
+            user,
+            owner,
+            perms,
+            oxidize_pdf::document::EncryptionStrength::Rc4_128bit,
+        );
+        (*handle).inner.set_encryption(enc);
+
+        ErrorCode::Success as c_int
+    })
 }
 
 fn permissions_from_flags(flags: u32) -> oxidize_pdf::encryption::Permissions {
@@ -119,36 +123,38 @@ pub unsafe extern "C" fn oxidize_document_encrypt_aes128(
     user_pw: *const c_char,
     owner_pw: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_encrypt_aes128");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    let user = match CStr::from_ptr(user_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in user_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_encrypt_aes128");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let owner = match CStr::from_ptr(owner_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in owner_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
 
-    let enc = oxidize_pdf::document::DocumentEncryption::new(
-        user,
-        owner,
-        oxidize_pdf::encryption::Permissions::new(),
-        oxidize_pdf::document::EncryptionStrength::Aes128,
-    );
-    (*handle).inner.set_encryption(enc);
+        let user = match CStr::from_ptr(user_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in user_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let owner = match CStr::from_ptr(owner_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in owner_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    ErrorCode::Success as c_int
+        let enc = oxidize_pdf::document::DocumentEncryption::new(
+            user,
+            owner,
+            oxidize_pdf::encryption::Permissions::new(),
+            oxidize_pdf::document::EncryptionStrength::Aes128,
+        );
+        (*handle).inner.set_encryption(enc);
+
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Encrypt a document with AES-128 and explicit permission flags.
@@ -163,37 +169,41 @@ pub unsafe extern "C" fn oxidize_document_encrypt_aes128_with_permissions(
     owner_pw: *const c_char,
     permissions_flags: u32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_encrypt_aes128_with_permissions");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    let user = match CStr::from_ptr(user_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in user_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+            set_last_error(
+                "Null pointer provided to oxidize_document_encrypt_aes128_with_permissions",
+            );
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let owner = match CStr::from_ptr(owner_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in owner_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
 
-    let perms = permissions_from_flags(permissions_flags);
-    let enc = oxidize_pdf::document::DocumentEncryption::new(
-        user,
-        owner,
-        perms,
-        oxidize_pdf::document::EncryptionStrength::Aes128,
-    );
-    (*handle).inner.set_encryption(enc);
+        let user = match CStr::from_ptr(user_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in user_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let owner = match CStr::from_ptr(owner_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in owner_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    ErrorCode::Success as c_int
+        let perms = permissions_from_flags(permissions_flags);
+        let enc = oxidize_pdf::document::DocumentEncryption::new(
+            user,
+            owner,
+            perms,
+            oxidize_pdf::document::EncryptionStrength::Aes128,
+        );
+        (*handle).inner.set_encryption(enc);
+
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Encrypt a document with AES-256 and default permissions.
@@ -207,36 +217,38 @@ pub unsafe extern "C" fn oxidize_document_encrypt_aes256(
     user_pw: *const c_char,
     owner_pw: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_encrypt_aes256");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    let user = match CStr::from_ptr(user_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in user_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+            set_last_error("Null pointer provided to oxidize_document_encrypt_aes256");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let owner = match CStr::from_ptr(owner_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in owner_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
 
-    let enc = oxidize_pdf::document::DocumentEncryption::new(
-        user,
-        owner,
-        oxidize_pdf::encryption::Permissions::new(),
-        oxidize_pdf::document::EncryptionStrength::Aes256,
-    );
-    (*handle).inner.set_encryption(enc);
+        let user = match CStr::from_ptr(user_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in user_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let owner = match CStr::from_ptr(owner_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in owner_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    ErrorCode::Success as c_int
+        let enc = oxidize_pdf::document::DocumentEncryption::new(
+            user,
+            owner,
+            oxidize_pdf::encryption::Permissions::new(),
+            oxidize_pdf::document::EncryptionStrength::Aes256,
+        );
+        (*handle).inner.set_encryption(enc);
+
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Encrypt a document with AES-256 and explicit permission flags.
@@ -251,35 +263,39 @@ pub unsafe extern "C" fn oxidize_document_encrypt_aes256_with_permissions(
     owner_pw: *const c_char,
     permissions_flags: u32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
-        set_last_error("Null pointer provided to oxidize_document_encrypt_aes256_with_permissions");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    let user = match CStr::from_ptr(user_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in user_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || user_pw.is_null() || owner_pw.is_null() {
+            set_last_error(
+                "Null pointer provided to oxidize_document_encrypt_aes256_with_permissions",
+            );
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let owner = match CStr::from_ptr(owner_pw).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in owner_pw");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
 
-    let perms = permissions_from_flags(permissions_flags);
-    let enc = oxidize_pdf::document::DocumentEncryption::new(
-        user,
-        owner,
-        perms,
-        oxidize_pdf::document::EncryptionStrength::Aes256,
-    );
-    (*handle).inner.set_encryption(enc);
+        let user = match CStr::from_ptr(user_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in user_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let owner = match CStr::from_ptr(owner_pw).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in owner_pw");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    ErrorCode::Success as c_int
+        let perms = permissions_from_flags(permissions_flags);
+        let enc = oxidize_pdf::document::DocumentEncryption::new(
+            user,
+            owner,
+            perms,
+            oxidize_pdf::document::EncryptionStrength::Aes256,
+        );
+        (*handle).inner.set_encryption(enc);
+
+        ErrorCode::Success as c_int
+    })
 }

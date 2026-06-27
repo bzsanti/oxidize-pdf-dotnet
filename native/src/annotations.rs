@@ -32,22 +32,24 @@ pub unsafe extern "C" fn oxidize_page_add_link_uri(
     height: f64,
     uri: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || uri.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_link_uri");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let uri_str = match CStr::from_ptr(uri).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in URI");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || uri.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_link_uri");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let rect = make_rect(x, y, width, height);
-    let link = LinkAnnotation::to_uri(rect, uri_str);
-    (*page).inner.add_annotation(link.to_annotation());
-    ErrorCode::Success as c_int
+        let uri_str = match CStr::from_ptr(uri).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in URI");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let rect = make_rect(x, y, width, height);
+        let link = LinkAnnotation::to_uri(rect, uri_str);
+        (*page).inner.add_annotation(link.to_annotation());
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add a named destination link annotation to a page.
@@ -63,20 +65,22 @@ pub unsafe extern "C" fn oxidize_page_add_link_goto(
     height: f64,
     target_page: u32,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_link_goto");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let rect = make_rect(x, y, width, height);
-    // Use Named action with page number as destination name.
-    // ObjectReference is not available at page-construction time.
-    let action = LinkAction::Named {
-        name: format!("page-{target_page}"),
-    };
-    let link = LinkAnnotation::new(rect, action);
-    (*page).inner.add_annotation(link.to_annotation());
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_link_goto");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let rect = make_rect(x, y, width, height);
+        // Use Named action with page number as destination name.
+        // ObjectReference is not available at page-construction time.
+        let action = LinkAction::Named {
+            name: format!("page-{target_page}"),
+        };
+        let link = LinkAnnotation::new(rect, action);
+        (*page).inner.add_annotation(link.to_annotation());
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── ANN-002: Markup annotations ──────────────────────────────────────────────
@@ -96,15 +100,17 @@ pub unsafe extern "C" fn oxidize_page_add_highlight(
     g: f64,
     b: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_highlight");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let rect = make_rect(x, y, width, height);
-    let markup = MarkupAnnotation::highlight(rect).with_color(Color::Rgb(r, g, b));
-    (*page).inner.add_annotation(markup.to_annotation());
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_highlight");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let rect = make_rect(x, y, width, height);
+        let markup = MarkupAnnotation::highlight(rect).with_color(Color::Rgb(r, g, b));
+        (*page).inner.add_annotation(markup.to_annotation());
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add an underline annotation to a page.
@@ -119,15 +125,17 @@ pub unsafe extern "C" fn oxidize_page_add_underline(
     width: f64,
     height: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_underline");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let rect = make_rect(x, y, width, height);
-    let markup = MarkupAnnotation::underline(rect);
-    (*page).inner.add_annotation(markup.to_annotation());
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_underline");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let rect = make_rect(x, y, width, height);
+        let markup = MarkupAnnotation::underline(rect);
+        (*page).inner.add_annotation(markup.to_annotation());
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add a strikeout annotation to a page.
@@ -142,15 +150,17 @@ pub unsafe extern "C" fn oxidize_page_add_strikeout(
     width: f64,
     height: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_strikeout");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let rect = make_rect(x, y, width, height);
-    let markup = MarkupAnnotation::strikeout(rect);
-    (*page).inner.add_annotation(markup.to_annotation());
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_strikeout");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let rect = make_rect(x, y, width, height);
+        let markup = MarkupAnnotation::strikeout(rect);
+        (*page).inner.add_annotation(markup.to_annotation());
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── ANN-003: Text note (sticky note) ────────────────────────────────────────
@@ -169,26 +179,28 @@ pub unsafe extern "C" fn oxidize_page_add_text_note(
     icon: TextAnnotationIcon,
     open: u8,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() || contents.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_text_note");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let contents_str = match CStr::from_ptr(contents).to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in contents");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || contents.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_text_note");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let mut note = TextAnnotation::new(Point::new(x, y))
-        .with_icon(icon.to_oxidize())
-        .with_contents(contents_str);
-    if open != 0 {
-        note = note.open();
-    }
-    (*page).inner.add_annotation(note.to_annotation());
-    ErrorCode::Success as c_int
+        let contents_str = match CStr::from_ptr(contents).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in contents");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let mut note = TextAnnotation::new(Point::new(x, y))
+            .with_icon(icon.to_oxidize())
+            .with_contents(contents_str);
+        if open != 0 {
+            note = note.open();
+        }
+        (*page).inner.add_annotation(note.to_annotation());
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── ANN-004: Stamp annotation ────────────────────────────────────────────────
@@ -208,42 +220,44 @@ pub unsafe extern "C" fn oxidize_page_add_stamp(
     stamp: c_int,
     custom_name: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_stamp");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    let stamp = match StampNameFFI::from_c_int(stamp) {
-        Some(s) => s,
-        None => {
-            set_last_error(format!("Invalid stamp name discriminant: {stamp}"));
-            return ErrorCode::InvalidArgument as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_stamp");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
 
-    let custom = if !custom_name.is_null() {
-        match CStr::from_ptr(custom_name).to_str() {
-            Ok(s) => Some(s.to_string()),
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in custom stamp name");
-                return ErrorCode::InvalidUtf8 as c_int;
+        let stamp = match StampNameFFI::from_c_int(stamp) {
+            Some(s) => s,
+            None => {
+                set_last_error(format!("Invalid stamp name discriminant: {stamp}"));
+                return ErrorCode::InvalidArgument as c_int;
             }
+        };
+
+        let custom = if !custom_name.is_null() {
+            match CStr::from_ptr(custom_name).to_str() {
+                Ok(s) => Some(s.to_string()),
+                Err(_) => {
+                    set_last_error("Invalid UTF-8 in custom stamp name");
+                    return ErrorCode::InvalidUtf8 as c_int;
+                }
+            }
+        } else {
+            None
+        };
+
+        // Custom stamp requires a name
+        if matches!(stamp, StampNameFFI::Custom) && custom.is_none() {
+            set_last_error("Custom stamp requires a non-null custom_name");
+            return ErrorCode::NullPointer as c_int;
         }
-    } else {
-        None
-    };
 
-    // Custom stamp requires a name
-    if matches!(stamp, StampNameFFI::Custom) && custom.is_none() {
-        set_last_error("Custom stamp requires a non-null custom_name");
-        return ErrorCode::NullPointer as c_int;
-    }
-
-    let rect = make_rect(x, y, width, height);
-    let stamp_annot = StampAnnotation::new(rect, stamp.to_oxidize(custom));
-    (*page).inner.add_annotation(stamp_annot.to_annotation());
-    ErrorCode::Success as c_int
+        let rect = make_rect(x, y, width, height);
+        let stamp_annot = StampAnnotation::new(rect, stamp.to_oxidize(custom));
+        (*page).inner.add_annotation(stamp_annot.to_annotation());
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── ANN-005: Geometric annotations ──────────────────────────────────────────
@@ -263,15 +277,17 @@ pub unsafe extern "C" fn oxidize_page_add_annotation_line(
     g: f64,
     b: f64,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_annotation_line");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let line = LineAnnotation::new(Point::new(x1, y1), Point::new(x2, y2));
-    let annot = line.to_annotation().with_color(Color::Rgb(r, g, b));
-    (*page).inner.add_annotation(annot);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_annotation_line");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let line = LineAnnotation::new(Point::new(x1, y1), Point::new(x2, y2));
+        let annot = line.to_annotation().with_color(Color::Rgb(r, g, b));
+        (*page).inner.add_annotation(annot);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add a rectangle annotation to a page.
@@ -293,21 +309,23 @@ pub unsafe extern "C" fn oxidize_page_add_annotation_rect(
     fill_b: f64,
     has_fill: u8,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_annotation_rect");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let rect = make_rect(x, y, width, height);
-    let mut sq = SquareAnnotation::new(rect);
-    if has_fill != 0 {
-        sq = sq.with_interior_color(Color::Rgb(fill_r, fill_g, fill_b));
-    }
-    let annot = sq
-        .to_annotation()
-        .with_color(Color::Rgb(stroke_r, stroke_g, stroke_b));
-    (*page).inner.add_annotation(annot);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_annotation_rect");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let rect = make_rect(x, y, width, height);
+        let mut sq = SquareAnnotation::new(rect);
+        if has_fill != 0 {
+            sq = sq.with_interior_color(Color::Rgb(fill_r, fill_g, fill_b));
+        }
+        let annot = sq
+            .to_annotation()
+            .with_color(Color::Rgb(stroke_r, stroke_g, stroke_b));
+        (*page).inner.add_annotation(annot);
+        ErrorCode::Success as c_int
+    })
 }
 
 /// Add a circle annotation to a page.
@@ -329,19 +347,21 @@ pub unsafe extern "C" fn oxidize_page_add_annotation_circle(
     fill_b: f64,
     has_fill: u8,
 ) -> c_int {
-    clear_last_error();
-    if page.is_null() {
-        set_last_error("Null pointer provided to oxidize_page_add_annotation_circle");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let rect = make_rect(x, y, width, height);
-    let mut circle = CircleAnnotation::new(rect);
-    if has_fill != 0 {
-        circle = circle.with_interior_color(Color::Rgb(fill_r, fill_g, fill_b));
-    }
-    let annot = circle
-        .to_annotation()
-        .with_color(Color::Rgb(stroke_r, stroke_g, stroke_b));
-    (*page).inner.add_annotation(annot);
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() {
+            set_last_error("Null pointer provided to oxidize_page_add_annotation_circle");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let rect = make_rect(x, y, width, height);
+        let mut circle = CircleAnnotation::new(rect);
+        if has_fill != 0 {
+            circle = circle.with_interior_color(Color::Rgb(fill_r, fill_g, fill_b));
+        }
+        let annot = circle
+            .to_annotation()
+            .with_color(Color::Rgb(stroke_r, stroke_g, stroke_b));
+        (*page).inner.add_annotation(annot);
+        ErrorCode::Success as c_int
+    })
 }

@@ -149,13 +149,15 @@ fn field_options_from(dto: &CreateFieldJson) -> Option<FieldOptions> {
 /// - `handle` must be a valid pointer from `oxidize_document_create`.
 #[no_mangle]
 pub unsafe extern "C" fn oxidize_document_enable_forms(handle: *mut DocumentHandle) -> c_int {
-    clear_last_error();
-    if handle.is_null() {
-        set_last_error("Null pointer to oxidize_document_enable_forms");
-        return ErrorCode::NullPointer as c_int;
-    }
-    (*handle).inner.enable_forms();
-    ErrorCode::Success as c_int
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null pointer to oxidize_document_enable_forms");
+            return ErrorCode::NullPointer as c_int;
+        }
+        (*handle).inner.enable_forms();
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Create field ──────────────────────────────────────────────────────────────
@@ -182,126 +184,128 @@ pub unsafe extern "C" fn oxidize_document_add_form_field_json(
     json: *const c_char,
     out_obj_num: *mut u32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || json.is_null() || out_obj_num.is_null() {
-        set_last_error("Null pointer to oxidize_document_add_form_field_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_obj_num = 0;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || json.is_null() || out_obj_num.is_null() {
+            set_last_error("Null pointer to oxidize_document_add_form_field_json");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_obj_num = 0;
 
-    let s = match CStr::from_ptr(json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in form field JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
-    let dto: CreateFieldJson = match serde_json::from_str(s) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid form field JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
+        let s = match CStr::from_ptr(json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in form field JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let dto: CreateFieldJson = match serde_json::from_str(s) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid form field JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
 
-    let rect = rect_from_array(&dto.rect);
-    let widget = Widget::new(rect);
-    let options = field_options_from(&dto);
+        let rect = rect_from_array(&dto.rect);
+        let widget = Widget::new(rect);
+        let options = field_options_from(&dto);
 
-    let fm = (*handle).inner.enable_forms();
+        let fm = (*handle).inner.enable_forms();
 
-    let result = match dto.kind.as_str() {
-        "text" => {
-            let mut field = TextField::new(&dto.name);
-            if let Some(ref v) = dto.value {
-                field = field.with_value(v);
+        let result = match dto.kind.as_str() {
+            "text" => {
+                let mut field = TextField::new(&dto.name);
+                if let Some(ref v) = dto.value {
+                    field = field.with_value(v);
+                }
+                if let Some(ref dv) = dto.default_value {
+                    field = field.with_default_value(dv);
+                }
+                if let Some(ml) = dto.max_length {
+                    field = field.with_max_length(ml);
+                }
+                if dto.multiline {
+                    field = field.multiline();
+                }
+                if dto.password {
+                    field = field.password();
+                }
+                fm.add_text_field(field, widget, options)
             }
-            if let Some(ref dv) = dto.default_value {
-                field = field.with_default_value(dv);
+            "checkbox" => {
+                let mut field = CheckBox::new(&dto.name);
+                if dto.checked {
+                    field = field.checked();
+                }
+                if let Some(ref ev) = dto.export_value {
+                    field = field.with_export_value(ev);
+                }
+                fm.add_checkbox(field, widget, options)
             }
-            if let Some(ml) = dto.max_length {
-                field = field.with_max_length(ml);
+            "radio" => {
+                let mut field = RadioButton::new(&dto.name);
+                for opt in &dto.options {
+                    field = field.add_option(&opt.export, &opt.label);
+                }
+                if let Some(sel) = dto.selected {
+                    field = field.with_selected(sel);
+                }
+                fm.add_radio_buttons(field, vec![widget], options)
             }
-            if dto.multiline {
-                field = field.multiline();
+            "combobox" => {
+                let mut field = ComboBox::new(&dto.name);
+                for opt in &dto.options {
+                    field = field.add_option(&opt.export, &opt.label);
+                }
+                if dto.editable {
+                    field = field.editable();
+                }
+                if let Some(ref v) = dto.value {
+                    field = field.with_value(v);
+                }
+                if let Some(sel) = dto.selected {
+                    field = field.with_selected(sel);
+                }
+                fm.add_combo_box(field, widget, options)
             }
-            if dto.password {
-                field = field.password();
+            "listbox" => {
+                let mut field = ListBox::new(&dto.name);
+                for opt in &dto.options {
+                    field = field.add_option(&opt.export, &opt.label);
+                }
+                if dto.multi_select {
+                    field = field.multi_select();
+                }
+                if !dto.selected_indices.is_empty() {
+                    field = field.with_selected(dto.selected_indices.clone());
+                }
+                fm.add_list_box(field, widget, options)
             }
-            fm.add_text_field(field, widget, options)
-        }
-        "checkbox" => {
-            let mut field = CheckBox::new(&dto.name);
-            if dto.checked {
-                field = field.checked();
+            "pushbutton" => {
+                let mut field = PushButton::new(&dto.name);
+                if let Some(ref c) = dto.caption {
+                    field = field.with_caption(c);
+                }
+                fm.add_push_button(field, widget, options)
             }
-            if let Some(ref ev) = dto.export_value {
-                field = field.with_export_value(ev);
+            other => {
+                set_last_error(format!("Unknown form field kind: {other}"));
+                return ErrorCode::InvalidArgument as c_int;
             }
-            fm.add_checkbox(field, widget, options)
-        }
-        "radio" => {
-            let mut field = RadioButton::new(&dto.name);
-            for opt in &dto.options {
-                field = field.add_option(&opt.export, &opt.label);
-            }
-            if let Some(sel) = dto.selected {
-                field = field.with_selected(sel);
-            }
-            fm.add_radio_buttons(field, vec![widget], options)
-        }
-        "combobox" => {
-            let mut field = ComboBox::new(&dto.name);
-            for opt in &dto.options {
-                field = field.add_option(&opt.export, &opt.label);
-            }
-            if dto.editable {
-                field = field.editable();
-            }
-            if let Some(ref v) = dto.value {
-                field = field.with_value(v);
-            }
-            if let Some(sel) = dto.selected {
-                field = field.with_selected(sel);
-            }
-            fm.add_combo_box(field, widget, options)
-        }
-        "listbox" => {
-            let mut field = ListBox::new(&dto.name);
-            for opt in &dto.options {
-                field = field.add_option(&opt.export, &opt.label);
-            }
-            if dto.multi_select {
-                field = field.multi_select();
-            }
-            if !dto.selected_indices.is_empty() {
-                field = field.with_selected(dto.selected_indices.clone());
-            }
-            fm.add_list_box(field, widget, options)
-        }
-        "pushbutton" => {
-            let mut field = PushButton::new(&dto.name);
-            if let Some(ref c) = dto.caption {
-                field = field.with_caption(c);
-            }
-            fm.add_push_button(field, widget, options)
-        }
-        other => {
-            set_last_error(format!("Unknown form field kind: {other}"));
-            return ErrorCode::InvalidArgument as c_int;
-        }
-    };
+        };
 
-    match result {
-        Ok(obj_ref) => {
-            *out_obj_num = obj_ref.number();
-            ErrorCode::Success as c_int
+        match result {
+            Ok(obj_ref) => {
+                *out_obj_num = obj_ref.number();
+                ErrorCode::Success as c_int
+            }
+            Err(e) => {
+                set_last_error(format!("Failed to add form field: {e}"));
+                ErrorCode::PdfParseError as c_int
+            }
         }
-        Err(e) => {
-            set_last_error(format!("Failed to add form field: {e}"));
-            ErrorCode::PdfParseError as c_int
-        }
-    }
+    })
 }
 
 // ── Add widget to page ────────────────────────────────────────────────────────
@@ -323,35 +327,37 @@ pub unsafe extern "C" fn oxidize_page_add_form_widget_json(
     json: *const c_char,
     field_obj_num: u32,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || json.is_null() {
-        set_last_error("Null pointer to oxidize_page_add_form_widget_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let s = match CStr::from_ptr(json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in widget JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || json.is_null() {
+            set_last_error("Null pointer to oxidize_page_add_form_widget_json");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let dto: WidgetJson = match serde_json::from_str(s) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid widget JSON: {e}"));
-            return ErrorCode::SerializationError as c_int;
-        }
-    };
+        let s = match CStr::from_ptr(json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in widget JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let dto: WidgetJson = match serde_json::from_str(s) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid widget JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
 
-    let widget = Widget::new(rect_from_array(&dto.rect));
-    let field_ref = ObjectReference::new(field_obj_num, 0);
-    match (*handle).inner.add_form_widget_with_ref(widget, field_ref) {
-        Ok(()) => ErrorCode::Success as c_int,
-        Err(e) => {
-            set_last_error(format!("Failed to add form widget: {e}"));
-            ErrorCode::PdfParseError as c_int
+        let widget = Widget::new(rect_from_array(&dto.rect));
+        let field_ref = ObjectReference::new(field_obj_num, 0);
+        match (*handle).inner.add_form_widget_with_ref(widget, field_ref) {
+            Ok(()) => ErrorCode::Success as c_int,
+            Err(e) => {
+                set_last_error(format!("Failed to add form widget: {e}"));
+                ErrorCode::PdfParseError as c_int
+            }
         }
-    }
+    })
 }
 
 // ── Fill field (in-process only) ──────────────────────────────────────────────
@@ -372,33 +378,35 @@ pub unsafe extern "C" fn oxidize_document_fill_field(
     name: *const c_char,
     value: *const c_char,
 ) -> c_int {
-    clear_last_error();
-    if handle.is_null() || name.is_null() || value.is_null() {
-        set_last_error("Null pointer to oxidize_document_fill_field");
-        return ErrorCode::NullPointer as c_int;
-    }
-    let name_s = match CStr::from_ptr(name).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in field name");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || value.is_null() {
+            set_last_error("Null pointer to oxidize_document_fill_field");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
-    let value_s = match CStr::from_ptr(value).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in field value");
-            return ErrorCode::InvalidUtf8 as c_int;
-        }
-    };
+        let name_s = match CStr::from_ptr(name).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in field name");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let value_s = match CStr::from_ptr(value).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in field value");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    match (*handle).inner.fill_field(name_s, value_s) {
-        Ok(()) => ErrorCode::Success as c_int,
-        Err(e) => {
-            set_last_error(format!("Failed to fill field '{name_s}': {e}"));
-            ErrorCode::InvalidArgument as c_int
+        match (*handle).inner.fill_field(name_s, value_s) {
+            Ok(()) => ErrorCode::Success as c_int,
+            Err(e) => {
+                set_last_error(format!("Failed to fill field '{name_s}': {e}"));
+                ErrorCode::InvalidArgument as c_int
+            }
         }
-    }
+    })
 }
 
 // ── Fill an existing/parsed PDF (incremental update, upstream 2.15.0) ─────────
@@ -449,60 +457,63 @@ pub unsafe extern "C" fn oxidize_fill_existing_form_json(
     out_bytes: *mut *mut u8,
     out_len: *mut usize,
 ) -> c_int {
-    clear_last_error();
-    if pdf_bytes.is_null() || fields_json.is_null() || out_bytes.is_null() || out_len.is_null() {
-        set_last_error("Null pointer provided to oxidize_fill_existing_form_json");
-        return ErrorCode::NullPointer as c_int;
-    }
-    *out_bytes = std::ptr::null_mut();
-    *out_len = 0;
-
-    if pdf_len == 0 {
-        set_last_error("PDF data is empty (0 bytes)");
-        return ErrorCode::PdfParseError as c_int;
-    }
-
-    let fields_str = match CStr::from_ptr(fields_json).to_str() {
-        Ok(v) => v,
-        Err(_) => {
-            set_last_error("Invalid UTF-8 in fields JSON");
-            return ErrorCode::InvalidUtf8 as c_int;
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || fields_json.is_null() || out_bytes.is_null() || out_len.is_null()
+        {
+            set_last_error("Null pointer provided to oxidize_fill_existing_form_json");
+            return ErrorCode::NullPointer as c_int;
         }
-    };
+        *out_bytes = std::ptr::null_mut();
+        *out_len = 0;
 
-    let fills: Vec<FieldFillJson> = match serde_json::from_str(fields_str) {
-        Ok(v) => v,
-        Err(e) => {
-            set_last_error(format!("Invalid fields JSON: {e}"));
-            return ErrorCode::InvalidArgument as c_int;
-        }
-    };
-    if fills.is_empty() {
-        set_last_error("Field list is empty");
-        return ErrorCode::InvalidArgument as c_int;
-    }
-
-    let pairs: Vec<(&str, &str)> = fills
-        .iter()
-        .map(|f| (f.name.as_str(), f.value.as_str()))
-        .collect();
-
-    let base = std::slice::from_raw_parts(pdf_bytes, pdf_len);
-    let filled = match IncrementalFormFiller::new(base).fill_many(&pairs) {
-        Ok(b) => b,
-        Err(e) => {
-            set_last_error(format!("Failed to fill form fields: {e}"));
+        if pdf_len == 0 {
+            set_last_error("PDF data is empty (0 bytes)");
             return ErrorCode::PdfParseError as c_int;
         }
-    };
 
-    let len = filled.len();
-    let mut boxed = filled.into_boxed_slice();
-    *out_bytes = boxed.as_mut_ptr();
-    *out_len = len;
-    std::mem::forget(boxed);
+        let fields_str = match CStr::from_ptr(fields_json).to_str() {
+            Ok(v) => v,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in fields JSON");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
 
-    ErrorCode::Success as c_int
+        let fills: Vec<FieldFillJson> = match serde_json::from_str(fields_str) {
+            Ok(v) => v,
+            Err(e) => {
+                set_last_error(format!("Invalid fields JSON: {e}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+        if fills.is_empty() {
+            set_last_error("Field list is empty");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+
+        let pairs: Vec<(&str, &str)> = fills
+            .iter()
+            .map(|f| (f.name.as_str(), f.value.as_str()))
+            .collect();
+
+        let base = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+        let filled = match IncrementalFormFiller::new(base).fill_many(&pairs) {
+            Ok(b) => b,
+            Err(e) => {
+                set_last_error(format!("Failed to fill form fields: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
+
+        let len = filled.len();
+        let mut boxed = filled.into_boxed_slice();
+        *out_bytes = boxed.as_mut_ptr();
+        *out_len = len;
+        std::mem::forget(boxed);
+
+        ErrorCode::Success as c_int
+    })
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
