@@ -10,8 +10,10 @@ namespace OxidizePdf.NET;
 /// </summary>
 public sealed class PdfTable : IDisposable
 {
-    private IntPtr _handle;
-    private bool _disposed;
+    private readonly TableBuilderSafeHandle _safeHandle;
+
+    // Bridge: existing call sites read `_handle` as an IntPtr unchanged.
+    private IntPtr _handle => _safeHandle.DangerousGetHandle();
     private bool _consumed;
 
     /// <summary>
@@ -30,8 +32,9 @@ public sealed class PdfTable : IDisposable
 
         var headersJson = JsonSerializer.Serialize(headers);
         ThrowIfError(
-            NativeMethods.oxidize_table_builder_create(headersJson, totalWidth, out _handle),
+            NativeMethods.oxidize_table_builder_create(headersJson, totalWidth, out var handle),
             "Failed to create table builder");
+        _safeHandle = new TableBuilderSafeHandle(handle);
     }
 
     /// <summary>
@@ -80,35 +83,30 @@ public sealed class PdfTable : IDisposable
         ThrowIfDisposedOrConsumed();
         _consumed = true;
         var h = _handle;
-        _handle = IntPtr.Zero; // Ownership transferred
+        // Ownership transferred to native; relinquish so the SafeHandle does not
+        // also free it (would reintroduce the double-free of issue #54).
+        _safeHandle.SetHandleAsInvalid();
         return h;
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        if (_handle != IntPtr.Zero && !_consumed)
-        {
-            NativeMethods.oxidize_table_builder_free(_handle);
-            _handle = IntPtr.Zero;
-        }
-
-        GC.SuppressFinalize(this);
+        // SafeHandle releases the native handle exactly once, atomically,
+        // even under concurrent Dispose or finalization (issue #54).
+        _safeHandle.Dispose();
     }
-
-    /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
-    ~PdfTable() => Dispose();
 
     private void ThrowIfDisposedOrConsumed()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(PdfTable));
+        // Check _consumed first: ConsumeHandle invalidates the SafeHandle (so the
+        // handle, now owned by native code, isn't freed), which also flips
+        // IsClosed. A consumed table must surface InvalidOperationException, not
+        // ObjectDisposedException.
         if (_consumed)
             throw new InvalidOperationException("This table has already been added to a page and cannot be modified.");
+        if (_safeHandle.IsClosed)
+            throw new ObjectDisposedException(nameof(PdfTable));
     }
 
     private static void ThrowIfError(int errorCode, string message)

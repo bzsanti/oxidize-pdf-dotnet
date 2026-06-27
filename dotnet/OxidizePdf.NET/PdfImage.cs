@@ -9,12 +9,11 @@ namespace OxidizePdf.NET;
 /// </summary>
 public sealed class PdfImage : IDisposable
 {
-    private IntPtr _handle;
-    private bool _disposed;
+    private readonly ImageSafeHandle _handle;
 
     private PdfImage(IntPtr handle)
     {
-        _handle = handle;
+        _handle = new ImageSafeHandle(handle);
     }
 
     /// <summary>
@@ -25,7 +24,7 @@ public sealed class PdfImage : IDisposable
         get
         {
             ThrowIfDisposed();
-            return _handle;
+            return _handle.DangerousGetHandle();
         }
     }
 
@@ -120,7 +119,7 @@ public sealed class PdfImage : IDisposable
         {
             ThrowIfDisposed();
             ThrowIfError(
-                NativeMethods.oxidize_image_get_width(_handle, out var width),
+                NativeMethods.oxidize_image_get_width(_handle.DangerousGetHandle(), out var width),
                 "Failed to get image width");
             return width;
         }
@@ -134,7 +133,7 @@ public sealed class PdfImage : IDisposable
         {
             ThrowIfDisposed();
             ThrowIfError(
-                NativeMethods.oxidize_image_get_height(_handle, out var height),
+                NativeMethods.oxidize_image_get_height(_handle.DangerousGetHandle(), out var height),
                 "Failed to get image height");
             return height;
         }
@@ -143,25 +142,14 @@ public sealed class PdfImage : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        if (_handle != IntPtr.Zero)
-        {
-            NativeMethods.oxidize_image_free(_handle);
-            _handle = IntPtr.Zero;
-        }
-
-        GC.SuppressFinalize(this);
+        // SafeHandle.Dispose is idempotent and releases the native handle
+        // exactly once, even under concurrent disposal or finalization.
+        _handle.Dispose();
     }
-
-    /// <summary>Finalizer that ensures native resources are freed if Dispose was not called.</summary>
-    ~PdfImage() => Dispose();
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
+        if (_handle.IsClosed)
             throw new ObjectDisposedException(nameof(PdfImage));
     }
 
