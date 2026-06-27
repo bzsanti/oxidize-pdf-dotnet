@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-06-27
+
+### Added
+- **Platform coverage (#57):** native binaries now ship for `linux-musl-x64`,
+  `linux-musl-arm64` (Alpine/containers), `linux-arm64` (ARM servers/Graviton)
+  and `win-arm64`, in addition to the existing glibc-x64, win-x64 and macOS
+  RIDs. The native-library resolver now picks the RID from OS + process
+  architecture + C library (glibc/musl) instead of a hardcoded `linux-x64`.
+- **`ErrorCode.Panic` (10):** returned when a Rust panic is caught at the FFI
+  boundary (see Fixed).
+
+### Fixed
+- **Panics no longer crash the host (#53):** every FFI export catches panics
+  (`panic = "unwind"` + `catch_unwind`); a malformed PDF in the parser yields
+  `ErrorCode.Panic` + a message instead of aborting the .NET process.
+- **Double-free eliminated (#54):** the seven disposable wrappers own their
+  native handle via `SafeHandle`, so the native free runs exactly once even
+  under concurrent `Dispose()`/finalization.
+- **RID resolution on ARM/Alpine (#57):** consumers on ARM or musl no longer
+  get a spurious `DllNotFoundException` when the matching binary is present.
+
+### Changed
+- **`AddPage` rejects post-add edits (#58) — behavior change:** the page is
+  snapshotted (cloned) on add; mutating it afterward (or re-adding it) now
+  throws `InvalidOperationException` instead of silently dropping the edit.
+  Disposing a consumed page is still valid.
+- Package metadata + README repositioned to the RAG/LLM PDF-ingestion niche.
+- FFI crate `oxidize-pdf-ffi` bumped 0.10.0 → 0.11.0 (surfaced by
+  `oxidize_version()`; decoupled from the .NET package version).
+
+### Internal
+- ABI conformance test: every `[DllImport]` must resolve to an exported native
+  symbol (#56). Thread-local error contract documented + concurrency test (#55).
+  CI guard rejecting any committed native binary (#59).
+
 ## [0.15.0] - 2026-06-26
 
 ### Added — CID-keyed positioned glyph runs (#358)
