@@ -404,6 +404,9 @@ public sealed class PdfDocument : IDisposable
         ThrowIfError(
             NativeMethods.oxidize_document_add_page(_handle, page.Handle),
             "Failed to add page to document");
+        // The page was cloned into the document; reject later edits to it so the
+        // silent-snapshot footgun becomes a loud error (issue #58).
+        page.MarkConsumed();
         return this;
     }
 
