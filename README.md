@@ -28,9 +28,8 @@ dotnet add package OxidizePdf.NET
 
 ### RAG Chunking (start here)
 
-`OxidizePdf.NET` mirrors the RAG-first surface of the Python bridge
-(`oxidize-python`). Token-aware, structure-aware chunks ready for vector
-store ingestion in one call:
+`OxidizePdf.NET` turns a PDF into token-aware, structure-aware chunks ready
+for vector-store ingestion in one call:
 
 ```csharp
 using OxidizePdf.NET;
