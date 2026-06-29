@@ -33,4 +33,17 @@ public class AdapterTests
         Assert.True(result.PageCount >= 1);
         Assert.Contains("SEVILLA", result.Text);
     }
+
+    [Fact]
+    public void IText7Adapter_ExtractsRealTextFromSamplePdf()
+    {
+        var adapter = new IText7Adapter();
+        var result = adapter.Extract(SamplePdf());
+
+        Assert.Equal("iText7", adapter.Name);
+        Assert.Equal("AGPL", adapter.License);
+        Assert.False(string.IsNullOrEmpty(adapter.Version));
+        Assert.True(result.PageCount >= 1);
+        Assert.Contains("SEVILLA", result.Text);
+    }
 }
