@@ -4,7 +4,7 @@
 
 **Goal:** Ship `OxidizePdf.NET.KernelMemory`, a real `IContentDecoder` connector that maps oxidize-pdf's structure-aware RAG chunks 1:1 into Kernel Memory partitions, plus a runnable sample replacing the fake `examples/KernelMemory` demo.
 
-**Architecture:** A new `net8.0;net9.0;net10.0` class library depends only on `Microsoft.KernelMemory.Abstractions` and the existing `OxidizePdf.NET` project. Its `OxidizePdfDecoder` runs `PdfExtractor.RagChunksAsync` and maps each `RagChunk` → one KM `Chunk` (content = `FullText`, metadata = first page + `completeSentences=true`). A `WithOxidizePdf` builder extension registers it. A sample and a separate xUnit test project prove the behavior; the e2e test proves KM keeps one partition per oxidize chunk under passthrough partitioning.
+**Architecture:** A new `net8.0;net9.0;net10.0` class library depends only on `Microsoft.KernelMemory.Abstractions` and the existing `OxidizePdf.NET` project. Its `OxidizePdfDecoder` runs `PdfExtractor.RagChunksAsync` and maps each `RagChunk` → one KM `Chunk` (content = `FullText`, metadata = first page + `completeSentences=true`), surfaced via a `WithOxidizePdf` builder extension. Because KM's default `split_text_in_partitions` re-chunks and ignores those sections, an `OxidizeChunkPartitioningHandler : IPipelineStepHandler` replaces that step — reading the structured `ExtractedContent` artifact and emitting one partition per oxidize chunk. A sample and a separate xUnit test project prove the behavior; a handler unit test and an end-to-end test prove KM keeps one partition per oxidize chunk.
 
 **Tech Stack:** C#, .NET 8/9/10, xUnit 2.9.2, Microsoft.KernelMemory (Abstractions for the library, Core for tests/sample).
 
@@ -524,113 +524,252 @@ git commit -m "feat(km): WithOxidizePdf builder extension registers the decoder"
 
 ---
 
-### Task 5: End-to-end test — KM keeps one partition per oxidize chunk
+### Task 5: `OxidizeChunkPartitioningHandler` — emit one KM partition per oxidize chunk
+
+> **Architecture correction (see spec 2026-06-29):** KM's default
+> `split_text_in_partitions` re-chunks the flattened text and ignores
+> `FileContent.Sections`. KM's `extract_text` writes a second artifact,
+> `ExtractedContent` (the structured `FileContent` JSON, sections intact). This
+> task adds a handler that replaces the partition step and reads that JSON to
+> emit one partition per oxidize chunk.
 
 **Files:**
-- Create: `dotnet/OxidizePdf.NET.KernelMemory.Tests/RecordingEmbeddingGenerator.cs`
-- Create: `dotnet/OxidizePdf.NET.KernelMemory.Tests/PartitionPreservationE2ETests.cs`
+- Create: `dotnet/OxidizePdf.NET.KernelMemory/OxidizeChunkPartitioningHandler.cs`
+- Create: `dotnet/OxidizePdf.NET.KernelMemory.Tests/OxidizeChunkPartitioningHandlerTests.cs`
 
 **Interfaces:**
-- Consumes: `WithOxidizePdf` (Task 4); `Microsoft.KernelMemory.AI.ITextEmbeddingGenerator : ITextTokenizer` (`int MaxTokens { get; }`, `Task<Embedding> GenerateEmbeddingAsync(string, CancellationToken)`, `int CountTokens(string)`, `IReadOnlyList<string> GetTokens(string)`); `Microsoft.KernelMemory.Embedding(float[])`; `Microsoft.KernelMemory.Configuration.TextPartitioningOptions { int MaxTokensPerParagraph; int OverlappingTokens; }`; builder extensions `WithCustomEmbeddingGenerator(ITextEmbeddingGenerator, bool, bool)`, `WithCustomTextPartitioningOptions(TextPartitioningOptions)`, `WithSimpleVectorDb()`; `KernelMemoryBuilder.Build<MemoryServerless>()`; `Document.AddStream(string, Stream)`; `memory.ImportDocumentAsync(Document)`.
-- Produces: behavioral proof of the 1:1 preservation claim.
+- Consumes: `Microsoft.KernelMemory.Pipeline.IPipelineStepHandler` (`string StepName { get; }`, `Task<(ReturnType, DataPipeline)> InvokeAsync(DataPipeline, CancellationToken)`); `Microsoft.KernelMemory.Pipeline.IPipelineOrchestrator` (`Task<BinaryData> ReadFileAsync(DataPipeline, string, CancellationToken)`, `Task WriteFileAsync(DataPipeline, string, BinaryData, CancellationToken)`); `DataPipeline` with `Files` → `FileDetails.GeneratedFiles` (`Dictionary<string, GeneratedFileDetails>`), `FileDetails.GetPartitionFileName(int)`, `DataPipeline.ArtifactTypes.{ExtractedContent,TextPartition}`, `GeneratedFileDetails { Name; MimeType; ArtifactType; PartitionNumber; SectionNumber; Tags; ContentSHA256 }`, `pipeline.Tags`; `Microsoft.KernelMemory.DataFormats.{FileContent, Chunk}`; `Microsoft.KernelMemory.MimeTypes.PlainText`; `BinaryData.CalculateSHA256()`.
+- Produces: `OxidizePdf.NET.KernelMemory.OxidizeChunkPartitioningHandler` with ctor `(string stepName, IPipelineOrchestrator orchestrator)`.
 
-- [ ] **Step 1: Write the deterministic recording embedding generator**
+> **VERIFY against the pinned `0.98.250508.3` before writing** (signatures
+> verified against KM `main` 2026-06-28; the package is close but confirm):
+> `IPipelineOrchestrator.ReadFileAsync` / `WriteFileAsync` exact signatures;
+> the `ReturnType` enum member (`ReturnType.Success`); the `GeneratedFileDetails`
+> field set and `GetPartitionFileName`; the `MimeTypes.PlainText` constant; the
+> `BinaryData.CalculateSHA256()` extension. If any differs, adapt the code to the
+> real member and note it — do not invent members.
 
-`dotnet/OxidizePdf.NET.KernelMemory.Tests/RecordingEmbeddingGenerator.cs`:
+- [ ] **Step 1: Write the handler**
+
+`dotnet/OxidizePdf.NET.KernelMemory/OxidizeChunkPartitioningHandler.cs`:
 ```csharp
+using System.Text.Json;
 using Microsoft.KernelMemory;
-using Microsoft.KernelMemory.AI;
+using Microsoft.KernelMemory.DataFormats;
+using Microsoft.KernelMemory.Pipeline;
 
-namespace OxidizePdf.NET.KernelMemory.Tests;
+namespace OxidizePdf.NET.KernelMemory;
 
 /// <summary>
-/// Keyless, deterministic embedding generator that records every text it is
-/// asked to embed. During ingestion KM calls this once per stored partition,
-/// so the recorded count equals the number of partitions.
+/// Replaces Kernel Memory's default <c>split_text_in_partitions</c> step. Instead
+/// of re-chunking the flattened extracted text, it reads the structured
+/// <c>ExtractedContent</c> artifact (the <see cref="FileContent"/> the oxidize-pdf
+/// decoder produced) and emits ONE partition per oxidize chunk, preserving heading
+/// context (each chunk's <see cref="Chunk.Content"/> is the oxidize RagChunk FullText)
+/// and source page.
 /// </summary>
-internal sealed class RecordingEmbeddingGenerator : ITextEmbeddingGenerator
+public sealed class OxidizeChunkPartitioningHandler : IPipelineStepHandler
 {
-    public List<string> EmbeddedTexts { get; } = new();
+    private readonly IPipelineOrchestrator _orchestrator;
 
-    public int MaxTokens => 100_000;
-
-    public int CountTokens(string text) =>
-        text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-
-    public IReadOnlyList<string> GetTokens(string text) =>
-        text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-    public Task<Embedding> GenerateEmbeddingAsync(string text, CancellationToken cancellationToken = default)
+    public OxidizeChunkPartitioningHandler(string stepName, IPipelineOrchestrator orchestrator)
     {
-        EmbeddedTexts.Add(text);
-        // Deterministic 3-dim vector; values are irrelevant to the assertion.
-        return Task.FromResult(new Embedding(new[] { (float)text.Length, 1f, 0f }));
+        this.StepName = stepName;
+        this._orchestrator = orchestrator;
+    }
+
+    /// <inheritdoc />
+    public string StepName { get; }
+
+    /// <inheritdoc />
+    public async Task<(ReturnType returnType, DataPipeline updatedPipeline)> InvokeAsync(
+        DataPipeline pipeline, CancellationToken cancellationToken = default)
+    {
+        foreach (DataPipeline.FileDetails uploadedFile in pipeline.Files)
+        {
+            var newFiles = new Dictionary<string, DataPipeline.GeneratedFileDetails>();
+
+            foreach (DataPipeline.GeneratedFileDetails generated in uploadedFile.GeneratedFiles.Values)
+            {
+                // Read the STRUCTURED artifact (sections intact), not the flattened ExtractedText.
+                if (generated.ArtifactType != DataPipeline.ArtifactTypes.ExtractedContent)
+                {
+                    continue;
+                }
+
+                BinaryData raw = await this._orchestrator
+                    .ReadFileAsync(pipeline, generated.Name, cancellationToken)
+                    .ConfigureAwait(false);
+
+                FileContent? content = JsonSerializer.Deserialize<FileContent>(raw.ToArray());
+                if (content is null) { continue; }
+
+                int partitionNumber = 0;
+                foreach (Chunk chunk in content.Sections)
+                {
+                    string destFile = uploadedFile.GetPartitionFileName(partitionNumber);
+                    var data = new BinaryData(chunk.Content);
+
+                    await this._orchestrator
+                        .WriteFileAsync(pipeline, destFile, data, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    newFiles.Add(destFile, new DataPipeline.GeneratedFileDetails
+                    {
+                        Name = destFile,
+                        MimeType = MimeTypes.PlainText,
+                        ArtifactType = DataPipeline.ArtifactTypes.TextPartition,
+                        PartitionNumber = partitionNumber,
+                        SectionNumber = chunk.PageNumber,
+                        Tags = pipeline.Tags,
+                        ContentSHA256 = data.CalculateSHA256(),
+                    });
+                    partitionNumber++;
+                }
+            }
+
+            foreach (var nf in newFiles) { uploadedFile.GeneratedFiles.Add(nf.Key, nf.Value); }
+        }
+
+        return (ReturnType.Success, pipeline);
     }
 }
 ```
 
-- [ ] **Step 2: Write the failing e2e test**
+- [ ] **Step 2: Write the failing handler unit test**
 
-`dotnet/OxidizePdf.NET.KernelMemory.Tests/PartitionPreservationE2ETests.cs`:
+Use a minimal fake `IPipelineOrchestrator` that serves a known `ExtractedContent`
+JSON and captures `WriteFileAsync` calls. The fake implements ONLY the members the
+handler calls; for the rest of `IPipelineOrchestrator` throw `NotImplementedException`
+(the handler never touches them). **Confirm the interface's member list against the
+pinned package and implement the full interface surface** (C# requires all members);
+if the interface is too large to fake cleanly, report it — the e2e in Task 6 is the
+fallback behavioral proof.
+
+`dotnet/OxidizePdf.NET.KernelMemory.Tests/OxidizeChunkPartitioningHandlerTests.cs`:
 ```csharp
-using Microsoft.KernelMemory;
-using Microsoft.KernelMemory.Configuration;
-using OxidizePdf.NET;
-using OxidizePdf.NET.Pipeline;
+using System.Text.Json;
+using Microsoft.KernelMemory.DataFormats;
+using Microsoft.KernelMemory.Pipeline;
+using OxidizePdf.NET.KernelMemory;
 
 namespace OxidizePdf.NET.KernelMemory.Tests;
 
-public class PartitionPreservationE2ETests
+public class OxidizeChunkPartitioningHandlerTests
 {
-    private static string FixturePath() =>
-        Path.Combine(AppContext.BaseDirectory, "fixtures", "sample.pdf");
-
     [Fact]
-    public async Task Import_stores_one_partition_per_oxidize_chunk()
+    public async Task InvokeAsync_emits_one_partition_per_section()
     {
-        var bytes = await File.ReadAllBytesAsync(FixturePath());
-        var oxidizeChunks = await new PdfExtractor().RagChunksAsync(bytes, ExtractionProfile.Rag);
+        // Arrange: a FileContent with 3 sections, serialized as the ExtractedContent artifact.
+        var content = new FileContent("text/plain");
+        content.Sections.Add(new Chunk("Heading A\n\nfirst chunk", 0, Chunk.Meta(true, 1)));
+        content.Sections.Add(new Chunk("Heading A\n\nsecond chunk", 1, Chunk.Meta(true, 1)));
+        content.Sections.Add(new Chunk("Heading B\n\nthird chunk", 2, Chunk.Meta(true, 2)));
+        byte[] json = JsonSerializer.SerializeToUtf8Bytes(content);
 
-        var embeddings = new RecordingEmbeddingGenerator();
-        var memory = new KernelMemoryBuilder()
-            .WithOxidizePdf()
-            .WithCustomEmbeddingGenerator(embeddings)
-            .WithCustomTextPartitioningOptions(new TextPartitioningOptions
-            {
-                MaxTokensPerParagraph = 2048,
-                OverlappingTokens = 0,
-            })
-            .WithSimpleVectorDb()
-            .Build<MemoryServerless>();
+        var orchestrator = new FakeOrchestrator(json);
+        var pipeline = FakeOrchestrator.PipelineWithExtractedContent("doc.pdf", "extracted.json");
 
-        using var stream = new MemoryStream(bytes);
-        await memory.ImportDocumentAsync(
-            new Document("doc-1").AddStream("sample.pdf", stream));
+        var handler = new OxidizeChunkPartitioningHandler("split_text_in_partitions", orchestrator);
 
-        // Passthrough partitioning => exactly one embedded partition per oxidize chunk.
-        Assert.Equal(oxidizeChunks.Count, embeddings.EmbeddedTexts.Count);
-        // And the embedded text is the oxidize chunk's full text (heading context preserved).
-        Assert.All(oxidizeChunks, c => Assert.Contains(c.FullText, embeddings.EmbeddedTexts));
+        // Act
+        var (result, _) = await handler.InvokeAsync(pipeline);
+
+        // Assert: one TextPartition per section, content == each chunk's full text, ascending numbers.
+        Assert.Equal(ReturnType.Success, result);
+        Assert.Equal(3, orchestrator.Written.Count);
+        Assert.Equal(
+            new[] { "Heading A\n\nfirst chunk", "Heading A\n\nsecond chunk", "Heading B\n\nthird chunk" },
+            orchestrator.Written.Select(w => w.content).ToArray());
+
+        var file = pipeline.Files[0];
+        var partitions = file.GeneratedFiles.Values
+            .Where(f => f.ArtifactType == DataPipeline.ArtifactTypes.TextPartition)
+            .OrderBy(f => f.PartitionNumber)
+            .ToList();
+        Assert.Equal(3, partitions.Count);
+        Assert.Equal(new[] { 0, 1, 2 }, partitions.Select(p => p.PartitionNumber).ToArray());
+        Assert.Equal(new[] { 1, 1, 2 }, partitions.Select(p => p.SectionNumber).ToArray()); // page numbers
     }
 }
 ```
 
-- [ ] **Step 3: Run to verify it fails first, then passes**
+Implement `FakeOrchestrator` in the same file (or a `TestHelpers/FakeOrchestrator.cs`):
+it stores the `byte[]` JSON, returns it from `ReadFileAsync` regardless of name, records
+each `WriteFileAsync` as `(name, content-string)` in a public `Written` list, and provides
+a static `PipelineWithExtractedContent(fileName, artifactName)` that builds a `DataPipeline`
+with one `FileDetails` whose `GeneratedFiles` contains one `ExtractedContent` entry named
+`artifactName`. All other `IPipelineOrchestrator` members throw `NotImplementedException`.
 
-Run: `dotnet test dotnet/OxidizePdf.NET.KernelMemory.Tests --filter PartitionPreservationE2ETests`
-Expected: initially may FAIL to compile until the embedding generator + usings line up; once compiling, it must PASS. If the assertion fails because counts differ, diagnose in this order: (a) confirm `MaxTokensPerParagraph` (2048) exceeds the largest chunk's `CountTokens` — if a chunk is larger, KM splits it (raise the limit for the fixture or note `IsOversized`); (b) confirm default handlers ran `generate_embeddings` (they do in the serverless default pipeline). Do NOT weaken the assertion to make it pass — the equal-count check is the whole point of the task.
-> If `Build<MemoryServerless>()` throws demanding a text generator, add `.WithoutTextGenerator()` if available, or a no-op text generator; ingestion does not need text generation. Resolve against the pinned KM version.
+- [ ] **Step 3: Run to verify it fails, then passes**
+
+Run: `dotnet test dotnet/OxidizePdf.NET.KernelMemory.Tests --filter OxidizeChunkPartitioningHandlerTests`
+Expected: FAIL first (handler/fake not implemented or compile error), then PASS once the handler is written. Do NOT relax the per-section assertions.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add dotnet/OxidizePdf.NET.KernelMemory.Tests
-git commit -m "test(km): e2e proves KM keeps one partition per oxidize chunk"
+git add dotnet/OxidizePdf.NET.KernelMemory/OxidizeChunkPartitioningHandler.cs dotnet/OxidizePdf.NET.KernelMemory.Tests/OxidizeChunkPartitioningHandlerTests.cs
+git commit -m "feat(km): OxidizeChunkPartitioningHandler emits one partition per oxidize chunk"
 ```
 
 ---
 
-### Task 6: Rewrite `examples/KernelMemory` as a real end-to-end sample
+### Task 6: Rework the e2e test — register the handler, prove 1:1 end-to-end
+
+> The e2e test and `RecordingEmbeddingGenerator` already exist on the branch
+> (committed by the prior Task 5 attempt, `36dfd78`). The test currently FAILS
+> (`Assert.Equal(13, 3)`) because the default partitioner re-chunked. This task
+> registers the new handler so the count becomes 1:1, turning the test green
+> without weakening the assertion.
+
+**Files:**
+- Modify: `dotnet/OxidizePdf.NET.KernelMemory.Tests/PartitionPreservationE2ETests.cs`
+- (Keep `RecordingEmbeddingGenerator.cs` as-is.)
+
+**Interfaces:**
+- Consumes: `OxidizeChunkPartitioningHandler` (Task 5); `WithOxidizePdf` (Task 4); the existing keyless builder setup (the prior attempt used `AddSingleton<ITextEmbeddingGenerator>(embeddings)` + `WithoutTextGenerator()` + `WithSimpleVectorDb()` because `WithCustomEmbeddingGenerator`/`WithCustomTextPartitioningOptions` do NOT exist in `0.98.250508.3`); `memory.Orchestrator.AddHandler<T>(stepName)`.
+
+- [ ] **Step 1: Read the current test file**
+
+Read `dotnet/OxidizePdf.NET.KernelMemory.Tests/PartitionPreservationE2ETests.cs` to see the
+exact keyless builder wiring the prior attempt committed. Preserve that wiring (embedding
+generator registration, `WithoutTextGenerator`, `WithSimpleVectorDb`, `Build<MemoryServerless>()`,
+the fixture read, and the `oxidizeChunks` baseline).
+
+- [ ] **Step 2: Register the handler after Build, before import**
+
+Immediately after `.Build<MemoryServerless>()` (and before `ImportDocumentAsync`), add:
+```csharp
+memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions");
+```
+> If `AddHandler<T>(stepName)` does not OVERRIDE the existing default for that step
+> (e.g. throws on duplicate), switch the builder to `.WithoutDefaultHandlers()` and register
+> all four steps explicitly (`extract_text`, `split_text_in_partitions` → the oxidize handler,
+> `generate_embeddings`, `save_records` — use KM's default handler types for the three you are
+> not replacing). Confirm the exact default step names and handler types against the pinned package.
+
+Keep the assertions exactly as they are:
+```csharp
+Assert.Equal(oxidizeChunks.Count, embeddings.EmbeddedTexts.Count);
+Assert.All(oxidizeChunks, c => Assert.Contains(c.FullText, embeddings.EmbeddedTexts));
+```
+
+- [ ] **Step 3: Run to verify it now passes 1:1**
+
+Run: `dotnet test dotnet/OxidizePdf.NET.KernelMemory.Tests --filter PartitionPreservationE2ETests`
+Expected: PASS — `embeddings.EmbeddedTexts.Count == oxidizeChunks.Count` (the same count, e.g. 13==13). If it still differs, diagnose the handler registration / step-name override; do NOT weaken the equal-count assertion. Then run the full suite once: `dotnet test dotnet/OxidizePdf.NET.KernelMemory.Tests` — all green.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add dotnet/OxidizePdf.NET.KernelMemory.Tests/PartitionPreservationE2ETests.cs
+git commit -m "test(km): e2e proves 1:1 oxidize-chunk preservation via custom partition handler"
+```
+
+---
+
+### Task 7: Rewrite `examples/KernelMemory` as a real end-to-end sample
 
 **Files:**
 - Modify: `examples/KernelMemory/KernelMemory.csproj`
@@ -639,7 +778,7 @@ git commit -m "test(km): e2e proves KM keeps one partition per oxidize chunk"
 - Create: `examples/KernelMemory/fixtures/sample.pdf` (copy of the fixture)
 
 **Interfaces:**
-- Consumes: `OxidizePdfDecoder`, `WithOxidizePdf` (Tasks 2, 4); KM `KernelMemoryBuilder`, `WithOpenAIDefaults`, `WithSimpleVectorDb`, `WithCustomTextPartitioningOptions`, `MemoryServerless`, `Document.AddStream`, `memory.AskAsync`.
+- Consumes: `OxidizePdfDecoder`, `WithOxidizePdf` (Tasks 2, 4), `OxidizeChunkPartitioningHandler` (Task 5); KM `KernelMemoryBuilder`, `WithOpenAIDefaults`, `WithSimpleVectorDb`, `MemoryServerless`, `memory.Orchestrator.AddHandler<T>(stepName)`, `Document.AddStream`, `memory.AskAsync`.
 
 - [ ] **Step 1: Repoint the sample csproj to the connector + KM Core**
 
@@ -679,7 +818,6 @@ cp dotnet/OxidizePdf.NET.Tests/fixtures/sample.pdf examples/KernelMemory/fixture
 `examples/KernelMemory/Program.cs`:
 ```csharp
 using Microsoft.KernelMemory;
-using Microsoft.KernelMemory.Configuration;
 using OxidizePdf.NET.KernelMemory;
 
 string pdfPath = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "fixtures", "sample.pdf");
@@ -707,14 +845,11 @@ if (string.IsNullOrWhiteSpace(apiKey))
 var memory = new KernelMemoryBuilder()
     .WithOpenAIDefaults(apiKey)
     .WithOxidizePdf()
-    // Passthrough partitioning keeps oxidize's chunks intact as KM partitions.
-    .WithCustomTextPartitioningOptions(new TextPartitioningOptions
-    {
-        MaxTokensPerParagraph = 2048,
-        OverlappingTokens = 0,
-    })
     .WithSimpleVectorDb()
     .Build<MemoryServerless>();
+
+// Replace KM's default text splitter so oxidize-pdf's chunks survive 1:1.
+memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions");
 
 using var stream = new MemoryStream(pdfBytes);
 await memory.ImportDocumentAsync(new Document("sample").AddStream(Path.GetFileName(pdfPath), stream));
@@ -746,13 +881,14 @@ export OPENAI_API_KEY=sk-...
 dotnet run --project examples/KernelMemory path/to/your.pdf
 ```
 
-## Why the passthrough partitioning?
+## Why the custom partition handler?
 
-`.WithOxidizePdf()` registers a content decoder that emits **one Kernel Memory
-partition per oxidize-pdf chunk**, each carrying heading context and source page.
-Kernel Memory would normally re-split that text, discarding the structure-aware
-chunking. Setting `TextPartitioningOptions { MaxTokensPerParagraph = 2048,
-OverlappingTokens = 0 }` makes KM pass oxidize's chunks through 1:1, so the
+`.WithOxidizePdf()` registers a content decoder, and
+`memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions")`
+replaces KM's default text splitter. Kernel Memory would normally re-chunk the
+extracted text, discarding oxidize-pdf's structure-aware boundaries. The handler
+reads the structured `ExtractedContent` artifact and emits **one partition per
+oxidize-pdf chunk** — each carrying heading context and source page — so the
 chunks you see keyless are exactly what gets embedded and stored.
 ```
 
@@ -770,7 +906,7 @@ git commit -m "feat(km): rewrite KernelMemory example as a real end-to-end sampl
 
 ---
 
-### Task 7: Package metadata for the connector
+### Task 8: Package metadata for the connector
 
 **Files:**
 - Modify: `dotnet/OxidizePdf.NET.KernelMemory/OxidizePdf.NET.KernelMemory.csproj`
@@ -815,14 +951,16 @@ using Microsoft.KernelMemory;
 var memory = new KernelMemoryBuilder()
     .WithOpenAIDefaults(apiKey)
     .WithOxidizePdf()
-    .WithCustomTextPartitioningOptions(new() { MaxTokensPerParagraph = 2048, OverlappingTokens = 0 })
+    .WithSimpleVectorDb()
     .Build<MemoryServerless>();
+
+memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions");
 
 await memory.ImportDocumentAsync(new Document("doc").AddFile("report.pdf"));
 ```
 
-The `WithCustomTextPartitioningOptions` passthrough keeps oxidize-pdf's chunks
-intact; without it Kernel Memory re-splits the text.
+The `AddHandler` call replaces KM's default text splitter so oxidize-pdf's chunks
+land in the vector store 1:1; without it Kernel Memory re-chunks the text.
 ```
 
 - [ ] **Step 3: Verify the package builds**
