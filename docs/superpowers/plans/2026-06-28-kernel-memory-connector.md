@@ -1000,5 +1000,6 @@ git commit -m "build(km): NuGet package metadata for OxidizePdf.NET.KernelMemory
 
 ## Out of scope / follow-up
 
-- Wiring `OxidizePdf.NET.KernelMemory` into `release.yml` (pack + publish to NuGet) — separate change after this lands.
 - Adoption lever #4 (benchmarks + referral) — separate spec/plan.
+
+(Wiring `OxidizePdf.NET.KernelMemory` into `release.yml` pack + publish — done in this branch.)

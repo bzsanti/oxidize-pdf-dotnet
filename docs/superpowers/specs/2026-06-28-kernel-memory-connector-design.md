@@ -257,11 +257,13 @@ All assertions verify real content/behavior, not status codes or object presence
 
 ## Release
 
-`release.yml` currently packs and publishes only the main package. Publishing
-`OxidizePdf.NET.KernelMemory` to NuGet is a **separate pipeline change** and is explicitly a
-follow-up — this spec delivers the project, tests, and sample, integrated into the solution
-build, but does not assume CI publishes the new package. Wiring the second package into
-`release.yml` is tracked as the next step after this lands.
+`release.yml` packs and publishes the connector alongside the main package: a
+`dotnet pack dotnet/OxidizePdf.NET.KernelMemory --output nupkg` step runs after the main
+pack (and after the tag-version `sed`, so the connector's `ProjectReference` resolves to a
+dependency on the OxidizePdf.NET version published in the same run). The existing
+`dotnet nuget push "*.nupkg" --skip-duplicate` globs both packages. The connector keeps its
+own `0.1.0-preview` version (the `sed` only touches the main csproj), so it uploads once and
+re-uploads only when its own version bumps.
 
 ## Out of scope (YAGNI)
 
@@ -273,5 +275,4 @@ build, but does not assume CI publishes the new package. Wiring the second packa
 
 ## Open follow-ups (post-merge)
 
-1. Wire `OxidizePdf.NET.KernelMemory` into `release.yml` pack + publish.
-2. Adoption lever #4 (benchmarks + referral) — separate spec.
+1. Adoption lever #4 (benchmarks + referral) — separate spec.
