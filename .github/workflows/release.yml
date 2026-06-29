@@ -132,6 +132,13 @@ jobs:
         working-directory: dotnet/OxidizePdf.NET
         run: dotnet pack --configuration Release --output ../../nupkg
 
+      - name: Create NuGet Package (Kernel Memory connector)
+        # Independently versioned (0.1.0-preview in its csproj — not the release tag).
+        # Its ProjectReference to OxidizePdf.NET becomes a dependency on the version
+        # published in this same run. --skip-duplicate (in the push step below, which
+        # globs *.nupkg) means it only uploads when its own version changes.
+        run: dotnet pack dotnet/OxidizePdf.NET.KernelMemory --configuration Release --output nupkg
+
       - name: Upload NuGet Package
         uses: actions/upload-artifact@v4
         with:
