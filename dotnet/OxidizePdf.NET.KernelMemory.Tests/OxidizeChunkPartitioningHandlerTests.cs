@@ -22,9 +22,10 @@ public class OxidizeChunkPartitioningHandlerTests
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(content);
 
         var orchestrator = new FakeOrchestrator(json);
+        // Pipeline with a PDF-origin uploaded file (MimeType = "application/pdf").
         var pipeline = FakeOrchestrator.PipelineWithExtractedContent("doc.pdf", "extracted.json");
 
-        var handler = new OxidizeChunkPartitioningHandler("split_text_in_partitions", orchestrator);
+        var handler = new OxidizeChunkPartitioningHandler("partition", orchestrator);
 
         // Act
         var (result, _) = await handler.InvokeAsync(pipeline);
@@ -44,6 +45,44 @@ public class OxidizeChunkPartitioningHandlerTests
         Assert.Equal(3, partitions.Count);
         Assert.Equal(new[] { 0, 1, 2 }, partitions.Select(p => p.PartitionNumber).ToArray());
         Assert.Equal(new[] { 1, 1, 2 }, partitions.Select(p => p.SectionNumber).ToArray()); // page numbers
+    }
+
+    /// <summary>
+    /// Fix 3: when the artifact has bytes but deserializes to zero sections, throw instead of
+    /// silently emitting zero partitions (data-loss scenario / format mismatch guard).
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_throws_InvalidOperationException_when_ExtractedContent_has_bytes_but_no_sections()
+    {
+        // Arrange: valid JSON but an empty sections array — simulates a KM format drift
+        // (e.g. the ExtractedContent shape changed so "sections" no longer matches our DTO).
+        byte[] json = System.Text.Encoding.UTF8.GetBytes("{\"sections\":[]}");
+        var orchestrator = new FakeOrchestrator(json);
+        var pipeline = FakeOrchestrator.PipelineWithExtractedContent("doc.pdf", "extracted.json");
+        var handler = new OxidizeChunkPartitioningHandler("partition", orchestrator);
+
+        // Act & Assert: must throw, NOT silently succeed with zero partitions.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => handler.InvokeAsync(pipeline));
+    }
+
+    /// <summary>
+    /// Fix 4: when the uploaded file is not PDF-origin, throw NotSupportedException instead of
+    /// silently mangling non-PDF content.
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_throws_NotSupportedException_for_non_PDF_uploaded_file()
+    {
+        // Arrange: a non-PDF uploaded file (MIME = text/plain, name = doc.txt).
+        byte[] json = System.Text.Encoding.UTF8.GetBytes(
+            "{\"sections\":[{\"content\":\"hello\",\"metadata\":{}}]}");
+        var orchestrator = new FakeOrchestrator(json);
+        var pipeline = FakeOrchestrator.PipelineWithExtractedContent("doc.txt", "extracted.json", "text/plain");
+        var handler = new OxidizeChunkPartitioningHandler("partition", orchestrator);
+
+        // Act & Assert: must throw, NOT silently mangle the non-PDF content.
+        await Assert.ThrowsAsync<NotSupportedException>(
+            () => handler.InvokeAsync(pipeline));
     }
 }
 
@@ -69,10 +108,20 @@ internal sealed class FakeOrchestrator : IPipelineOrchestrator
         return Task.CompletedTask;
     }
 
-    public static DataPipeline PipelineWithExtractedContent(string fileName, string artifactName)
+    /// <summary>
+    /// Creates a minimal pipeline with one uploaded file and one ExtractedContent artifact.
+    /// </summary>
+    /// <param name="fileName">The uploaded file name (e.g. "doc.pdf").</param>
+    /// <param name="artifactName">The generated artifact name (e.g. "extracted.json").</param>
+    /// <param name="mimeType">
+    /// MIME type of the uploaded file. Defaults to <c>"application/pdf"</c> so the handler's
+    /// PDF-origin gate passes out of the box for PDF tests.
+    /// </param>
+    public static DataPipeline PipelineWithExtractedContent(
+        string fileName, string artifactName, string mimeType = "application/pdf")
     {
         var pipeline = new DataPipeline();
-        var fileDetails = new DataPipeline.FileDetails { Name = fileName };
+        var fileDetails = new DataPipeline.FileDetails { Name = fileName, MimeType = mimeType };
         fileDetails.GeneratedFiles.Add(artifactName, new DataPipeline.GeneratedFileDetails
         {
             Name = artifactName,
