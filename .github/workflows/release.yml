@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.16.1). Overrides tag extraction for manual runs.'
+        required: true
+        type: string
 
 env:
   DOTNET_VERSION: '8.0.x'
@@ -82,6 +88,9 @@ jobs:
     name: Create NuGet Package
     needs: build-native-all
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC token for NuGet Trusted Publishing
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -115,9 +124,16 @@ jobs:
           cp artifacts/native-linux-musl-arm64/liboxidize_pdf_ffi.so dotnet/OxidizePdf.NET/runtimes/linux-musl-arm64/native/
           cp artifacts/native-win-arm64/oxidize_pdf_ffi.dll dotnet/OxidizePdf.NET/runtimes/win-arm64/native/
 
-      - name: Extract Version from Tag
+      - name: Extract Version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "VERSION=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Update Version in csproj
         working-directory: dotnet/OxidizePdf.NET
@@ -146,15 +162,23 @@ jobs:
           path: nupkg/*.nupkg
           retention-days: 30
 
+      - name: NuGet login (OIDC -> short-lived API key)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Publish to NuGet.org
         working-directory: nupkg
-        run: dotnet nuget push "*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push "*.nupkg" --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   # Create GitHub Release
   create-release:
     name: Create GitHub Release
     needs: create-nuget
     runs-on: ubuntu-latest
+    # Tag pushes only: manual workflow_dispatch runs re-publish packages without a GitHub Release.
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     steps:
@@ -166,9 +190,16 @@ jobs:
           name: nuget-package
           path: release-artifacts
 
-      - name: Extract Version from Tag
+      - name: Extract Version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "VERSION=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Generate Release Notes
         id: notes
