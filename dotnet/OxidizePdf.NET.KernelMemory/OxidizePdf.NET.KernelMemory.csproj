@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>OxidizePdf.NET.KernelMemory</PackageId>
+    <Version>0.1.0-preview</Version>
+    <Authors>BelowZero</Authors>
+    <Description>Kernel Memory content decoder backed by oxidize-pdf: structure-aware, page-cited PDF chunks dropped into your KM RAG pipeline in one call.</Description>
+    <PackageTags>kernel-memory;rag;llm;pdf;chunking;embeddings;semantic-kernel;ingestion</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/bzsanti/oxidize-pdf-dotnet</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/bzsanti/oxidizePdf</PackageProjectUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OxidizePdf.NET\OxidizePdf.NET.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.KernelMemory.Abstractions" Version="[0.98.250508.3]" />
+  </ItemGroup>
+
+</Project>
