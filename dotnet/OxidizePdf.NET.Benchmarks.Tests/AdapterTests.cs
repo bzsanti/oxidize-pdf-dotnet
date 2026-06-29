@@ -21,4 +21,16 @@ public class AdapterTests
         // extracted identically across libraries — verifies genuine extraction.
         Assert.Contains("SEVILLA", result.Text);
     }
+
+    [Fact]
+    public void PdfPigAdapter_ExtractsRealTextFromSamplePdf()
+    {
+        var adapter = new PdfPigAdapter();
+        var result = adapter.Extract(SamplePdf());
+
+        Assert.Equal("PdfPig", adapter.Name);
+        Assert.False(string.IsNullOrEmpty(adapter.Version));
+        Assert.True(result.PageCount >= 1);
+        Assert.Contains("SEVILLA", result.Text);
+    }
 }
