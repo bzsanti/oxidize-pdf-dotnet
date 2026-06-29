@@ -46,4 +46,16 @@ public class AdapterTests
         Assert.True(result.PageCount >= 1);
         Assert.Contains("SEVILLA", result.Text);
     }
+
+    [Fact]
+    public void DocnetAdapter_ExtractsRealTextFromSamplePdf()
+    {
+        var adapter = new DocnetAdapter();
+        var result = adapter.Extract(SamplePdf());
+
+        Assert.Equal("Docnet.Core", adapter.Name);
+        Assert.False(string.IsNullOrEmpty(adapter.Version));
+        Assert.True(result.PageCount >= 1);
+        Assert.Contains("SEVILLA", result.Text);
+    }
 }
