@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>OxidizePdf.NET.Benchmarks</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Dev-only competitor packages. Never published (IsPackable=false). -->
+  <ItemGroup>
+    <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
+    <PackageReference Include="itext7" Version="9.6.0" />
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OxidizePdf.NET\OxidizePdf.NET.csproj" />
+  </ItemGroup>
+
+  <!-- ProjectReference does not flow the native runtimes; copy them so the
+       OxidizeAdapter can load liboxidize_pdf_ffi.* at runtime. -->
+  <Target Name="CopyNativeBinariesToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <NativeBinaries Include="..\OxidizePdf.NET\runtimes\**\native\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeBinaries)" DestinationFolder="$(OutDir)runtimes\%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
