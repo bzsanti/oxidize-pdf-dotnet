@@ -233,7 +233,7 @@ git commit -m "feat(km): scaffold OxidizePdf.NET.KernelMemory connector + Suppor
 - Create: `dotnet/OxidizePdf.NET.KernelMemory.Tests/DecodeAsyncTests.cs`
 
 **Interfaces:**
-- Consumes: `OxidizePdfDecoder` ctor + `SupportsMimeType` from Task 1; `PdfExtractor.RagChunksAsync(byte[], ExtractionProfile, CancellationToken)` and `RagChunksAsync(byte[], PartitionConfig?, HybridChunkConfig?, CancellationToken)`; `RagChunk { int ChunkIndex; string Text; string FullText; List<int> PageNumbers; }`; `Microsoft.KernelMemory.DataFormats.Chunk` (`Chunk(string?, int, Dictionary<string,string>)`, static `Meta(bool?, int?)`, props `Number`, `Content`, `PageNumber`, `SentencesAreComplete`); `FileContent("application/pdf")` with `List<Chunk> Sections`.
+- Consumes: `OxidizePdfDecoder` ctor + `SupportsMimeType` from Task 1; `PdfExtractor.RagChunksAsync(byte[], ExtractionProfile, CancellationToken)` and `RagChunksAsync(byte[], PartitionConfig?, HybridChunkConfig?, CancellationToken)`; `RagChunk { int ChunkIndex; string Text; string FullText; List<int> PageNumbers; }`; `Microsoft.KernelMemory.DataFormats.Chunk` (`Chunk(string?, int, Dictionary<string,string>)`, static `Meta(bool?, int?)`, props `Number`, `Content`, `PageNumber`, `SentencesAreComplete`); `FileContent("text/plain")` with `List<Chunk> Sections` (output MIME is `text/plain` so KM's extraction accepts the artifact; the `application/pdf` input MIME stays in `SupportsMimeType`).
 - Produces: working `DecodeAsync(byte[]/Stream/BinaryData/filename)` returning `FileContent` with one `Chunk` per `RagChunk`.
 
 > **NOTE (API reality):** there is no single `RagChunksAsync(byte[], ExtractionProfile, PartitionConfig?, HybridChunkConfig?)` overload. The decoder dispatches: if `Partition` or `Hybrid` is set → `RagChunksAsync(bytes, Partition, Hybrid, ct)`; else → `RagChunksAsync(bytes, Profile, ct)`.
@@ -282,7 +282,7 @@ public class DecodeAsyncTests
         var decoder = new OxidizePdfDecoder();
         var content = await decoder.DecodeAsync(new BinaryData(bytes));
 
-        Assert.Equal("application/pdf", content.MimeType);
+        Assert.Equal("text/plain", content.MimeType); // output artifact MIME; input is application/pdf
         Assert.Equal(expected.Count, content.Sections.Count);
         Assert.NotEmpty(content.Sections);
 

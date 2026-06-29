@@ -121,8 +121,12 @@ New project `dotnet/OxidizePdf.NET.KernelMemory/`, `net8.0`, added to `OxidizePd
    - Maps each `RagChunk` → `new Chunk(ragChunk.FullText, ragChunk.ChunkIndex,
      Chunk.Meta(sentencesAreComplete: true, pageNumber: ragChunk.PageNumbers.FirstOrDefault()))`.
      `FullText` is used (not `Text`) so the embedded text carries heading context.
-   - Returns `FileContent("application/pdf")` with the mapped chunks.
-   - Owns a `PdfExtractor` (created internally; disposed with the decoder).
+   - Returns `FileContent("text/plain")` with the mapped chunks (input MIME is
+     `application/pdf` via `SupportsMimeType`; the extracted-artifact MIME must be
+     `text/plain` so KM's extraction pipeline accepts it).
+   - Owns a `PdfExtractor` (created internally). `PdfExtractor` is stateless and not
+     `IDisposable` — it holds no native resources between calls — so the decoder needs no
+     disposal and is not `IDisposable`.
 
 2. **`OxidizePdfDecoderOptions`**
    ```csharp
@@ -163,23 +167,26 @@ The decoder maps each oxidize chunk → one `Chunk` (`Content = FullText`, page 
 
 No re-chunking occurs, so partitions == oxidize chunks 1:1.
 
-**Registration** keeps the default handlers and overrides only the partition step,
-post-`Build`:
+**Registration** (verified): `AddHandler` throws on a duplicate step name, so the
+defaults are skipped and all four steps re-registered post-`Build`, swapping the
+`partition` step for the oxidize handler:
 ```csharp
 var memory = new KernelMemoryBuilder()
     .WithOpenAIDefaults(key)
-    .WithOxidizePdf()          // decoder → extract_text
-    .WithSimpleVectorDb()
+    .WithOxidizePdf()              // decoder → extract step
+    .WithoutDefaultHandlers()
     .Build<MemoryServerless>();
-memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions");
+memory.Orchestrator.AddHandler<TextExtractionHandler>("extract");
+memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("partition");
+memory.Orchestrator.AddHandler<GenerateEmbeddingsHandler>("gen_embeddings");
+memory.Orchestrator.AddHandler<SaveRecordsHandler>("save_records");
 ```
 
-**To verify against `0.98.250508.3` at implementation time:** `ReturnType.Success`
-and the exact `GeneratedFileDetails` field set; `IPipelineOrchestrator.ReadFileAsync` /
-`WriteFileAsync` signatures; that `AddHandler<T>(stepName)` overrides the default for
-that step (else use `WithoutDefaultHandlers()` + register all four). The handler applies
-to every `ExtractedContent` artifact — for a mixed-format KM instance, gate it (PDF-origin
-only); for PDF-only ingestion it is unconditional.
+The handler is **PDF-only**: it processes PDF-origin `ExtractedContent` artifacts and
+throws on a non-PDF artifact (it is the sole `partition` handler, so it cannot let other
+formats fall through). It also throws if a non-empty artifact deserializes to zero
+sections (KM format drift) rather than silently indexing nothing. KM packages are
+exact-pinned (`[0.98.250508.3]`) so the artifact format matches what was tested.
 
 ## Data flow
 
@@ -188,9 +195,9 @@ PDF bytes ──> OxidizePdfDecoder.DecodeAsync
            ──> PdfExtractor.RagChunksAsync (profile=Rag)
            ──> List<RagChunk>  (FullText + PageNumbers + HeadingContext + TokenEstimate)
            ──> map 1:1 ──> List<Chunk>  (Content=FullText, Number=ChunkIndex, Meta:page+complete)
-           ──> FileContent("application/pdf")
-KM extract_text ──> ExtractedContent artifact (FileContent JSON, Sections intact)
-OxidizeChunkPartitioningHandler (replaces split_text_in_partitions)
+           ──> FileContent("text/plain")
+KM extract step ──> ExtractedContent artifact (FileContent JSON, Sections intact)
+OxidizeChunkPartitioningHandler (replaces the partition step)
            ──> 1 TextPartition per Section (no re-chunking)
            ──> embeddings ──> vector store  (1 partition per oxidize chunk)
 ```
@@ -199,9 +206,9 @@ OxidizeChunkPartitioningHandler (replaces split_text_in_partitions)
 
 `examples/KernelMemory` rewritten end-to-end, SharePoint fiction removed:
 
-- Build KM with `.WithOxidizePdf()` + `WithSimpleVectorDb()` (in-memory), then
-  `memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions")`
-  to install the 1:1 partitioning.
+- Build KM with `.WithOxidizePdf()` + `.WithoutDefaultHandlers()`, then re-register the
+  four steps post-`Build` (swapping `partition` for `OxidizeChunkPartitioningHandler`) to
+  install the 1:1 partitioning.
 - Import a **real bundled PDF fixture** (reused from the test fixtures), then run a real
   semantic `SearchAsync` query.
 - **Embeddings need a key:** real embedding generation is gated behind the `OPENAI_API_KEY`
