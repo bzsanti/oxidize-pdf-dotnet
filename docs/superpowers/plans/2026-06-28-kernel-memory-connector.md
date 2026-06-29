@@ -778,7 +778,7 @@ git commit -m "test(km): e2e proves 1:1 oxidize-chunk preservation via custom pa
 - Create: `examples/KernelMemory/fixtures/sample.pdf` (copy of the fixture)
 
 **Interfaces:**
-- Consumes: `OxidizePdfDecoder`, `WithOxidizePdf` (Tasks 2, 4), `OxidizeChunkPartitioningHandler` (Task 5); KM `KernelMemoryBuilder`, `WithOpenAIDefaults`, `WithSimpleVectorDb`, `MemoryServerless`, `memory.Orchestrator.AddHandler<T>(stepName)`, `Document.AddStream`, `memory.AskAsync`.
+- Consumes: `OxidizePdfDecoder`, `WithOxidizePdf` (Tasks 2, 4), `OxidizeChunkPartitioningHandler` (Task 5); KM `KernelMemoryBuilder`, `WithOpenAIDefaults`, `WithoutDefaultHandlers`, `MemoryServerless`, `memory.Orchestrator.AddHandler<T>(stepName)`, `Document.AddStream`, `memory.AskAsync`; the KM default handler types `TextExtractionHandler`, `GenerateEmbeddingsHandler`, `SaveRecordsHandler` from `Microsoft.KernelMemory.Handlers` (in `Microsoft.KernelMemory.Core`, which the sample already references). The registration pattern is exactly the one in `PartitionPreservationE2ETests.cs` (Task 6) — mirror it.
 
 - [ ] **Step 1: Repoint the sample csproj to the connector + KM Core**
 
@@ -818,6 +818,7 @@ cp dotnet/OxidizePdf.NET.Tests/fixtures/sample.pdf examples/KernelMemory/fixture
 `examples/KernelMemory/Program.cs`:
 ```csharp
 using Microsoft.KernelMemory;
+using Microsoft.KernelMemory.Handlers;
 using OxidizePdf.NET.KernelMemory;
 
 string pdfPath = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "fixtures", "sample.pdf");
@@ -842,14 +843,19 @@ if (string.IsNullOrWhiteSpace(apiKey))
     return;
 }
 
+// AddHandler throws on duplicate step names, so skip the default handler set and
+// register the four ingestion steps ourselves, swapping the "partition" step for ours.
+// Real KM step names (verified): extract / partition / gen_embeddings / save_records.
 var memory = new KernelMemoryBuilder()
     .WithOpenAIDefaults(apiKey)
     .WithOxidizePdf()
-    .WithSimpleVectorDb()
+    .WithoutDefaultHandlers()
     .Build<MemoryServerless>();
 
-// Replace KM's default text splitter so oxidize-pdf's chunks survive 1:1.
-memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions");
+memory.Orchestrator.AddHandler<TextExtractionHandler>("extract");
+memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("partition"); // 1:1 chunks
+memory.Orchestrator.AddHandler<GenerateEmbeddingsHandler>("gen_embeddings");
+memory.Orchestrator.AddHandler<SaveRecordsHandler>("save_records");
 
 using var stream = new MemoryStream(pdfBytes);
 await memory.ImportDocumentAsync(new Document("sample").AddStream(Path.GetFileName(pdfPath), stream));
@@ -883,13 +889,15 @@ dotnet run --project examples/KernelMemory path/to/your.pdf
 
 ## Why the custom partition handler?
 
-`.WithOxidizePdf()` registers a content decoder, and
-`memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions")`
-replaces KM's default text splitter. Kernel Memory would normally re-chunk the
-extracted text, discarding oxidize-pdf's structure-aware boundaries. The handler
-reads the structured `ExtractedContent` artifact and emits **one partition per
-oxidize-pdf chunk** — each carrying heading context and source page — so the
-chunks you see keyless are exactly what gets embedded and stored.
+`.WithOxidizePdf()` registers a content decoder. Kernel Memory would then re-chunk
+the extracted text with its default `partition` step, discarding oxidize-pdf's
+structure-aware boundaries. So this sample calls `.WithoutDefaultHandlers()` and
+registers the four ingestion steps itself, swapping the `partition` step for
+`OxidizeChunkPartitioningHandler`. That handler reads the structured
+`ExtractedContent` artifact and emits **one partition per oxidize-pdf chunk** —
+each carrying heading context and source page — so the chunks you see keyless are
+exactly what gets embedded and stored. (`AddHandler` throws on duplicate step
+names, which is why the defaults are skipped rather than overridden.)
 ```
 
 - [ ] **Step 4: Verify the sample builds and runs keyless (real behavior)**
@@ -947,20 +955,27 @@ source page preserved.
 
 ```csharp
 using Microsoft.KernelMemory;
+using Microsoft.KernelMemory.Handlers;
+using OxidizePdf.NET.KernelMemory;
 
 var memory = new KernelMemoryBuilder()
     .WithOpenAIDefaults(apiKey)
     .WithOxidizePdf()
-    .WithSimpleVectorDb()
+    .WithoutDefaultHandlers()
     .Build<MemoryServerless>();
 
-memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions");
+// Register the ingestion steps, swapping the "partition" step for ours.
+memory.Orchestrator.AddHandler<TextExtractionHandler>("extract");
+memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("partition");
+memory.Orchestrator.AddHandler<GenerateEmbeddingsHandler>("gen_embeddings");
+memory.Orchestrator.AddHandler<SaveRecordsHandler>("save_records");
 
 await memory.ImportDocumentAsync(new Document("doc").AddFile("report.pdf"));
 ```
 
-The `AddHandler` call replaces KM's default text splitter so oxidize-pdf's chunks
-land in the vector store 1:1; without it Kernel Memory re-chunks the text.
+The custom `partition` handler makes oxidize-pdf's chunks land in the vector store
+1:1; without it Kernel Memory re-chunks the text. `AddHandler` throws on duplicate
+step names, so the defaults are skipped (`WithoutDefaultHandlers`) and re-registered.
 ```
 
 - [ ] **Step 3: Verify the package builds**

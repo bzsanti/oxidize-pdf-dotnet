@@ -29,6 +29,17 @@ pinned package `0.98.250508.3`:
 
 The sections below are updated to this handler-based architecture.
 
+**Registration reality (verified in the Task 6 e2e against `0.98.250508.3`):** the
+real pipeline step names are `extract` / `partition` / `gen_embeddings` /
+`save_records` (not `extract_text` / `split_text_in_partitions` / …, which the
+sections below still use illustratively). `AddHandler<T>(stepName)` **throws on a
+duplicate** step name, so the default handlers cannot be overridden in place — the
+working pattern is `.WithoutDefaultHandlers()` on the builder, then post-`Build`
+register all four steps via `Orchestrator.AddHandler<T>`, with `OxidizeChunkPartitioningHandler`
+at the `partition` step and KM's `TextExtractionHandler` / `GenerateEmbeddingsHandler`
+/ `SaveRecordsHandler` (`Microsoft.KernelMemory.Handlers`) at the others. The DTO-based
+deserialization was confirmed to match KM's real `ExtractedContent` artifact (no change needed).
+
 ## Problem
 
 `OxidizePdf.NET` ships a structure-aware RAG chunking pipeline (`RagChunksAsync` →
