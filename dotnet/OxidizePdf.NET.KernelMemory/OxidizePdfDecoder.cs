@@ -1,5 +1,6 @@
 using Microsoft.KernelMemory.DataFormats;
 using OxidizePdf.NET;
+using OxidizePdf.NET.Models;
 
 namespace OxidizePdf.NET.KernelMemory;
 
@@ -27,14 +28,42 @@ public sealed class OxidizePdfDecoder : IContentDecoder
         mimeType.StartsWith(PdfMimeType, StringComparison.OrdinalIgnoreCase);
 
     /// <inheritdoc />
-    public Task<FileContent> DecodeAsync(string filename, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+    public async Task<FileContent> DecodeAsync(string filename, CancellationToken cancellationToken = default)
+    {
+        var bytes = await File.ReadAllBytesAsync(filename, cancellationToken).ConfigureAwait(false);
+        return await DecodeBytesAsync(bytes, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
-    public Task<FileContent> DecodeAsync(BinaryData data, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+    public Task<FileContent> DecodeAsync(BinaryData data, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return DecodeBytesAsync(data.ToArray(), cancellationToken);
+    }
 
     /// <inheritdoc />
-    public Task<FileContent> DecodeAsync(Stream data, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+    public async Task<FileContent> DecodeAsync(Stream data, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        using var ms = new MemoryStream();
+        await data.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+        return await DecodeBytesAsync(ms.ToArray(), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<FileContent> DecodeBytesAsync(byte[] bytes, CancellationToken cancellationToken)
+    {
+        List<RagChunk> chunks = (_options.Partition is not null || _options.Hybrid is not null)
+            ? await _extractor.RagChunksAsync(bytes, _options.Partition, _options.Hybrid, cancellationToken).ConfigureAwait(false)
+            : await _extractor.RagChunksAsync(bytes, _options.Profile, cancellationToken).ConfigureAwait(false);
+
+        var content = new FileContent(PdfMimeType);
+        foreach (var rc in chunks)
+        {
+            int page = rc.PageNumbers.Count > 0 ? rc.PageNumbers[0] : -1;
+            var meta = Chunk.Meta(sentencesAreComplete: true, pageNumber: page);
+            content.Sections.Add(new Chunk(rc.FullText, rc.ChunkIndex, meta));
+        }
+
+        return content;
+    }
 }
