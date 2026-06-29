@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-06-29
+
+### Changed
+- **Native core bumped to oxidize-pdf 3.0.4** (FFI crate `oxidize-pdf-ffi`
+  0.11.0 → 0.11.1, reported by `oxidize_version()`). No public .NET API change.
+  - 3.0.2: AES-128 / AES-256 documents written by the core can now be read back
+    (previously decrypted to empty content even with the correct password);
+    owner-password unlock of AES-256 fixed; removed debug logging that leaked
+    the encryption key. RC4 unaffected.
+  - 3.0.3: `rag_chunks_from_elements` added upstream behind the `unstable-spi`
+    feature only — not enabled, not surfaced through the FFI.
+  - 3.0.4: `PdfDocument<R>` is now `Send` (internal change); no behavioral impact
+    on the .NET bindings.
+
+### Added
+- **New companion package `OxidizePdf.NET.KernelMemory` (0.1.0-preview):** a
+  Microsoft Kernel Memory connector that ingests PDFs with oxidize-pdf's
+  structure-aware chunking. An `OxidizePdfDecoder` (`IContentDecoder`) plus an
+  `OxidizeChunkPartitioningHandler` that replaces KM's `partition` step emit one
+  KM partition per oxidize-pdf chunk (1:1), preserving heading context and source
+  page. Registered via `WithOxidizePdf()` + the handler on the `partition` step.
+  Shipped as a separate, independently-versioned NuGet package.
+
 ## [0.16.0] - 2026-06-27
 
 ### Added
