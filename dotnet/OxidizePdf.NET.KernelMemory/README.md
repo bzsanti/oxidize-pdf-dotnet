@@ -27,3 +27,13 @@ await memory.ImportDocumentAsync(new Document("doc").AddFile("report.pdf"));
 The custom `partition` handler makes oxidize-pdf's chunks land in the vector store
 1:1; without it Kernel Memory re-chunks the text. `AddHandler` throws on duplicate
 step names, so the defaults are skipped (`WithoutDefaultHandlers`) and re-registered.
+
+> **Required:** `WithOxidizePdf()` alone is **not** enough — it only registers the
+> decoder. You **must** also register `OxidizeChunkPartitioningHandler` on the
+> `partition` step as shown above. Without it, Kernel Memory silently falls back to
+> its default re-chunker and oxidize-pdf's structure-aware chunks are discarded.
+>
+> **PDF-only:** this connector's partition handler supports PDF ingestion only. In a
+> mixed-format KM instance it throws `NotSupportedException` for non-PDF files. The KM
+> packages are exact-pinned (`[0.98.250508.3]`) because the handler reads KM's internal
+> `ExtractedContent` artifact format.
