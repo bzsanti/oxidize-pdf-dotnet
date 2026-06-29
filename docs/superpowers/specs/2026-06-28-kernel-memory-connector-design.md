@@ -1,8 +1,33 @@
 # Kernel Memory Connector — Design
 
-**Date:** 2026-06-28
+**Date:** 2026-06-28 (architecture corrected 2026-06-29)
 **Status:** Approved (design)
 **Adoption lever:** #3 (Kernel Memory connector — ecosystem discovery)
+
+## Correction (2026-06-29) — chunking lives in a pipeline handler, not the decoder
+
+Discovered during implementation and verified against KM source (`main`) + the
+pinned package `0.98.250508.3`:
+
+- The `IContentDecoder` only feeds the `extract_text` step. The default
+  `split_text_in_partitions` step (`TextPartitioningHandler`) **re-chunks** the
+  extracted text with `PlainTextChunker` and **ignores `FileContent.Sections`**.
+  It also only processes `text/plain` / `text/markdown` artifacts, so the
+  decoder's output MimeType must be `text/plain` (input MIME `application/pdf`
+  stays in `SupportsMimeType`).
+- KM's `extract_text` writes **two** artifacts: `ExtractedText` (flattened
+  plain text — what the default splitter reads) and **`ExtractedContent`** (the
+  structured `FileContent` JSON, preserving every `Section` + page/heading
+  metadata).
+- Therefore the original "passthrough partitioning options" mechanism is invalid
+  (`WithCustomTextPartitioningOptions` / `WithCustomEmbeddingGenerator` do not
+  exist in `0.98.250508.3`). Preserving oxidize chunks 1:1 requires
+  **replacing the `split_text_in_partitions` step** with a custom
+  `IPipelineStepHandler` that reads the `ExtractedContent` JSON and emits one
+  `TextPartition` per oxidize chunk. The existing `OxidizePdfDecoder` is reused
+  unchanged (other than the `text/plain` output MIME).
+
+The sections below are updated to this handler-based architecture.
 
 ## Problem
 
@@ -105,14 +130,45 @@ New project `dotnet/OxidizePdf.NET.KernelMemory/`, `net8.0`, added to `OxidizePd
    ```
    Registers `OxidizePdfDecoder` as an `IContentDecoder` (mirrors KM's `WithContentDecoder`).
 
-### Preserving chunks 1:1 (the differentiator)
+4. **`OxidizeChunkPartitioningHandler : IPipelineStepHandler`** — replaces the
+   `split_text_in_partitions` step; emits one partition per oxidize chunk (detailed below).
+   Registered post-`Build` via `memory.Orchestrator.AddHandler<…>("split_text_in_partitions")`.
 
-Each oxidize chunk becomes one `Chunk` with `completeSentences=true`. To stop KM re-splitting,
-the **sample** configures `TextPartitioningOptions { MaxTokensPerParagraph = 2048,
-OverlappingTokens = 0 }` so sections pass through 1:1. If a single chunk exceeds the max, KM
-re-divides it — an acceptable fallback already surfaced via `RagChunk.IsOversized`. This config
-is documented prominently in the sample README: it is what makes oxidize's structure-aware
-chunking survive into the vector store.
+### Preserving chunks 1:1 (the differentiator) — via a custom partition handler
+
+The decoder maps each oxidize chunk → one `Chunk` (`Content = FullText`, page +
+`completeSentences` metadata) inside the `FileContent` it returns. KM persists that
+`FileContent` as the `ExtractedContent` JSON artifact.
+
+`OxidizeChunkPartitioningHandler : IPipelineStepHandler` replaces the default
+`split_text_in_partitions` step. It:
+1. Iterates `pipeline.Files` → `GeneratedFiles`, selecting `ArtifactType == ExtractedContent`.
+2. Reads that artifact and deserializes it to `FileContent`.
+3. For each `Chunk` in `Sections`, writes one partition file
+   (`uploadedFile.GetPartitionFileName(n)` + `orchestrator.WriteFileAsync`), tagged
+   `ArtifactType.TextPartition`, `PartitionNumber = n`, `SectionNumber = chunk.PageNumber`,
+   `Tags = pipeline.Tags`, `ContentSHA256` set. Content is the chunk's `FullText`
+   (heading context preserved).
+
+No re-chunking occurs, so partitions == oxidize chunks 1:1.
+
+**Registration** keeps the default handlers and overrides only the partition step,
+post-`Build`:
+```csharp
+var memory = new KernelMemoryBuilder()
+    .WithOpenAIDefaults(key)
+    .WithOxidizePdf()          // decoder → extract_text
+    .WithSimpleVectorDb()
+    .Build<MemoryServerless>();
+memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions");
+```
+
+**To verify against `0.98.250508.3` at implementation time:** `ReturnType.Success`
+and the exact `GeneratedFileDetails` field set; `IPipelineOrchestrator.ReadFileAsync` /
+`WriteFileAsync` signatures; that `AddHandler<T>(stepName)` overrides the default for
+that step (else use `WithoutDefaultHandlers()` + register all four). The handler applies
+to every `ExtractedContent` artifact — for a mixed-format KM instance, gate it (PDF-origin
+only); for PDF-only ingestion it is unconditional.
 
 ## Data flow
 
@@ -122,7 +178,9 @@ PDF bytes ──> OxidizePdfDecoder.DecodeAsync
            ──> List<RagChunk>  (FullText + PageNumbers + HeadingContext + TokenEstimate)
            ──> map 1:1 ──> List<Chunk>  (Content=FullText, Number=ChunkIndex, Meta:page+complete)
            ──> FileContent("application/pdf")
-KM pipeline ──> split_text_in_partitions (passthrough: MaxTokensPerParagraph=2048)
+KM extract_text ──> ExtractedContent artifact (FileContent JSON, Sections intact)
+OxidizeChunkPartitioningHandler (replaces split_text_in_partitions)
+           ──> 1 TextPartition per Section (no re-chunking)
            ──> embeddings ──> vector store  (1 partition per oxidize chunk)
 ```
 
@@ -130,15 +188,16 @@ KM pipeline ──> split_text_in_partitions (passthrough: MaxTokensPerParagraph
 
 `examples/KernelMemory` rewritten end-to-end, SharePoint fiction removed:
 
-- Build KM with `.WithOxidizePdf()` + `WithSimpleVectorDb()` (in-memory) + the passthrough
-  `TextPartitioningOptions`.
+- Build KM with `.WithOxidizePdf()` + `WithSimpleVectorDb()` (in-memory), then
+  `memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>("split_text_in_partitions")`
+  to install the 1:1 partitioning.
 - Import a **real bundled PDF fixture** (reused from the test fixtures), then run a real
   semantic `SearchAsync` query.
 - **Embeddings need a key:** real embedding generation is gated behind the `OPENAI_API_KEY`
   env var. Without the key, the sample still runs the decode→chunk mapping and prints the
   resulting chunks (the oxidize half runs keyless); with the key, it completes the full
   index→query loop.
-- Sample README documents the passthrough partitioning config and the keyless/keyed paths.
+- Sample README documents the `AddHandler` partition-step override and the keyless/keyed paths.
 
 ## Error handling
 
@@ -163,11 +222,18 @@ Behavioral tests, written before implementation:
 3. The `Stream` and `BinaryData` overloads produce output identical to the `filename`
    overload for the same fixture (same count, same contents).
 4. Empty/zero-chunk input → empty `Sections`, no exception.
-5. **Differentiator e2e:** build KM with the default handlers, `WithOxidizePdf()`, the
-   passthrough `TextPartitioningOptions` (MaxTokensPerParagraph=2048, OverlappingTokens=0),
-   a **deterministic fake `ITextEmbeddingGenerator`** (keyless), and `SimpleVectorDb`; import
-   the fixture; assert the number of stored partitions equals the number of oxidize chunks —
-   the real behavioral proof of 1:1 preservation.
+5. **Handler unit test:** run `OxidizeChunkPartitioningHandler.InvokeAsync` against a
+   `DataPipeline` carrying a known `ExtractedContent` artifact (a `FileContent` with N
+   sections), backed by a fake `IPipelineOrchestrator` that serves the JSON and captures
+   `WriteFileAsync` calls. Assert N partition files written, each tagged `TextPartition` with
+   ascending `PartitionNumber`, and each partition's content == the corresponding chunk's
+   `FullText`. Focused, deterministic, no full pipeline.
+6. **Differentiator e2e:** build KM with default handlers + `WithOxidizePdf()` + a
+   deterministic fake `ITextEmbeddingGenerator` (keyless, registered via `AddSingleton`) +
+   `SimpleVectorDb`; `memory.Orchestrator.AddHandler<OxidizeChunkPartitioningHandler>(
+   "split_text_in_partitions")`; import the fixture; assert embedded-partition count equals
+   the oxidize chunk count and each chunk's `FullText` was embedded — the real end-to-end
+   proof of 1:1 preservation.
 
 All assertions verify real content/behavior, not status codes or object presence.
 
