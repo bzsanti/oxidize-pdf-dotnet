@@ -18,7 +18,7 @@ public class DecodeAsyncTests
         var decoder = new OxidizePdfDecoder();
         var content = await decoder.DecodeAsync(new BinaryData(bytes));
 
-        Assert.Equal("application/pdf", content.MimeType);
+        Assert.Equal("text/plain", content.MimeType);
         Assert.Equal(expected.Count, content.Sections.Count);
         Assert.NotEmpty(content.Sections);
 

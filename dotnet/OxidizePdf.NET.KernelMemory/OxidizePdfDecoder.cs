@@ -56,7 +56,10 @@ public sealed class OxidizePdfDecoder : IContentDecoder
             ? await _extractor.RagChunksAsync(bytes, _options.Partition, _options.Hybrid, cancellationToken).ConfigureAwait(false)
             : await _extractor.RagChunksAsync(bytes, _options.Profile, cancellationToken).ConfigureAwait(false);
 
-        var content = new FileContent(PdfMimeType);
+        // FileContent MimeType must be "text/plain" so TextPartitioningHandler processes the
+        // extracted sections. All other KM decoders also return "text/plain" here.
+        // PdfMimeType ("application/pdf") is correct only for SupportsMimeType(), not output.
+        var content = new FileContent("text/plain");
         foreach (var rc in chunks)
         {
             int page = rc.PageNumbers.Count > 0 ? rc.PageNumbers[0] : -1;
