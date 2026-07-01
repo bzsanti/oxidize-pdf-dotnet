@@ -73,5 +73,7 @@ examples/**/obj/
 artifacts/
 *.bak*
 
-# Benchmark raw results: exposes corpus filenames (may contain personal data). Not versioned.
-docs/superpowers/specs/benchmark-results/results.json
+# Benchmark run outputs (results.json/results.md): not publishable — measures only
+# plain-text extraction, does not verify text correctness, and the capability matrix
+# is hand-authored. JSON also exposes corpus filenames (may contain personal data).
+docs/superpowers/specs/benchmark-results/
