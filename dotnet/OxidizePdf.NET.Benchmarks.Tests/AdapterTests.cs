@@ -16,7 +16,11 @@ public class AdapterTests
 
         Assert.Equal("OxidizePdf.NET", adapter.Name);
         Assert.False(string.IsNullOrEmpty(adapter.Version));
-        Assert.True(result.PageCount >= 1, "sample.pdf should have at least 1 page");
+        // PageCount is intentionally 0: the timed operation is text extraction only
+        // (oxidize_extract_text does not return a page count, and a second FFI pass
+        // just to fill this field would double-parse the PDF). The ms/page denominator
+        // uses the reference adapter's (PdfPig) count, so Oxidize's own count is unused.
+        Assert.Equal(0, result.PageCount);
         // "SEVILLA" is a contiguous ASCII uppercase token in the real document,
         // extracted identically across libraries — verifies genuine extraction.
         Assert.Contains("SEVILLA", result.Text);
