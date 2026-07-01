@@ -72,3 +72,6 @@ examples/**/obj/
 # Build artifacts
 artifacts/
 *.bak*
+
+# Benchmark raw results: exposes corpus filenames (may contain personal data). Not versioned.
+docs/superpowers/specs/benchmark-results/results.json
