@@ -167,6 +167,16 @@ pub struct ExtractionOptionsFFI {
     /// Include `/Artifact` marked-content scopes (page furniture)
     /// (oxidize-pdf 2.10.0, issue #269). Upstream default `false`.
     pub include_artifacts: bool,
+    /// On the flat text path (`preserve_layout = false`), reorder output by
+    /// column so per-column tokens stay adjacent (oxidize-pdf 3.1.0, issue
+    /// #389). Upstream default `false`.
+    pub reorder_columns: bool,
+    /// Per-page cap on decoded-text bytes (oxidize-pdf 4.0.0, issue #382).
+    /// `0` means unlimited (maps to `None`); any positive value maps to
+    /// `Some(n)`. When the cap is hit, extraction stops before the run that
+    /// would overshoot and the truncation is reported via the `out_truncated`
+    /// parameter of `oxidize_extract_text_with_options`.
+    pub max_extracted_bytes: usize,
 }
 
 impl ExtractionOptionsFFI {
@@ -183,6 +193,12 @@ impl ExtractionOptionsFFI {
             track_space_decisions: false,
             reconstruct_paragraphs: self.reconstruct_paragraphs,
             include_artifacts: self.include_artifacts,
+            reorder_columns: self.reorder_columns,
+            max_extracted_bytes: if self.max_extracted_bytes == 0 {
+                None
+            } else {
+                Some(self.max_extracted_bytes)
+            },
         }
     }
 }
@@ -1010,16 +1026,18 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options(
     pdf_len: usize,
     options: *const ExtractionOptionsFFI,
     out_text: *mut *mut c_char,
+    out_truncated: *mut bool,
 ) -> c_int {
     crate::ffi_guard(move || {
         clear_last_error();
 
-        if pdf_bytes.is_null() || out_text.is_null() {
+        if pdf_bytes.is_null() || out_text.is_null() || out_truncated.is_null() {
             set_last_error("Null pointer provided to oxidize_extract_text_with_options");
             return ErrorCode::NullPointer as c_int;
         }
 
         *out_text = ptr::null_mut();
+        *out_truncated = false;
 
         if pdf_len == 0 {
             set_last_error("PDF data is empty (0 bytes)");
@@ -1048,6 +1066,9 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options(
                 return ErrorCode::PdfParseError as c_int;
             }
         };
+
+        // Report truncation if any page hit the per-page byte budget (#382).
+        *out_truncated = text_pages.iter().any(|p| p.truncated);
 
         let text = text_pages
             .iter()
@@ -4368,8 +4389,10 @@ mod ffi_layout_tests {
     use std::mem::{offset_of, size_of};
 
     #[test]
-    fn extraction_options_ffi_size_is_64() {
-        assert_eq!(size_of::<ExtractionOptionsFFI>(), 64);
+    fn extraction_options_ffi_size_is_72() {
+        // 64 bytes through include_artifacts + reorder_columns (byte 58) +
+        // 8-byte-aligned max_extracted_bytes (usize) at 64 = 72 total.
+        assert_eq!(size_of::<ExtractionOptionsFFI>(), 72);
     }
 
     #[test]
@@ -4384,5 +4407,7 @@ mod ffi_layout_tests {
         assert_eq!(offset_of!(ExtractionOptionsFFI, tj_space_threshold), 48);
         assert_eq!(offset_of!(ExtractionOptionsFFI, reconstruct_paragraphs), 56);
         assert_eq!(offset_of!(ExtractionOptionsFFI, include_artifacts), 57);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, reorder_columns), 58);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, max_extracted_bytes), 64);
     }
 }

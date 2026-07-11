@@ -452,6 +452,35 @@ public class PdfExtractor
 
         cancellationToken.ThrowIfCancellationRequested();
 
+        return Task.Run(() => ExtractTextWithOptions(pdfBytes, options).Text, cancellationToken);
+    }
+
+    /// <summary>
+    /// Extract plain text using custom options, also reporting whether the
+    /// per-page byte budget (<see cref="ExtractionOptions.MaxExtractedBytes"/>)
+    /// truncated the output.
+    /// </summary>
+    /// <param name="pdfBytes">PDF file content as byte array.</param>
+    /// <param name="options">Extraction options controlling layout, columns, hyphenation, byte budget, etc.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The extracted text together with a truncation flag.</returns>
+    /// <exception cref="ArgumentNullException">If pdfBytes is null.</exception>
+    /// <exception cref="ArgumentException">If pdfBytes is empty or exceeds maximum size.</exception>
+    /// <exception cref="PdfExtractionException">If extraction fails.</exception>
+    public Task<TextExtractionResult> ExtractTextWithResultAsync(byte[] pdfBytes, ExtractionOptions options, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+
+        options ??= new ExtractionOptions();
+        options.Validate();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
         return Task.Run(() => ExtractTextWithOptions(pdfBytes, options), cancellationToken);
     }
 
@@ -1271,7 +1300,7 @@ public class PdfExtractor
     private string StructuredExport(byte[] pdfBytes, NativeStringCall nativeFunc, string formatName) =>
         CallNativeString(pdfBytes, nativeFunc, $"Failed to export PDF as {formatName}");
 
-    private string ExtractTextWithOptions(byte[] pdfBytes, ExtractionOptions options)
+    private TextExtractionResult ExtractTextWithOptions(byte[] pdfBytes, ExtractionOptions options)
     {
         IntPtr pdfPtr = IntPtr.Zero;
         IntPtr textPtr = IntPtr.Zero;
@@ -1292,18 +1321,21 @@ public class PdfExtractor
                 MergeHyphenated = options.MergeHyphenated,
                 TjSpaceThreshold = options.TjSpaceThreshold,
                 ReconstructParagraphs = options.ReconstructParagraphs,
-                IncludeArtifacts = options.IncludeArtifacts
+                IncludeArtifacts = options.IncludeArtifacts,
+                ReorderColumns = options.ReorderColumns,
+                MaxExtractedBytes = (nuint)options.MaxExtractedBytes
             };
 
             var result = NativeMethods.oxidize_extract_text_with_options(
                 pdfPtr,
                 (nuint)pdfBytes.Length,
                 ref nativeOptions,
-                out textPtr);
+                out textPtr,
+                out bool truncated);
 
             ThrowIfError(result, "Failed to extract text with options");
 
-            return Marshal.PtrToStringUTF8(textPtr) ?? string.Empty;
+            return new TextExtractionResult(Marshal.PtrToStringUTF8(textPtr) ?? string.Empty, truncated);
         }
         finally
         {

@@ -58,6 +58,25 @@ public class ExtractionOptions
     public bool IncludeArtifacts { get; set; }
 
     /// <summary>
+    /// On the flat text path (<see cref="PreserveLayout"/> = false), reorder
+    /// output by column so per-column tokens stay adjacent — useful for
+    /// multi-column tables where emails/phones split across draw operators
+    /// (oxidize-pdf 3.1.0, upstream issue #389). Default: false (byte-identical
+    /// to previous output when off).
+    /// </summary>
+    public bool ReorderColumns { get; set; }
+
+    /// <summary>
+    /// Per-page cap on decoded-text bytes (oxidize-pdf 4.0.0, upstream issue
+    /// #382). Bounds memory when a content stream is adversarially inflated:
+    /// extraction stops before the run that would overshoot (never splitting a
+    /// UTF-8 character). <c>0</c> (default) means unlimited. When a positive cap
+    /// is hit, the extracted text is a valid prefix and truncation is reported
+    /// via <see cref="TextExtractionResult.Truncated"/>.
+    /// </summary>
+    public int MaxExtractedBytes { get; set; }
+
+    /// <summary>
     /// Validates that all option values are within acceptable ranges.
     /// </summary>
     /// <exception cref="ArgumentException">If any threshold is negative.</exception>
@@ -71,5 +90,7 @@ public class ExtractionOptions
             throw new ArgumentException("ColumnThreshold must be non-negative", nameof(ColumnThreshold));
         if (TjSpaceThreshold < 0)
             throw new ArgumentException("TjSpaceThreshold must be non-negative", nameof(TjSpaceThreshold));
+        if (MaxExtractedBytes < 0)
+            throw new ArgumentException("MaxExtractedBytes must be non-negative", nameof(MaxExtractedBytes));
     }
 }

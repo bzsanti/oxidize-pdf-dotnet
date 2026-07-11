@@ -126,6 +126,7 @@ impl From<HybridChunkConfigDto> for RustHybrid {
             merge_adjacent: d.merge_adjacent,
             propagate_headings: d.propagate_headings,
             merge_policy: d.merge_policy.into(),
+            ..Default::default()
         }
     }
 }

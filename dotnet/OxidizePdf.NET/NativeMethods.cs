@@ -1329,6 +1329,9 @@ internal static class NativeMethods
         public bool ReconstructParagraphs;
         [MarshalAs(UnmanagedType.I1)]
         public bool IncludeArtifacts;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool ReorderColumns;
+        public nuint MaxExtractedBytes;
     }
 
     /// <summary>Extract text from PDF bytes using custom extraction options</summary>
@@ -1337,7 +1340,8 @@ internal static class NativeMethods
         IntPtr pdfBytes,
         nuint pdfLen,
         ref ExtractionOptionsNative options,
-        out IntPtr outText);
+        out IntPtr outText,
+        [MarshalAs(UnmanagedType.I1)] out bool outTruncated);
 
     // ── Parser — metadata ─────────────────────────────────────────────────────
 
