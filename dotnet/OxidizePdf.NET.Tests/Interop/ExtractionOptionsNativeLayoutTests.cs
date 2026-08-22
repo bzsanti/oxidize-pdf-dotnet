@@ -19,7 +19,8 @@ public class ExtractionOptionsNativeLayoutTests
     {
         // Matches Rust #[repr(C)] ExtractionOptionsFFI on x86_64: 64 bytes
         // through IncludeArtifacts, plus ReorderColumns (bool, 3.1.0) at byte 58
-        // and MaxExtractedBytes (nuint, 4.0.0) 8-byte-aligned at byte 64 = 72.
+        // ReadingOrder and CarriageReturnHandling occupy bytes 59 and 60;
+        // MaxExtractedBytes remains 8-byte-aligned at byte 64 = 72.
         Assert.Equal(72, Marshal.SizeOf<NativeMethods.ExtractionOptionsNative>());
     }
 
@@ -37,6 +38,8 @@ public class ExtractionOptionsNativeLayoutTests
         AssertOffset(56, nameof(NativeMethods.ExtractionOptionsNative.ReconstructParagraphs));
         AssertOffset(57, nameof(NativeMethods.ExtractionOptionsNative.IncludeArtifacts));
         AssertOffset(58, nameof(NativeMethods.ExtractionOptionsNative.ReorderColumns));
+        AssertOffset(59, nameof(NativeMethods.ExtractionOptionsNative.ReadingOrder));
+        AssertOffset(60, nameof(NativeMethods.ExtractionOptionsNative.CarriageReturnHandling));
         AssertOffset(64, nameof(NativeMethods.ExtractionOptionsNative.MaxExtractedBytes));
     }
 

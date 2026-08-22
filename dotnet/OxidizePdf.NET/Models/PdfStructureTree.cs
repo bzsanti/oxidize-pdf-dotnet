@@ -16,7 +16,7 @@ namespace OxidizePdf.NET.Models;
 /// "Figure", "Table"). Unknown names become custom structure types and should
 /// be role-mapped to a standard type via <see cref="MapRole"/>. Link an element
 /// to tagged page content by passing the MCID returned from
-/// <see cref="PdfPage.BeginMarkedContent"/>.
+/// <see cref="PdfPage.BeginMarkedContent(string)"/>.
 /// </remarks>
 public sealed class PdfStructureTree
 {

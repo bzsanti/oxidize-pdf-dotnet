@@ -2158,12 +2158,30 @@ struct ShadingJson {
     start_radius: Option<f64>,
     end_center: Option<[f64; 2]>,
     end_radius: Option<f64>,
+    // conic / mesh
+    center: Option<[f64; 2]>,
+    domain: Option<[f64; 4]>,
+    matrix: Option<[f64; 6]>,
+    color_space: Option<String>,
+    decode: Option<Vec<f64>>,
+    vertices: Option<Vec<GouraudVertexJson>>,
+    bits_per_coordinate: Option<u8>,
+    bits_per_component: Option<u8>,
+    bits_per_flag: Option<u8>,
     // both
     stops: Vec<ShadingStopJson>,
     #[serde(default)]
     extend_start: bool,
     #[serde(default)]
     extend_end: bool,
+}
+
+#[derive(serde::Deserialize)]
+struct GouraudVertexJson {
+    flag: u8,
+    x: f64,
+    y: f64,
+    color: [f64; 3],
 }
 
 fn color_stops_from(stops: &[ShadingStopJson]) -> Vec<oxidize_pdf::graphics::ColorStop> {
@@ -2221,13 +2239,25 @@ pub unsafe extern "C" fn oxidize_page_add_shading_json(
                 return ErrorCode::SerializationError as c_int;
             }
         };
-        if dto.stops.len() < 2 {
+        if dto.kind != "mesh" && dto.stops.len() < 2 {
             set_last_error("Shading requires at least two color stops");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        if dto.stops.iter().any(|stop| {
+            !stop.position.is_finite()
+                || !(0.0..=1.0).contains(&stop.position)
+                || stop
+                    .color
+                    .iter()
+                    .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+        }) {
+            set_last_error("Shading stop positions and colors must be finite and in [0,1]");
             return ErrorCode::InvalidArgument as c_int;
         }
 
         use oxidize_pdf::graphics::{
-            AxialShading, Point as ShadingPoint, RadialShading, ShadingDefinition,
+            AxialShading, Color, ConicShading, FreeFormGouraudShading, GouraudVertex,
+            Point as ShadingPoint, RadialShading, ShadingDefinition,
         };
         let stops = color_stops_from(&dto.stops);
 
@@ -2244,7 +2274,7 @@ pub unsafe extern "C" fn oxidize_page_add_shading_json(
                     stops,
                 )
                 .with_extend(dto.extend_start, dto.extend_end);
-                ShadingDefinition::Axial(shading)
+                Some(ShadingDefinition::Axial(shading))
             }
             "radial" => {
                 let (Some(sc), Some(sr), Some(ec), Some(er)) = (
@@ -2268,7 +2298,101 @@ pub unsafe extern "C" fn oxidize_page_add_shading_json(
                     stops,
                 )
                 .with_extend(dto.extend_start, dto.extend_end);
-                ShadingDefinition::Radial(shading)
+                Some(ShadingDefinition::Radial(shading))
+            }
+            "conic" => {
+                let (Some(center), Some(domain)) = (dto.center, dto.domain) else {
+                    set_last_error("conic shading requires 'center' and 'domain'");
+                    return ErrorCode::InvalidArgument as c_int;
+                };
+                if center.iter().any(|value| !value.is_finite())
+                    || domain.iter().any(|value| !value.is_finite())
+                    || domain[0] >= domain[1]
+                    || domain[2] >= domain[3]
+                    || dto
+                        .matrix
+                        .is_some_and(|matrix| matrix.iter().any(|value| !value.is_finite()))
+                {
+                    set_last_error(
+                        "conic shading requires finite, ordered bounds and matrix values",
+                    );
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+                let mut shading = ConicShading::new(
+                    name_str.clone(),
+                    ShadingPoint::new(center[0], center[1]),
+                    domain,
+                    stops,
+                );
+                if let Some(matrix) = dto.matrix {
+                    shading = shading.with_matrix(matrix);
+                }
+                if let Err(e) = (*page).inner.add_conic_shading(name_str.clone(), shading) {
+                    set_last_error(format!("Failed to add conic shading: {e}"));
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+                None
+            }
+            "mesh" => {
+                let (Some(decode), Some(vertices)) = (dto.decode, dto.vertices) else {
+                    set_last_error("mesh shading requires 'decode' and 'vertices'");
+                    return ErrorCode::InvalidArgument as c_int;
+                };
+                let coordinate_bits = dto.bits_per_coordinate.unwrap_or(16);
+                let component_bits = dto.bits_per_component.unwrap_or(8);
+                let flag_bits = dto.bits_per_flag.unwrap_or(8);
+                if !matches!(coordinate_bits, 1 | 2 | 4 | 8 | 12 | 16 | 24 | 32)
+                    || !matches!(component_bits, 1 | 2 | 4 | 8 | 12 | 16)
+                    || !matches!(flag_bits, 2 | 4 | 8)
+                {
+                    set_last_error("Invalid mesh bit width");
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+                if decode.len() != 10
+                    || decode.iter().any(|value| !value.is_finite())
+                    || decode[0] >= decode[1]
+                    || decode[2] >= decode[3]
+                    || vertices.len() < 3
+                    || vertices.first().is_some_and(|vertex| vertex.flag != 0)
+                    || vertices.iter().any(|vertex| {
+                        vertex.flag > 2
+                            || !vertex.x.is_finite()
+                            || !vertex.y.is_finite()
+                            || vertex
+                                .color
+                                .iter()
+                                .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+                    })
+                {
+                    set_last_error("Invalid mesh decode array or vertices");
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+                let vertices = vertices
+                    .into_iter()
+                    .map(|v| GouraudVertex {
+                        flag: v.flag,
+                        x: v.x,
+                        y: v.y,
+                        color: Color::Rgb(v.color[0], v.color[1], v.color[2]),
+                    })
+                    .collect();
+                let mut shading = FreeFormGouraudShading::new(
+                    name_str.clone(),
+                    dto.color_space.unwrap_or_else(|| "DeviceRGB".to_string()),
+                    decode,
+                    vertices,
+                );
+                if dto.bits_per_coordinate.is_some()
+                    || dto.bits_per_component.is_some()
+                    || dto.bits_per_flag.is_some()
+                {
+                    shading = shading.with_bits(coordinate_bits, component_bits, flag_bits);
+                }
+                if let Err(e) = (*page).inner.add_mesh_shading(name_str.clone(), shading) {
+                    set_last_error(format!("Failed to add mesh shading: {e}"));
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+                None
             }
             other => {
                 set_last_error(format!("Unknown shading kind: {other}"));
@@ -2276,9 +2400,11 @@ pub unsafe extern "C" fn oxidize_page_add_shading_json(
             }
         };
 
-        if let Err(e) = (*page).inner.add_shading(name_str, definition) {
-            set_last_error(format!("Failed to add shading: {e}"));
-            return ErrorCode::PdfParseError as c_int;
+        if let Some(definition) = definition {
+            if let Err(e) = (*page).inner.add_shading(name_str, definition) {
+                set_last_error(format!("Failed to add shading: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
         }
         ErrorCode::Success as c_int
     })

@@ -6,8 +6,9 @@
 |---|---|---|---|---|
 | 0.3.x | 2.1.0 | cdylib stable | net8.0, net9.0 | Linux x86_64, Windows x86_64, macOS x64/arm64 |
 | 0.4.x | >=2.3.1, <3.0.0 | cdylib stable | net8.0, net9.0 | Linux x86_64, Windows x86_64, macOS x64/arm64 |
+| 0.16.1 + unreleased changes | 4.6.0 | 0.13.0 | net8.0, net9.0, net10.0 | Linux x64/arm64 (glibc + musl), Windows x64/arm64, macOS x64/arm64 |
 
-## Minimum Rust toolchain: 1.77
+## Minimum Rust toolchain: 1.88
 
 ## API changes in 0.4.0
 

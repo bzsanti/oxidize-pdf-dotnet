@@ -71,6 +71,41 @@ public class PdfPageShadingTests
     }
 
     [Fact]
+    public void ConicShading_EmitsType1DictAndShOperator()
+    {
+        var pdf = BuildAndDump(page =>
+        {
+            page.AddConicShading("Cone", 100, 100, 0, 200, 0, 200, new[]
+            {
+                new GradientStop(0.0, 1.0, 0.0, 0.0),
+                new GradientStop(1.0, 0.0, 0.0, 1.0),
+            });
+            page.PaintShading("Cone");
+        });
+
+        Assert.Contains("/ShadingType 1", pdf);
+        Assert.Contains("/Cone sh", pdf);
+    }
+
+    [Fact]
+    public void GouraudMeshShading_EmitsType4DictAndShOperator()
+    {
+        var pdf = BuildAndDump(page =>
+        {
+            page.AddGouraudMeshShading("Mesh", new[]
+            {
+                new GouraudVertex(0, 50, 50, 1, 0, 0),
+                new GouraudVertex(0, 250, 50, 0, 1, 0),
+                new GouraudVertex(0, 150, 250, 0, 0, 1),
+            }, 0, 300, 0, 300);
+            page.PaintShading("Mesh");
+        });
+
+        Assert.Contains("/ShadingType 4", pdf);
+        Assert.Contains("/Mesh sh", pdf);
+    }
+
+    [Fact]
     public void Shading_IsReferencedFromPageResources()
     {
         var pdf = BuildAndDump(page =>
@@ -127,5 +162,32 @@ public class PdfPageShadingTests
     {
         using var page = PdfPage.A4();
         Assert.ThrowsAny<ArgumentException>(() => page.PaintShading(null!));
+    }
+
+    [Fact]
+    public void NewShadings_RejectInvalidGeometryColorsFlagsAndBits()
+    {
+        using var page = PdfPage.A4();
+        var stops = new[]
+        {
+            new GradientStop(0, 0, 0, 0),
+            new GradientStop(1, 1, 1, 1)
+        };
+        Assert.Throws<ArgumentException>(() =>
+            page.AddConicShading("C", 0, 0, 1, 0, 0, 1, stops));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            page.AddConicShading("C", 0, 0, 0, 1, 0, 1,
+                [new GradientStop(0, double.NaN, 0, 0), stops[1]]));
+
+        var vertices = new[]
+        {
+            new GouraudVertex(0, 0, 0, 1, 0, 0),
+            new GouraudVertex(0, 1, 0, 0, 1, 0),
+            new GouraudVertex(0, 0, 1, 0, 0, 1)
+        };
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            page.AddGouraudMeshShading("M", vertices, 0, 1, 0, 1, bitsPerFlag: 3));
+        Assert.Throws<ArgumentException>(() =>
+            page.AddGouraudMeshShading("M", [vertices[0], vertices[1] with { Flag = 3 }, vertices[2]], 0, 1, 0, 1));
     }
 }

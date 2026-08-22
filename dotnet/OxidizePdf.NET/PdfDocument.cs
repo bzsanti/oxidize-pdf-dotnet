@@ -418,7 +418,7 @@ public sealed class PdfDocument : IDisposable
     /// <c>/MarkInfo &lt;&lt;/Marked true&gt;&gt;</c> and the structure-element
     /// dictionaries, producing a Tagged PDF (the basis for PDF/UA). Link
     /// structure elements to page content via the MCIDs returned from
-    /// <see cref="PdfPage.BeginMarkedContent"/>. Returns <c>this</c>.
+    /// <see cref="PdfPage.BeginMarkedContent(string)"/>. Returns <c>this</c>.
     /// </summary>
     /// <param name="tree">The structure tree built with <see cref="PdfStructureTree"/>.</param>
     /// <exception cref="ArgumentNullException">If <paramref name="tree"/> is null.</exception>

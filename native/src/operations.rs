@@ -103,7 +103,6 @@ pub unsafe extern "C" fn oxidize_split_pdf_bytes(
             set_last_error("PDF data is empty (0 bytes)");
             return ErrorCode::PdfParseError as c_int;
         }
-
         let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
 
         let result = with_temp_input(input_bytes, |input_path| {
@@ -1102,6 +1101,33 @@ pub unsafe extern "C" fn oxidize_extract_images_bytes(
     pdf_len: usize,
     out_json: *mut *mut c_char,
 ) -> c_int {
+    oxidize_extract_images_bytes_with_limits(
+        pdf_bytes,
+        pdf_len,
+        1_000,
+        64 * 1024 * 1024,
+        256 * 1024 * 1024,
+        100_000_000,
+        out_json,
+    )
+}
+
+/// Extract images entirely in memory with explicit resource bounds.
+///
+/// # Safety
+/// - `pdf_bytes` must point to `pdf_len` readable bytes for the duration of the call.
+/// - `out_json` must be a valid writable pointer. On success it receives a string
+///   owned by this library that must be released with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_extract_images_bytes_with_limits(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    max_images: usize,
+    max_encoded_bytes_per_image: usize,
+    max_total_encoded_bytes: usize,
+    max_decoded_pixels_per_image: u64,
+    out_json: *mut *mut c_char,
+) -> c_int {
     crate::ffi_guard(move || {
         clear_last_error();
         if pdf_bytes.is_null() || out_json.is_null() {
@@ -1114,43 +1140,73 @@ pub unsafe extern "C" fn oxidize_extract_images_bytes(
             set_last_error("PDF data is empty (0 bytes)");
             return ErrorCode::PdfParseError as c_int;
         }
+        if max_images == 0
+            || max_encoded_bytes_per_image == 0
+            || max_total_encoded_bytes == 0
+            || max_decoded_pixels_per_image == 0
+        {
+            set_last_error("Image extraction limits must be greater than zero");
+            return ErrorCode::InvalidArgument as c_int;
+        }
 
-        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+        let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len).to_vec();
+        let reader = match oxidize_pdf::parser::PdfReader::new(std::io::Cursor::new(input_bytes)) {
+            Ok(reader) => reader,
+            Err(e) => {
+                set_last_error(format!("Failed to parse PDF for image extraction: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
+        let document = oxidize_pdf::parser::PdfDocument::new(reader);
+        let mut extractor = oxidize_pdf::operations::ImageExtractor::new(
+            document,
+            oxidize_pdf::operations::ExtractImagesOptions::default(),
+        );
+        let limits = oxidize_pdf::operations::ImageExtractionLimits {
+            max_images,
+            max_encoded_bytes_per_image,
+            max_total_encoded_bytes,
+            max_decoded_pixels_per_image,
+        };
+        let images = match extractor.extract_all_in_memory(limits) {
+            Ok(images) => images,
+            Err(error @ oxidize_pdf::operations::ImageExtractionError::LimitExceeded { .. }) => {
+                set_last_error(format!("In-memory image extraction failed: {error}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+            Err(
+                error @ oxidize_pdf::operations::ImageExtractionError::Operation(
+                    oxidize_pdf::operations::OperationError::ParseError(_)
+                    | oxidize_pdf::operations::OperationError::PdfError(_),
+                ),
+            ) => {
+                set_last_error(format!("In-memory image extraction failed: {error}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+            Err(
+                error @ oxidize_pdf::operations::ImageExtractionError::Operation(
+                    oxidize_pdf::operations::OperationError::Io(_),
+                ),
+            ) => {
+                set_last_error(format!("In-memory image extraction failed: {error}"));
+                return ErrorCode::IoError as c_int;
+            }
+            Err(error) => {
+                set_last_error(format!("In-memory image extraction failed: {error}"));
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
 
-        let result = with_temp_input(input_bytes, |input_path| {
-            let ts = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0);
-            let tid = std::thread::current().id();
-            let out_dir = std::env::temp_dir().join(format!("oxidize_imgs_{ts}_{tid:?}"));
-
-            let options = oxidize_pdf::operations::ExtractImagesOptions {
-                output_dir: out_dir.clone(),
-                create_dir: true,
-                ..Default::default()
+        let mut json_items = Vec::with_capacity(images.len());
+        for img in &images {
+            let data_b64 = base64::engine::general_purpose::STANDARD.encode(&img.data);
+            let format_str = match img.format {
+                oxidize_pdf::ImageFormat::Jpeg => "jpeg",
+                oxidize_pdf::ImageFormat::Png => "png",
+                oxidize_pdf::ImageFormat::Tiff => "tiff",
+                oxidize_pdf::ImageFormat::Raw => "raw",
             };
-
-            let images = oxidize_pdf::operations::extract_images_from_pdf(input_path, options)
-                .map_err(|e| format!("extract_images_from_pdf failed: {e}"))?;
-
-            let mut json_items: Vec<String> = Vec::with_capacity(images.len());
-            for img in &images {
-                let img_bytes = match fs::read(&img.file_path) {
-                    Ok(b) => b,
-                    Err(e) => {
-                        let _ = fs::remove_dir_all(&out_dir);
-                        return Err(format!("Failed to read extracted image: {e}"));
-                    }
-                };
-                let data_b64 = base64::engine::general_purpose::STANDARD.encode(&img_bytes);
-                let format_str = match img.format {
-                    oxidize_pdf::ImageFormat::Jpeg => "jpeg",
-                    oxidize_pdf::ImageFormat::Png => "png",
-                    oxidize_pdf::ImageFormat::Tiff => "tiff",
-                    oxidize_pdf::ImageFormat::Raw => "raw",
-                };
-                json_items.push(format!(
+            json_items.push(format!(
                 r#"{{"page_number":{page},"image_index":{idx},"width":{w},"height":{h},"format":"{fmt}","data":"{b64}"}}"#,
                 page = img.page_number,
                 idx = img.image_index,
@@ -1159,28 +1215,256 @@ pub unsafe extern "C" fn oxidize_extract_images_bytes(
                 fmt = format_str,
                 b64 = data_b64,
             ));
+        }
+        match CString::new(format!("[{}]", json_items.join(","))) {
+            Ok(cs) => {
+                *out_json = cs.into_raw();
+                ErrorCode::Success as c_int
             }
-
-            let _ = fs::remove_dir_all(&out_dir);
-
-            Ok(format!("[{}]", json_items.join(",")))
-        });
-
-        match result {
-            Ok(json) => match CString::new(json) {
-                Ok(cs) => {
-                    *out_json = cs.into_raw();
-                    ErrorCode::Success as c_int
-                }
-                Err(_) => {
-                    set_last_error("JSON output contains null bytes");
-                    ErrorCode::SerializationError as c_int
-                }
-            },
-            Err(msg) => {
-                set_last_error(msg);
-                ErrorCode::IoError as c_int
+            Err(_) => {
+                set_last_error("JSON output contains null bytes");
+                ErrorCode::SerializationError as c_int
             }
         }
     })
+}
+
+// ── incremental text-note editing ───────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+struct TextNoteJson {
+    object_number: u32,
+    generation_number: u16,
+    page_index: u32,
+    x: f64,
+    y: f64,
+    contents: String,
+}
+
+fn text_note_json(note: oxidize_pdf::writer::TextNote) -> TextNoteJson {
+    TextNoteJson {
+        object_number: note.id.object_number,
+        generation_number: note.id.generation_number,
+        page_index: note.page_index,
+        x: note.position.x,
+        y: note.position.y,
+        contents: note.contents,
+    }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(tag = "operation", rename_all = "snake_case")]
+enum TextNoteMutationJson {
+    Add {
+        page_index: u32,
+        x: f64,
+        y: f64,
+        contents: String,
+    },
+    Update {
+        object_number: u32,
+        generation_number: u16,
+        x: f64,
+        y: f64,
+        contents: String,
+    },
+    Remove {
+        object_number: u32,
+        generation_number: u16,
+    },
+}
+
+/// List standard text notes with stable indirect-object identities.
+///
+/// # Safety
+/// - `pdf_bytes` must point to `pdf_len` readable bytes for the duration of the call.
+/// - `out_json` must be a valid writable pointer. On success it receives a string
+///   owned by this library that must be released with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_list_text_notes(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_list_text_notes");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_json = ptr::null_mut();
+        let bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+        let editor = oxidize_pdf::writer::IncrementalTextNoteEditor::new(bytes);
+        let notes = match editor.notes() {
+            Ok(notes) => notes.into_iter().map(text_note_json).collect::<Vec<_>>(),
+            Err(e) => {
+                set_last_error(format!("Failed to list text notes: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
+        match serde_json::to_string(&notes)
+            .ok()
+            .and_then(|json| CString::new(json).ok())
+        {
+            Some(json) => {
+                *out_json = json.into_raw();
+                ErrorCode::Success as c_int
+            }
+            None => {
+                set_last_error("Failed to serialize text notes");
+                ErrorCode::SerializationError as c_int
+            }
+        }
+    })
+}
+
+/// Atomically apply a JSON batch of text-note mutations as one incremental revision.
+///
+/// # Safety
+/// - `pdf_bytes` must point to `pdf_len` readable bytes for the duration of the call.
+/// - `mutations_json` must point to a valid NUL-terminated UTF-8 string.
+/// - All output pointers must be writable. Successful byte and string outputs must
+///   be released with `oxidize_free_bytes` and `oxidize_free_string`, respectively.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_edit_text_notes(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    mutations_json: *const c_char,
+    out_bytes: *mut *mut u8,
+    out_len: *mut usize,
+    out_added_json: *mut *mut c_char,
+) -> c_int {
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null()
+            || mutations_json.is_null()
+            || out_bytes.is_null()
+            || out_len.is_null()
+            || out_added_json.is_null()
+        {
+            set_last_error("Null pointer provided to oxidize_edit_text_notes");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_bytes = ptr::null_mut();
+        *out_len = 0;
+        *out_added_json = ptr::null_mut();
+        let json = match CStr::from_ptr(mutations_json).to_str() {
+            Ok(json) => json,
+            Err(_) => return ErrorCode::InvalidUtf8 as c_int,
+        };
+        let dtos: Vec<TextNoteMutationJson> = match serde_json::from_str(json) {
+            Ok(value) => value,
+            Err(e) => {
+                set_last_error(format!("Invalid text-note mutation JSON: {e}"));
+                return ErrorCode::SerializationError as c_int;
+            }
+        };
+        use oxidize_pdf::writer::{TextNoteId, TextNoteMutation};
+        let mutations = dtos
+            .into_iter()
+            .map(|dto| match dto {
+                TextNoteMutationJson::Add {
+                    page_index,
+                    x,
+                    y,
+                    contents,
+                } => TextNoteMutation::Add {
+                    page_index,
+                    position: oxidize_pdf::Point::new(x, y),
+                    contents,
+                },
+                TextNoteMutationJson::Update {
+                    object_number,
+                    generation_number,
+                    x,
+                    y,
+                    contents,
+                } => TextNoteMutation::Update {
+                    id: TextNoteId::new(object_number, generation_number),
+                    position: oxidize_pdf::Point::new(x, y),
+                    contents,
+                },
+                TextNoteMutationJson::Remove {
+                    object_number,
+                    generation_number,
+                } => TextNoteMutation::Remove {
+                    id: TextNoteId::new(object_number, generation_number),
+                },
+            })
+            .collect::<Vec<_>>();
+        let bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
+        let update =
+            match oxidize_pdf::writer::IncrementalTextNoteEditor::new(bytes).apply(&mutations) {
+                Ok(update) => update,
+                Err(e) => {
+                    set_last_error(format!("Failed to edit text notes: {e}"));
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+            };
+        let added = update
+            .added_notes
+            .into_iter()
+            .map(text_note_json)
+            .collect::<Vec<_>>();
+        let added_json = match serde_json::to_string(&added)
+            .ok()
+            .and_then(|json| CString::new(json).ok())
+        {
+            Some(json) => json,
+            None => return ErrorCode::SerializationError as c_int,
+        };
+        set_out_bytes(update.pdf_bytes, out_bytes, out_len);
+        *out_added_json = added_json.into_raw();
+        ErrorCode::Success as c_int
+    })
+}
+
+#[cfg(test)]
+mod upstream_460_ffi_tests {
+    use super::*;
+
+    #[test]
+    fn bounded_image_extraction_rejects_zero_limits() {
+        unsafe {
+            let pdf = [b'%'];
+            let mut output = ptr::null_mut();
+            let result = oxidize_extract_images_bytes_with_limits(
+                pdf.as_ptr(),
+                pdf.len(),
+                0,
+                1,
+                1,
+                1,
+                &mut output,
+            );
+            assert_eq!(result, ErrorCode::InvalidArgument as c_int);
+            assert!(output.is_null());
+        }
+    }
+
+    #[test]
+    fn text_note_exports_reject_null_inputs() {
+        unsafe {
+            let mut json = ptr::null_mut();
+            assert_eq!(
+                oxidize_list_text_notes(ptr::null(), 0, &mut json),
+                ErrorCode::NullPointer as c_int
+            );
+
+            let mut bytes = ptr::null_mut();
+            let mut len = 1usize;
+            let mut added = ptr::null_mut();
+            assert_eq!(
+                oxidize_edit_text_notes(
+                    ptr::null(),
+                    0,
+                    ptr::null(),
+                    &mut bytes,
+                    &mut len,
+                    &mut added,
+                ),
+                ErrorCode::NullPointer as c_int
+            );
+        }
+    }
 }

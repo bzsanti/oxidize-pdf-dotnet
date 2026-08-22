@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Reading-order text extraction and configurable carriage-return handling.
+- `/ActualText` marked-content authoring for accessible replacement text.
+- Conic and free-form Gouraud mesh shading APIs.
+- Bounded, entirely in-memory image extraction.
+- Incremental listing, addition, update, and removal of text-note annotations.
+- Resolved font-resource inspection, including embedded programs and bounded
+  Type 3 glyph metadata.
+
+### Changed
+- Upgraded the native core from `oxidize-pdf` 4.0.0 to **4.6.0** and bumped
+  the FFI ABI crate from 0.12.0 to **0.13.0**.
+
 ## [0.16.1] - 2026-06-29
 
 ### Changed

@@ -868,6 +868,27 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Resolves a named page font into renderer-ready subtype, encoding,
+    /// embedded font bytes, width mappings and Type 3 glyph metadata.
+    /// </summary>
+    public Task<ResolvedFontResource> GetResolvedFontResourceAsync(
+        byte[] pdfBytes, int pageNumber, string resourceName,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0) throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        if (pageNumber < 1) throw new ArgumentOutOfRangeException(nameof(pageNumber));
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceName);
+        ValidatePdfSize(pdfBytes);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(() => CallNativeJson<ResolvedFontResource>(
+            pdfBytes,
+            (IntPtr ptr, nuint len, out IntPtr jsonPtr) => NativeMethods.oxidize_get_resolved_font_resource(
+                ptr, len, (nuint)pageNumber, resourceName, out jsonPtr),
+            $"Failed to resolve font /{resourceName} on page {pageNumber}"), cancellationToken);
+    }
+
+    /// <summary>
     /// Get the raw content streams for a specific page as decoded byte arrays.
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
@@ -1323,6 +1344,8 @@ public class PdfExtractor
                 ReconstructParagraphs = options.ReconstructParagraphs,
                 IncludeArtifacts = options.IncludeArtifacts,
                 ReorderColumns = options.ReorderColumns,
+                ReadingOrder = options.ReadingOrder,
+                CarriageReturnHandling = (byte)options.CarriageReturnHandling,
                 MaxExtractedBytes = (nuint)options.MaxExtractedBytes
             };
 
