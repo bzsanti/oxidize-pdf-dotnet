@@ -76,6 +76,30 @@ public class PdfExtractorPageResourcesTests
     }
 
     [Fact]
+    public async Task GetResolvedFontResourceAsync_ResolvesPageFont()
+    {
+        var extractor = new PdfExtractor();
+        var pdf = PdfTestFixtures.GetSamplePdf();
+        var resources = await extractor.GetPageResourcesAsync(pdf, 1);
+
+        var font = await extractor.GetResolvedFontResourceAsync(pdf, 1, resources.FontNames[0]);
+
+        Assert.Equal(resources.FontNames[0], font.ResourceName);
+        Assert.NotEmpty(font.Subtype);
+        Assert.NotEmpty(font.WritingMode);
+    }
+
+    [Fact]
+    public async Task GetResolvedFontResourceAsync_EnforcesConfiguredPdfSize()
+    {
+        var pdf = PdfTestFixtures.GetSamplePdf();
+        var extractor = new PdfExtractor(pdf.Length - 1);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            extractor.GetResolvedFontResourceAsync(pdf, 1, "F1"));
+    }
+
+    [Fact]
     public async Task GetPageResourcesAsync_PageOutOfRange_ThrowsPdfExtractionException()
     {
         var extractor = new PdfExtractor();

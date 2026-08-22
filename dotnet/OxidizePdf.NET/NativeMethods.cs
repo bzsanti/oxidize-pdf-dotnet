@@ -397,6 +397,13 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.LPUTF8Str)] string tag,
         out uint outMcid);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_begin_marked_content_with_actual_text(
+        IntPtr handle,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string tag,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string actualText,
+        out uint outMcid);
+
     /// <summary>PAGE-009: end the most recent marked-content sequence.</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_end_marked_content(IntPtr handle);
@@ -844,6 +851,29 @@ internal static class NativeMethods
         IntPtr pdfBytes,
         nuint pdfLen,
         out IntPtr outJson);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_extract_images_bytes_with_limits(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint maxImages,
+        nuint maxEncodedBytesPerImage,
+        nuint maxTotalEncodedBytes,
+        ulong maxDecodedPixelsPerImage,
+        out IntPtr outJson);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_list_text_notes(
+        IntPtr pdfBytes, nuint pdfLen, out IntPtr outJson);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_edit_text_notes(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string mutationsJson,
+        out IntPtr outBytes,
+        out nuint outLen,
+        out IntPtr outAddedJson);
 
     /// <summary>
     /// Split a PDF with configurable split options (JSON object with "mode" tag).
@@ -1329,6 +1359,12 @@ internal static class NativeMethods
         public bool ReconstructParagraphs;
         [MarshalAs(UnmanagedType.I1)]
         public bool IncludeArtifacts;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool ReorderColumns;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool ReadingOrder;
+        public byte CarriageReturnHandling;
+        public nuint MaxExtractedBytes;
     }
 
     /// <summary>Extract text from PDF bytes using custom extraction options</summary>
@@ -1337,7 +1373,8 @@ internal static class NativeMethods
         IntPtr pdfBytes,
         nuint pdfLen,
         ref ExtractionOptionsNative options,
-        out IntPtr outText);
+        out IntPtr outText,
+        [MarshalAs(UnmanagedType.I1)] out bool outTruncated);
 
     // ── Parser — metadata ─────────────────────────────────────────────────────
 
@@ -1464,6 +1501,14 @@ internal static class NativeMethods
         IntPtr pdfBytes,
         nuint pdfLen,
         nuint pageNumber,
+        out IntPtr outJson);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_resolved_font_resource(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        nuint pageNumber,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string resourceName,
         out IntPtr outJson);
 
     /// <summary>Get raw content streams for a page as base64-encoded JSON</summary>

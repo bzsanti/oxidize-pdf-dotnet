@@ -167,6 +167,23 @@ pub struct ExtractionOptionsFFI {
     /// Include `/Artifact` marked-content scopes (page furniture)
     /// (oxidize-pdf 2.10.0, issue #269). Upstream default `false`.
     pub include_artifacts: bool,
+    /// On the flat text path (`preserve_layout = false`), reorder output by
+    /// column so per-column tokens stay adjacent (oxidize-pdf 3.1.0, issue
+    /// #389). Upstream default `false`.
+    pub reorder_columns: bool,
+    /// Reorder flat-path line groups with the scale-relative XY-cut algorithm
+    /// (oxidize-pdf 4.3.0, issue #448). Ignored by preserve-layout and
+    /// reorder-columns extraction.
+    pub reading_order: bool,
+    /// Standalone carriage-return policy (oxidize-pdf 4.4.0, issue #476):
+    /// 0 = remove, 1 = replace with space, 2 = preserve while normalizing CRLF.
+    pub carriage_return_handling: u8,
+    /// Per-page cap on decoded-text bytes (oxidize-pdf 4.0.0, issue #382).
+    /// `0` means unlimited (maps to `None`); any positive value maps to
+    /// `Some(n)`. When the cap is hit, extraction stops before the run that
+    /// would overshoot and the truncation is reported via the `out_truncated`
+    /// parameter of `oxidize_extract_text_with_options`.
+    pub max_extracted_bytes: usize,
 }
 
 impl ExtractionOptionsFFI {
@@ -183,6 +200,12 @@ impl ExtractionOptionsFFI {
             track_space_decisions: false,
             reconstruct_paragraphs: self.reconstruct_paragraphs,
             include_artifacts: self.include_artifacts,
+            reorder_columns: self.reorder_columns,
+            max_extracted_bytes: if self.max_extracted_bytes == 0 {
+                None
+            } else {
+                Some(self.max_extracted_bytes)
+            },
         }
     }
 }
@@ -1010,16 +1033,18 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options(
     pdf_len: usize,
     options: *const ExtractionOptionsFFI,
     out_text: *mut *mut c_char,
+    out_truncated: *mut bool,
 ) -> c_int {
     crate::ffi_guard(move || {
         clear_last_error();
 
-        if pdf_bytes.is_null() || out_text.is_null() {
+        if pdf_bytes.is_null() || out_text.is_null() || out_truncated.is_null() {
             set_last_error("Null pointer provided to oxidize_extract_text_with_options");
             return ErrorCode::NullPointer as c_int;
         }
 
         *out_text = ptr::null_mut();
+        *out_truncated = false;
 
         if pdf_len == 0 {
             set_last_error("PDF data is empty (0 bytes)");
@@ -1040,14 +1065,35 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options(
         } else {
             (*options).to_core()
         };
+        let (reading_order, carriage_return_handling) = if options.is_null() {
+            (false, oxidize_pdf::text::CarriageReturnHandling::Remove)
+        } else {
+            let ffi = *options;
+            let handling = match ffi.carriage_return_handling {
+                0 => oxidize_pdf::text::CarriageReturnHandling::Remove,
+                1 => oxidize_pdf::text::CarriageReturnHandling::ReplaceWithSpace,
+                2 => oxidize_pdf::text::CarriageReturnHandling::NormalizeLineEnding,
+                value => {
+                    set_last_error(format!("Invalid carriage-return handling value: {value}"));
+                    return ErrorCode::InvalidArgument as c_int;
+                }
+            };
+            (ffi.reading_order, handling)
+        };
         let document = PdfDocument::new(reader);
-        let text_pages = match document.extract_text_with_options(core_options) {
+        let mut extractor = oxidize_pdf::text::TextExtractor::with_options(core_options)
+            .with_reading_order(reading_order)
+            .with_carriage_return_handling(carriage_return_handling);
+        let text_pages = match extractor.extract_from_document(&document) {
             Ok(pages) => pages,
             Err(e) => {
                 set_last_error(format!("Failed to extract text with options: {e}"));
                 return ErrorCode::PdfParseError as c_int;
             }
         };
+
+        // Report truncation if any page hit the per-page byte budget (#382).
+        *out_truncated = text_pages.iter().any(|p| p.truncated);
 
         let text = text_pages
             .iter()
@@ -2538,6 +2584,120 @@ pub unsafe extern "C" fn oxidize_get_page_resources(
 
         *out_json = c_string.into_raw();
         ErrorCode::Success as c_int
+    })
+}
+
+/// Resolve a page font into renderer-ready metadata, embedded bytes and Type3 glyph metrics.
+///
+/// # Safety
+/// - `pdf_bytes` must point to `pdf_len` readable bytes for the duration of the call.
+/// - `resource_name` must point to a valid NUL-terminated UTF-8 string.
+/// - `out_json` must be writable. On success it receives a string owned by this
+///   library that must be released with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_resolved_font_resource(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    page_number: usize,
+    resource_name: *const c_char,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if pdf_bytes.is_null() || resource_name.is_null() || out_json.is_null() {
+            set_last_error("Null pointer provided to oxidize_get_resolved_font_resource");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_json = ptr::null_mut();
+        if page_number == 0 {
+            set_last_error("Page number must be >= 1");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        let name = match CStr::from_ptr(resource_name).to_str() {
+            Ok(name) => name,
+            Err(_) => return ErrorCode::InvalidUtf8 as c_int,
+        };
+        let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+        let reader = match open_lenient(bytes) {
+            Ok(reader) => reader,
+            Err(e) => {
+                set_last_error(e);
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
+        let document = PdfDocument::new(reader);
+        let font = match oxidize_pdf::fonts::ResolvedFontResource::from_page(
+            &document,
+            (page_number - 1) as u32,
+            name,
+        ) {
+            Ok(font) => font,
+            Err(e) => {
+                set_last_error(format!("Failed to resolve font /{name}: {e}"));
+                return ErrorCode::PdfParseError as c_int;
+            }
+        };
+        let subtype = match font.subtype {
+            oxidize_pdf::fonts::FontSubtype::Type1 => "type1",
+            oxidize_pdf::fonts::FontSubtype::TrueType => "true_type",
+            oxidize_pdf::fonts::FontSubtype::CidFontType0 => "cid_font_type0",
+            oxidize_pdf::fonts::FontSubtype::CidFontType2 => "cid_font_type2",
+            oxidize_pdf::fonts::FontSubtype::Type3 => "type3",
+        };
+        let writing_mode = match font.writing_mode {
+            oxidize_pdf::fonts::WritingMode::Horizontal => "horizontal",
+            oxidize_pdf::fonts::WritingMode::Vertical => "vertical",
+        };
+        let (embedded_format, embedded_data) = font
+            .embedded_font
+            .as_ref()
+            .map(|embedded| {
+                let format = match embedded.format {
+                    oxidize_pdf::fonts::EmbeddedFontFormat::Type1 => "type1",
+                    oxidize_pdf::fonts::EmbeddedFontFormat::TrueType => "true_type",
+                    oxidize_pdf::fonts::EmbeddedFontFormat::Type1C => "type1c",
+                    oxidize_pdf::fonts::EmbeddedFontFormat::CidFontType0C => "cid_font_type0c",
+                    oxidize_pdf::fonts::EmbeddedFontFormat::OpenType => "open_type",
+                };
+                (
+                    Some(format),
+                    Some(base64::engine::general_purpose::STANDARD.encode(&embedded.data)),
+                )
+            })
+            .unwrap_or((None, None));
+        let type3 = font.type3.as_ref().map(|type3| {
+            serde_json::json!({
+                "font_matrix": type3.font_matrix,
+                "font_bbox": type3.font_bbox,
+                "glyphs": type3.glyphs().map(|glyph| serde_json::json!({
+                    "code": glyph.code,
+                    "name": glyph.name,
+                    "width": glyph.width,
+                    "procedure_width_x": glyph.procedure_width.0,
+                    "procedure_width_y": glyph.procedure_width.1,
+                    "bbox": glyph.bbox,
+                    "operation_count": glyph.operations.len()
+                })).collect::<Vec<_>>()
+            })
+        });
+        let value = serde_json::json!({
+            "resource_name": font.resource_name,
+            "base_font": font.base_font,
+            "subtype": subtype,
+            "encoding": font.encoding,
+            "writing_mode": writing_mode,
+            "differences": font.differences,
+            "embedded_format": embedded_format,
+            "embedded_data": embedded_data,
+            "type3": type3
+        });
+        match CString::new(value.to_string()) {
+            Ok(json) => {
+                *out_json = json.into_raw();
+                ErrorCode::Success as c_int
+            }
+            Err(_) => ErrorCode::SerializationError as c_int,
+        }
     })
 }
 
@@ -4368,8 +4528,10 @@ mod ffi_layout_tests {
     use std::mem::{offset_of, size_of};
 
     #[test]
-    fn extraction_options_ffi_size_is_64() {
-        assert_eq!(size_of::<ExtractionOptionsFFI>(), 64);
+    fn extraction_options_ffi_size_is_72() {
+        // Reading order and CR handling occupy bytes 59 and 60; the usize stays
+        // 8-byte-aligned at byte 64, for 72 bytes total.
+        assert_eq!(size_of::<ExtractionOptionsFFI>(), 72);
     }
 
     #[test]
@@ -4384,5 +4546,12 @@ mod ffi_layout_tests {
         assert_eq!(offset_of!(ExtractionOptionsFFI, tj_space_threshold), 48);
         assert_eq!(offset_of!(ExtractionOptionsFFI, reconstruct_paragraphs), 56);
         assert_eq!(offset_of!(ExtractionOptionsFFI, include_artifacts), 57);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, reorder_columns), 58);
+        assert_eq!(offset_of!(ExtractionOptionsFFI, reading_order), 59);
+        assert_eq!(
+            offset_of!(ExtractionOptionsFFI, carriage_return_handling),
+            60
+        );
+        assert_eq!(offset_of!(ExtractionOptionsFFI, max_extracted_bytes), 64);
     }
 }

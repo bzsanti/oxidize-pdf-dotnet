@@ -204,6 +204,57 @@ pub unsafe extern "C" fn oxidize_page_begin_marked_content(
     })
 }
 
+/// Begin tagged marked content with a logical `/ActualText` replacement.
+///
+/// # Safety
+/// - `handle` must be a valid live page handle owned by this library.
+/// - `tag` and `actual_text` must be valid NUL-terminated UTF-8 strings.
+/// - `out_mcid` must be a valid writable pointer.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_begin_marked_content_with_actual_text(
+    handle: *mut PageHandle,
+    tag: *const c_char,
+    actual_text: *const c_char,
+    out_mcid: *mut u32,
+) -> c_int {
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() || tag.is_null() || actual_text.is_null() || out_mcid.is_null() {
+            set_last_error(
+                "Null pointer provided to oxidize_page_begin_marked_content_with_actual_text",
+            );
+            return ErrorCode::NullPointer as c_int;
+        }
+        let tag = match CStr::from_ptr(tag).to_str() {
+            Ok(value) => value,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in marked-content tag");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        let actual_text = match CStr::from_ptr(actual_text).to_str() {
+            Ok(value) => value,
+            Err(_) => {
+                set_last_error("Invalid UTF-8 in ActualText");
+                return ErrorCode::InvalidUtf8 as c_int;
+            }
+        };
+        match (*handle)
+            .inner
+            .begin_marked_content_with_actual_text(tag, actual_text)
+        {
+            Ok(mcid) => {
+                *out_mcid = mcid;
+                ErrorCode::Success as c_int
+            }
+            Err(e) => {
+                set_last_error(format!("begin_marked_content_with_actual_text failed: {e}"));
+                ErrorCode::PdfParseError as c_int
+            }
+        }
+    })
+}
+
 /// PAGE-009 — End the most recently opened marked-content sequence.
 ///
 /// Emits an `EMC` operator. Returns `InvalidArgument` if no sequence is open.
@@ -802,6 +853,37 @@ mod page_editing_ffi_tests {
         unsafe {
             let result = oxidize_page_begin_screen_space(std::ptr::null_mut(), 1.0);
             assert_eq!(result, 1, "null handle must return NullPointer (1)");
+        }
+    }
+
+    #[test]
+    fn marked_content_with_actual_text_emits_utf16be_value() {
+        unsafe {
+            let handle = oxidize_page_create(200.0, 300.0);
+            let tag = std::ffi::CString::new("Span").unwrap();
+            let actual = std::ffi::CString::new("accessible").unwrap();
+            let mut mcid = u32::MAX;
+            assert_eq!(
+                oxidize_page_begin_marked_content_with_actual_text(
+                    handle,
+                    tag.as_ptr(),
+                    actual.as_ptr(),
+                    &mut mcid,
+                ),
+                ErrorCode::Success as c_int
+            );
+            assert_eq!(
+                oxidize_page_end_marked_content(handle),
+                ErrorCode::Success as c_int
+            );
+            let page = std::mem::replace(&mut (*handle).inner, Page::new(1.0, 1.0));
+            let mut doc = Document::new();
+            doc.set_compress(false);
+            doc.add_page(page);
+            let output = String::from_utf8_lossy(&doc.to_bytes().unwrap()).into_owned();
+            oxidize_page_free(handle);
+            assert_eq!(mcid, 0);
+            assert!(output.contains("/ActualText <FEFF00610063006300650073007300690062006C0065>"));
         }
     }
 

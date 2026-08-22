@@ -161,6 +161,23 @@ public sealed class PdfPage : IDisposable
     }
 
     /// <summary>
+    /// Begins tagged marked content with an <c>/ActualText</c> replacement used
+    /// by accessibility tools, search, copy/paste and text extraction while the
+    /// enclosed drawing remains unchanged.
+    /// </summary>
+    public int BeginMarkedContent(string tag, string actualText)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+        ArgumentNullException.ThrowIfNull(actualText);
+        ThrowIfDisposed();
+        ThrowIfError(
+            NativeMethods.oxidize_page_begin_marked_content_with_actual_text(
+                _handle, tag, actualText, out var mcid),
+            "Failed to begin marked content with ActualText");
+        return (int)mcid;
+    }
+
+    /// <summary>
     /// PAGE-009: Ends the most recently opened marked-content sequence, emitting
     /// an <c>EMC</c> operator. Returns <c>this</c> for fluent chaining.
     /// </summary>
@@ -1287,6 +1304,82 @@ public sealed class PdfPage : IDisposable
         return AddShading(name, json);
     }
 
+    /// <summary>Registers an exact conic (angular) gradient.</summary>
+    public PdfPage AddConicShading(
+        string name, double centerX, double centerY,
+        double minX, double maxX, double minY, double maxY,
+        IEnumerable<GradientStop> stops, double[]? matrix = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(stops);
+        if (matrix is not null && matrix.Length != 6)
+            throw new ArgumentException("A shading matrix must contain six values", nameof(matrix));
+        ValidateFinite(centerX, centerY, minX, maxX, minY, maxY);
+        if (minX >= maxX || minY >= maxY)
+            throw new ArgumentException("Conic shading bounds must have min < max");
+        if (matrix is not null && matrix.Any(value => !double.IsFinite(value)))
+            throw new ArgumentException("A shading matrix must contain only finite values", nameof(matrix));
+        var stopList = ToStopPayload(stops);
+        if (stopList.Count < 2)
+            throw new ArgumentException("A conic gradient requires at least two stops", nameof(stops));
+        return AddShading(name, JsonSerializer.Serialize(new
+        {
+            kind = "conic",
+            center = new[] { centerX, centerY },
+            domain = new[] { minX, maxX, minY, maxY },
+            matrix,
+            stops = stopList
+        }));
+    }
+
+    /// <summary>Registers a Type 4 free-form Gouraud triangle mesh.</summary>
+    public PdfPage AddGouraudMeshShading(
+        string name, IEnumerable<GouraudVertex> vertices,
+        double minX, double maxX, double minY, double maxY,
+        byte bitsPerCoordinate = 16, byte bitsPerComponent = 8, byte bitsPerFlag = 8)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(vertices);
+        ValidateFinite(minX, maxX, minY, maxY);
+        if (minX >= maxX || minY >= maxY)
+            throw new ArgumentException("Mesh decode bounds must have min < max");
+        if (bitsPerCoordinate is not (1 or 2 or 4 or 8 or 12 or 16 or 24 or 32))
+            throw new ArgumentOutOfRangeException(nameof(bitsPerCoordinate));
+        if (bitsPerComponent is not (1 or 2 or 4 or 8 or 12 or 16))
+            throw new ArgumentOutOfRangeException(nameof(bitsPerComponent));
+        if (bitsPerFlag is not (2 or 4 or 8))
+            throw new ArgumentOutOfRangeException(nameof(bitsPerFlag));
+        var verticesList = vertices.ToList();
+        if (verticesList.Count < 3)
+            throw new ArgumentException("A mesh requires at least three vertices", nameof(vertices));
+        if (verticesList[0].Flag != 0 || verticesList.Any(v => v.Flag > 2))
+            throw new ArgumentException("The first mesh flag must be 0 and all flags must be in [0,2]", nameof(vertices));
+        foreach (var vertex in verticesList)
+        {
+            ValidateFinite(vertex.X, vertex.Y, vertex.Red, vertex.Green, vertex.Blue);
+            if (!IsUnit(vertex.Red) || !IsUnit(vertex.Green) || !IsUnit(vertex.Blue))
+                throw new ArgumentOutOfRangeException(nameof(vertices), "Mesh colors must be in [0,1]");
+        }
+        var vertexList = verticesList.Select(v => new
+        {
+            flag = v.Flag,
+            x = v.X,
+            y = v.Y,
+            color = new[] { v.Red, v.Green, v.Blue }
+        }).ToList();
+        return AddShading(name, JsonSerializer.Serialize(new
+        {
+            kind = "mesh",
+            color_space = "DeviceRGB",
+            decode = new[] { minX, maxX, minY, maxY, 0d, 1d, 0d, 1d, 0d, 1d },
+            vertices = vertexList,
+            bits_per_coordinate = bitsPerCoordinate,
+            bits_per_component = bitsPerComponent,
+            bits_per_flag = bitsPerFlag,
+            stops = Array.Empty<object>()
+        }));
+    }
+
     /// <summary>
     /// Paints a previously registered shading with the <c>sh</c> operator,
     /// filling the current clip region (the whole page if unclipped). To bound
@@ -1333,11 +1426,25 @@ public sealed class PdfPage : IDisposable
     }
 
     private static List<object> ToStopPayload(IEnumerable<GradientStop> stops) =>
-        stops.Select(s => (object)new
+        stops.Select(s =>
         {
-            position = s.Position,
-            color = new[] { s.Red, s.Green, s.Blue },
+            ValidateFinite(s.Position, s.Red, s.Green, s.Blue);
+            if (!IsUnit(s.Position) || !IsUnit(s.Red) || !IsUnit(s.Green) || !IsUnit(s.Blue))
+                throw new ArgumentOutOfRangeException(nameof(stops), "Gradient positions and colors must be in [0,1]");
+            return (object)new
+            {
+                position = s.Position,
+                color = new[] { s.Red, s.Green, s.Blue },
+            };
         }).ToList();
+
+    private static bool IsUnit(double value) => value is >= 0 and <= 1;
+
+    private static void ValidateFinite(params double[] values)
+    {
+        if (values.Any(value => !double.IsFinite(value)))
+            throw new ArgumentOutOfRangeException(nameof(values), "Shading values must be finite");
+    }
 
     // ── Blend mode ───────────────────────────────────────────────────────────
 
