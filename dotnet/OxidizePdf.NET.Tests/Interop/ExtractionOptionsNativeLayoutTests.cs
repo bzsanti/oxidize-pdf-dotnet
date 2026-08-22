@@ -15,12 +15,13 @@ namespace OxidizePdf.NET.Tests.Interop;
 public class ExtractionOptionsNativeLayoutTests
 {
     [Fact]
-    public void ExtractionOptionsNative_TotalSizeIs64Bytes()
+    public void ExtractionOptionsNative_TotalSizeIs72Bytes()
     {
-        // Matches Rust #[repr(C)] ExtractionOptionsFFI on x86_64: 10 fields
-        // (4 × bool, 4 × f64 + 2 × f64 new in 2.10.0, 2 × bool new in 2.10.0)
-        // with natural alignment padding = 64 bytes total.
-        Assert.Equal(64, Marshal.SizeOf<NativeMethods.ExtractionOptionsNative>());
+        // Matches Rust #[repr(C)] ExtractionOptionsFFI on x86_64: 64 bytes
+        // through IncludeArtifacts, plus ReorderColumns (bool, 3.1.0) at byte 58
+        // ReadingOrder and CarriageReturnHandling occupy bytes 59 and 60;
+        // MaxExtractedBytes remains 8-byte-aligned at byte 64 = 72.
+        Assert.Equal(72, Marshal.SizeOf<NativeMethods.ExtractionOptionsNative>());
     }
 
     [Fact]
@@ -36,6 +37,10 @@ public class ExtractionOptionsNativeLayoutTests
         AssertOffset(48, nameof(NativeMethods.ExtractionOptionsNative.TjSpaceThreshold));
         AssertOffset(56, nameof(NativeMethods.ExtractionOptionsNative.ReconstructParagraphs));
         AssertOffset(57, nameof(NativeMethods.ExtractionOptionsNative.IncludeArtifacts));
+        AssertOffset(58, nameof(NativeMethods.ExtractionOptionsNative.ReorderColumns));
+        AssertOffset(59, nameof(NativeMethods.ExtractionOptionsNative.ReadingOrder));
+        AssertOffset(60, nameof(NativeMethods.ExtractionOptionsNative.CarriageReturnHandling));
+        AssertOffset(64, nameof(NativeMethods.ExtractionOptionsNative.MaxExtractedBytes));
     }
 
     private static void AssertOffset(int expected, string fieldName)

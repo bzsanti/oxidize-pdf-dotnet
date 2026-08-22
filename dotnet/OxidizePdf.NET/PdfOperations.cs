@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -223,6 +224,48 @@ public static class PdfOperations
 
         ct.ThrowIfCancellationRequested();
         return Task.Run(() => ExtractImages(pdfBytes), ct);
+    }
+
+    /// <summary>Extracts images in memory while enforcing explicit resource limits.</summary>
+    public static Task<List<ExtractedImageInfo>> ExtractImagesAsync(
+        byte[] pdfBytes, ImageExtractionOptions options, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(options);
+        if (pdfBytes.Length == 0)
+            throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        options.Validate();
+        return Task.Run(() => ExtractImages(pdfBytes, options), ct);
+    }
+
+    /// <summary>Lists incrementally editable standard text-note annotations.</summary>
+    public static Task<IReadOnlyList<PdfTextNote>> GetTextNotesAsync(
+        byte[] pdfBytes, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0) throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ct.ThrowIfCancellationRequested();
+        return Task.Run<IReadOnlyList<PdfTextNote>>(() => GetTextNotes(pdfBytes), ct);
+    }
+
+    /// <summary>
+    /// Applies add, update and remove operations atomically as one incremental
+    /// PDF revision. The original bytes remain an exact prefix of the result.
+    /// </summary>
+    public static Task<PdfTextNoteUpdate> EditTextNotesAsync(
+        byte[] pdfBytes, IEnumerable<PdfTextNoteMutation> mutations,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        ArgumentNullException.ThrowIfNull(mutations);
+        if (pdfBytes.Length == 0) throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        var mutationList = mutations.ToList();
+        if (mutationList.Count == 0)
+            throw new ArgumentException("At least one text-note mutation is required", nameof(mutations));
+        foreach (var mutation in mutationList) ValidateTextNoteMutation(mutation, nameof(mutations));
+        ct.ThrowIfCancellationRequested();
+        return Task.Run(() => EditTextNotes(pdfBytes, mutationList), ct);
     }
 
     /// <summary>
@@ -636,7 +679,7 @@ public static class PdfOperations
         }
     }
 
-    private static List<ExtractedImageInfo> ExtractImages(byte[] pdfBytes)
+    private static List<ExtractedImageInfo> ExtractImages(byte[] pdfBytes, ImageExtractionOptions? options = null)
     {
         IntPtr pdfPtr = IntPtr.Zero;
         IntPtr jsonPtr = IntPtr.Zero;
@@ -646,10 +689,17 @@ public static class PdfOperations
             pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
             Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
 
-            var result = NativeMethods.oxidize_extract_images_bytes(
-                pdfPtr,
-                (nuint)pdfBytes.Length,
-                out jsonPtr);
+            var result = options is null
+                ? NativeMethods.oxidize_extract_images_bytes(
+                    pdfPtr, (nuint)pdfBytes.Length, out jsonPtr)
+                : NativeMethods.oxidize_extract_images_bytes_with_limits(
+                    pdfPtr,
+                    (nuint)pdfBytes.Length,
+                    (nuint)options.MaxImages,
+                    (nuint)options.MaxEncodedBytesPerImage,
+                    (nuint)options.MaxTotalEncodedBytes,
+                    (ulong)options.MaxDecodedPixelsPerImage,
+                    out jsonPtr);
 
             ThrowIfError(result, "Failed to extract images from PDF");
 
@@ -676,6 +726,114 @@ public static class PdfOperations
         {
             if (pdfPtr != IntPtr.Zero) Marshal.FreeHGlobal(pdfPtr);
             if (jsonPtr != IntPtr.Zero) NativeMethods.oxidize_free_string(jsonPtr);
+        }
+    }
+
+    private sealed class TextNoteDto
+    {
+        [JsonPropertyName("object_number")]
+        public uint ObjectNumber { get; set; }
+        [JsonPropertyName("generation_number")]
+        public ushort GenerationNumber { get; set; }
+        [JsonPropertyName("page_index")]
+        public uint PageIndex { get; set; }
+        [JsonPropertyName("x")]
+        public double X { get; set; }
+        [JsonPropertyName("y")]
+        public double Y { get; set; }
+        [JsonPropertyName("contents")]
+        public string Contents { get; set; } = string.Empty;
+    }
+
+    private static List<PdfTextNote> ParseTextNotes(string json) =>
+        (JsonSerializer.Deserialize<List<TextNoteDto>>(json) ?? []).Select(note => new PdfTextNote(
+            new PdfTextNoteId(note.ObjectNumber, note.GenerationNumber),
+            note.PageIndex, note.X, note.Y, note.Contents)).ToList();
+
+    private static IReadOnlyList<PdfTextNote> GetTextNotes(byte[] pdfBytes)
+    {
+        var pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+        IntPtr jsonPtr = IntPtr.Zero;
+        try
+        {
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+            ThrowIfError(NativeMethods.oxidize_list_text_notes(
+                pdfPtr, (nuint)pdfBytes.Length, out jsonPtr), "Failed to list text notes");
+            return ParseTextNotes(Marshal.PtrToStringUTF8(jsonPtr) ?? "[]");
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pdfPtr);
+            if (jsonPtr != IntPtr.Zero) NativeMethods.oxidize_free_string(jsonPtr);
+        }
+    }
+
+    private static PdfTextNoteUpdate EditTextNotes(
+        byte[] pdfBytes, IReadOnlyList<PdfTextNoteMutation> mutations)
+    {
+        var payload = new List<object>(mutations.Count);
+        foreach (var mutation in mutations)
+        {
+            payload.Add(mutation switch
+            {
+                PdfTextNoteMutation.Add add => new { operation = "add", page_index = add.PageIndex, x = add.X, y = add.Y, contents = add.Contents },
+                PdfTextNoteMutation.Update update => new { operation = "update", object_number = update.Id.ObjectNumber, generation_number = update.Id.GenerationNumber, x = update.X, y = update.Y, contents = update.Contents },
+                PdfTextNoteMutation.Remove remove => new { operation = "remove", object_number = remove.Id.ObjectNumber, generation_number = remove.Id.GenerationNumber },
+                _ => throw new ArgumentException("Unknown text-note mutation", nameof(mutations))
+            });
+        }
+        var json = JsonSerializer.Serialize(payload);
+        var pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
+        IntPtr outPtr = IntPtr.Zero;
+        IntPtr addedPtr = IntPtr.Zero;
+        nuint outLen = 0;
+        try
+        {
+            Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
+            ThrowIfError(NativeMethods.oxidize_edit_text_notes(
+                pdfPtr, (nuint)pdfBytes.Length, json, out outPtr, out outLen, out addedPtr),
+                "Failed to edit text notes");
+            var result = new byte[(int)outLen];
+            Marshal.Copy(outPtr, result, 0, result.Length);
+            var added = ParseTextNotes(Marshal.PtrToStringUTF8(addedPtr) ?? "[]");
+            return new PdfTextNoteUpdate(result, added);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pdfPtr);
+            if (outPtr != IntPtr.Zero) NativeMethods.oxidize_free_bytes(outPtr, outLen);
+            if (addedPtr != IntPtr.Zero) NativeMethods.oxidize_free_string(addedPtr);
+        }
+    }
+
+    private static void ValidateTextNoteMutation(PdfTextNoteMutation? mutation, string paramName)
+    {
+        if (mutation is null) throw new ArgumentException("Mutations cannot contain null", paramName);
+        static void ValidatePosition(double x, double y, string name)
+        {
+            if (!double.IsFinite(x) || !double.IsFinite(y))
+                throw new ArgumentOutOfRangeException(name, "Text-note coordinates must be finite");
+        }
+        static void ValidateContents(string? contents, string name)
+        {
+            if (string.IsNullOrWhiteSpace(contents))
+                throw new ArgumentException("Text-note contents cannot be null, empty or whitespace", name);
+        }
+
+        switch (mutation)
+        {
+            case PdfTextNoteMutation.Add add:
+                ValidatePosition(add.X, add.Y, paramName);
+                ValidateContents(add.Contents, paramName);
+                break;
+            case PdfTextNoteMutation.Update update:
+                ValidatePosition(update.X, update.Y, paramName);
+                ValidateContents(update.Contents, paramName);
+                break;
+            case PdfTextNoteMutation.Remove:
+                break;
+            default:
+                throw new ArgumentException("Unknown text-note mutation", paramName);
         }
     }
 
