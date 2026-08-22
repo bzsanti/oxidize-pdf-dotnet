@@ -1426,7 +1426,7 @@ mod upstream_460_ffi_tests {
     #[test]
     fn bounded_image_extraction_rejects_zero_limits() {
         unsafe {
-            let pdf = [b'%'];
+            let pdf = *b"%";
             let mut output = ptr::null_mut();
             let result = oxidize_extract_images_bytes_with_limits(
                 pdf.as_ptr(),
