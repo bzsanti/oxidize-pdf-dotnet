@@ -9,7 +9,7 @@ namespace OxidizePdf.NET;
 /// Stateless PDF manipulation operations: split, merge, rotate, and page extraction.
 /// All methods work with byte arrays, requiring no file system access.
 /// </summary>
-public static class PdfOperations
+public static partial class PdfOperations
 {
     /// <summary>
     /// Splits a PDF into individual single-page PDFs.
