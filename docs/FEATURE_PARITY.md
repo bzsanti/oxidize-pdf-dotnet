@@ -1,8 +1,26 @@
 # Feature Parity — oxidize-pdf-dotnet vs oxidize-pdf core
 
-Bridge version: 0.10.0
-Core dependency: oxidize-pdf 2.10.0
-Last updated: 2026-05-28
+Version 0.18.0: official oxidize-pdf 5.1.5; native FFI 0.14.0.
+The legacy table below was last audited against bridge 0.10.0/core 2.10.0 on
+2026-05-28; its older “no” entries must not be interpreted as current gaps.
+The current 5.x migration inventory is [UPSTREAM_5_MIGRATION.md](UPSTREAM_5_MIGRATION.md).
+
+## Validated 5.x integration additions — 2026-09-27
+
+| Capability | Managed API | Status / limits |
+|---|---|---|
+| Link and unreliable-figure text | ExtractionOptions | Opt-in; old FFI layout retained |
+| Positioned text and rendering mode | PdfExtractor.ExtractTextFragmentsAsync | One-based page, byte bound |
+| Bookmark reading | PdfExtractor.GetBookmarksAsync | All destination modes; upstream writer defect #633 remains |
+| Incremental annotations | PdfOperations | Highlight Add/Remove; FreeText/Ink/geometric Add/Update/Remove |
+| Structural operations | PdfExistingDocumentOperations | Explicit policy, plans/reports, mutations; metadata defect #634 remains |
+| Incremental signing | PdfSigning | External CMS; layout, watermark, certification and field locks |
+| Semantic comparison | PdfSemanticComparison | Bounded graph/text comparison and physical revisions |
+| Existing tagged PDFs | PdfTaggedOperations | Inspection, plan, five mutation types; not full PDF/UA certification |
+| Incremental OCR | PdfOcrLayer | Caller-produced recognition; plan, invisible layers and duplicate-layer skip |
+| Removal and masking | PdfRedaction | Restricted irreversible ASCII engine; distinct visual-risk report |
+
+## Historical parity inventory
 
 For the cross-bridge (Python ↔ .NET) RAG-pipeline matrix used to schedule
 work, see [`PARITY_SPEC.md`](PARITY_SPEC.md). This document is the

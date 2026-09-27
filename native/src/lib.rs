@@ -11,19 +11,27 @@ pub mod cid_font;
 pub mod columns;
 pub mod document;
 pub mod document_metadata;
+pub mod existing_pdf;
 pub mod forms;
+pub mod free_text;
+pub mod geometric;
 pub mod graphics;
 pub mod header_footer;
+pub mod highlights;
 pub mod image;
+pub mod ink;
 pub mod layout;
 pub mod lists;
 pub mod measure;
 pub mod operations;
+pub mod outline_read;
 pub mod page;
 pub mod parser;
 pub mod pipeline_config;
 pub mod security;
 pub mod semantic;
+pub mod semantic_compare;
+pub mod signing;
 pub mod table;
 pub mod tagged;
 pub mod text;
@@ -289,3 +297,10 @@ mod tests {
         ffi_guard_unit(|| panic!("boom"));
     }
 }
+
+mod pdf_value;
+pub mod tagged_existing;
+
+pub mod ocr_layer;
+
+pub mod redaction;

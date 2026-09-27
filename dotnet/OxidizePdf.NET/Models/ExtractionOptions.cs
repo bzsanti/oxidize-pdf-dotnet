@@ -2,7 +2,7 @@ namespace OxidizePdf.NET.Models;
 
 /// <summary>
 /// Options for controlling text extraction behavior from parsed PDFs.
-/// Defaults match oxidize-pdf 4.6.0 <c>ExtractionOptions::default()</c>.
+/// Defaults match oxidize-pdf 5.1.4 <c>ExtractionOptions::default()</c>.
 /// When bumping the core dependency, verify these defaults against upstream
 /// (<c>oxidize-pdf-core/src/text/extraction.rs</c>, <c>impl Default for
 /// ExtractionOptions</c>) — they are duplicated here as plain literals and
@@ -73,6 +73,14 @@ public class ExtractionOptions
     /// <see cref="PreserveLayout"/> or <see cref="ReorderColumns"/> is enabled.
     /// </summary>
     public bool ReadingOrder { get; set; }
+
+    /// <summary>Append URI targets from link annotations in page annotation order.
+    /// Targets are extracted as text without scheme filtering and are never followed or executed. Default: false.</summary>
+    public bool IncludeLinkAnnotations { get; set; }
+
+    /// <summary>Retain unreliable text from figure fonts without a Unicode mapping
+    /// for forensic extraction. Default: false; such fallback text is filtered.</summary>
+    public bool IncludeUnreliableFigureText { get; set; }
 
     /// <summary>
     /// Controls standalone carriage returns decoded from PDF strings. CRLF is

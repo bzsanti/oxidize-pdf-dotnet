@@ -18,6 +18,26 @@
 - 🌍 **Cross-Platform** - Linux, Windows, macOS — x64 & ARM64, including musl/Alpine
 - 🛠️ **Full PDF toolkit** - Also creates and manipulates PDFs (text, graphics, merge, split, rotate, page extraction)
 
+## New in 0.18.0 — upstream 5.1.5
+
+Version 0.18.0 uses the official `oxidize-pdf = 5.1.5` package, with
+no local upstream patches. New APIs include positioned text/rendering modes,
+bookmark reading, incremental annotations, and preservation-policy operations.
+
+- [Existing-document operations and preservation policies](docs/EXISTING_DOCUMENT_OPERATIONS.md)
+- [Incremental signing with an external CMS provider](docs/INCREMENTAL_SIGNING.md)
+- [Bounded semantic comparison and revision attribution](docs/SEMANTIC_COMPARISON.md)
+- [Tagged-PDF inspection, planning and editing](docs/TAGGED_PDF_EDITING.md)
+- [Incremental OCR layers from provider results](docs/INCREMENTAL_OCR.md)
+- [Irreversible text removal and visual masking](docs/REDACTION.md)
+- [Migration inventory and validation status](docs/UPSTREAM_5_MIGRATION.md)
+
+Known upstream defects remain in mixed nested/sibling bookmark writing
+([#633](https://github.com/bzsanti/oxidizePdf/issues/633)) and metadata discard
+when reconstructively extracting or splitting pages
+([#634](https://github.com/bzsanti/oxidizePdf/issues/634)). Regression tests for
+these defects remain enabled. Version 0.18.0 ships with these known limitations; official fixes will follow in a later release.
+
 ## Installation
 
 ```bash

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-27
+
+### Added
+- Link-annotation and unreliable-figure text options, positioned text fragments
+  with rendering modes, and bounded bookmark reading.
+- Incremental Highlight, FreeText, Ink and geometric annotation editing.
+- Explicit preservation policies, plans and reports for structural operations.
+- External-CMS incremental signing and visible text/image appearances.
+- Bounded semantic comparison and physical revision attribution.
+- Existing tagged-PDF inspection, validation, planning and incremental editing.
+- Incremental invisible OCR layers from caller-provided recognition data.
+- Distinct irreversible text removal and visual masking with explicit risk reports.
+
+### Changed
+- Official upstream core 4.6.0 → **5.1.5**, without local source patches.
+- Native FFI crate 0.13.0 → **0.14.0**; existing exports and extraction ABI retained.
+
+### Known limitations
+- Upstream [#633](https://github.com/bzsanti/oxidizePdf/issues/633): creating mixed
+  nested/sibling bookmarks may produce invalid outline links.
+- Upstream [#634](https://github.com/bzsanti/oxidizePdf/issues/634): reconstructive
+  extract/split can retain metadata while reporting it discarded. Do not rely
+  on these operations to remove sensitive metadata.
+- Released with these explicitly accepted limitations; regression tests remain
+  enabled. A later release will incorporate the official upstream fixes.
+
 ## [0.17.0] - 2026-08-22
 
 ### Added

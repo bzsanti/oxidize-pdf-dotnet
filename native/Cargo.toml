@@ -1,6 +1,6 @@
 [package]
 name = "oxidize-pdf-ffi"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 rust-version = "1.88"
 authors = ["Santiago Fernández Muñoz"]
@@ -15,12 +15,13 @@ crate-type = ["cdylib"]  # C-compatible dynamic library
 name = "oxidize_pdf_ffi"
 
 [dependencies]
-oxidize-pdf = { version = "=4.6.0", default-features = false, features = ["compression", "semantic", "signatures", "language-detection"] }  # Core PDF library
+oxidize-pdf = { version = "=5.1.5", default-features = false, features = ["compression", "semantic", "signatures", "language-detection"] }  # Core PDF library
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
 base64 = "0.22"
 chrono = "0.4"
+tempfile = "3"
 
 [profile.release]
 lto = true              # Link-time optimization

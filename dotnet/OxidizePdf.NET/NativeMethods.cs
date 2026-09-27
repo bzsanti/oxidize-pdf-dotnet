@@ -1376,6 +1376,58 @@ internal static class NativeMethods
         out IntPtr outText,
         [MarshalAs(UnmanagedType.I1)] out bool outTruncated);
 
+    /// <summary>Extract text from PDF bytes using custom extraction options</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_extract_text_with_options_v2(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        ref ExtractionOptionsNative options,
+        out IntPtr outText,
+        [MarshalAs(UnmanagedType.I1)] out bool outTruncated,
+        [MarshalAs(UnmanagedType.I1)] bool includeLinkAnnotations,
+        [MarshalAs(UnmanagedType.I1)] bool includeUnreliableFigureText);
+
+    /// <summary>Extract positioned fragments and rendering modes from one page.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_extract_text_fragments(
+        IntPtr pdfBytes, nuint pdfLen, uint pageNumber, nuint maxExtractedBytes,
+        out IntPtr outJson);
+
+    /// <summary>Read bounded bookmarks and resolved destinations.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_read_bookmarks(
+        IntPtr pdfBytes, nuint pdfLen, nuint maxItems, nuint maxDepth,
+        nuint maxNamedDestinations, nuint maxNameTreeNodes, out IntPtr outJson);
+
+    /// <summary>List or atomically edit standard highlights.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_highlights_json(
+        IntPtr pdfBytes, nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? mutationsJson, out IntPtr outJson);
+
+    /// <summary>List or atomically edit FreeText annotations.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_free_text_json(
+        IntPtr pdfBytes, nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? mutationsJson, out IntPtr outJson);
+
+    /// <summary>List or atomically edit Ink annotations.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_ink_json(
+        IntPtr pdfBytes, nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? mutationsJson, out IntPtr outJson);
+
+    /// <summary>List or atomically edit geometric annotations.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_geometric_json(
+        IntPtr pdfBytes, nuint pdfLen,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? mutationsJson, out IntPtr outJson);
+
+    /// <summary>Plan or execute policy-driven structural operations.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_existing_pdf_json(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string requestJson, out IntPtr outJson);
+
     // ── Parser — metadata ─────────────────────────────────────────────────────
 
     /// <summary>Analyze a page's content to determine if it's text, scanned, or mixed</summary>
