@@ -1,3 +1,25 @@
+# Current parity target — Rust 5.4.2
+
+The bridge target is **all functional capabilities of Rust**, including options,
+results and errors. A matching core version does not establish full API parity.
+Tracking: [#81](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/81), coordinated
+by [core #710](https://github.com/bzsanti/oxidizePdf/issues/710).
+
+| Capability | Current status |
+| --- | --- |
+| Existing-document preservation, lossless page mutations, CMS signing, incremental editors, security redaction, revision comparison | Bindings exist; complete option/result audit pending |
+| Recovery with diagnostics, NBSP normalization, effective PDF version, build identification | Missing application bindings; required for full parity |
+| Signature slots and handwriting completion | Implemented locally with lifecycle/error tests; platform acceptance pending |
+| Batch, recovery/streaming and experimental SPI | Exposure and equivalence audit pending |
+| Generation, graphics, parsing, forms, layout and remaining public API | Partial exposure; full functional audit pending |
+| Tesseract recognition and optional production features | Full exposure pending |
+
+No current overall coverage percentage has been established. The historical
+matrix below includes obsolete versions and must not be used to claim current
+completeness. Package publication is separate from the parity implementation.
+
+## Historical matrix (not a current completeness claim)
+
 # Feature Parity — oxidize-pdf-dotnet vs oxidize-pdf core
 
 Version 0.18.0: official oxidize-pdf 5.1.5; native FFI 0.14.0.
