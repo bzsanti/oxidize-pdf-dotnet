@@ -57,7 +57,8 @@ public class IncrementalSigningTests
     {
         var appearance = new PdfSignatureAppearance
         {
-            SignerName = "Test Signer", Text = ["Approved"],
+            SignerName = "Test Signer",
+            Text = ["Approved"],
             Watermark = new() { Width = 1, Height = 1, Rgb = [20, 40, 80], Opacity = 0.2f }
         };
         double[] rect = [10, 10, 300, 100];
@@ -76,11 +77,11 @@ public class IncrementalSigningTests
     public async Task ReservedEntriesAndInvalidTargetsAreRejected()
     {
         await Assert.ThrowsAsync<PdfExtractionException>(() => PdfSigning.PrepareAsync(Pdf(), new()
-            { AdditionalEntries = new() { ["Contents"] = new("Text", "invalid") } }));
+        { AdditionalEntries = new() { ["Contents"] = new("Text", "invalid") } }));
         await Assert.ThrowsAsync<PdfExtractionException>(() => PdfSigning.PrepareAsync(Pdf(), new() { Existing = true, FieldName = "missing" }));
         await Assert.ThrowsAsync<PdfExtractionException>(() => PdfSigning.PrepareAsync(Pdf(), new() { PageIndex = 100 }));
         using var prepared = await PdfSigning.PrepareAsync(Pdf(), new()
-            { AdditionalEntries = new() { ["CustomEntry"] = new("Text", "Prueba") } });
+        { AdditionalEntries = new() { ["CustomEntry"] = new("Text", "Prueba") } });
         Assert.Contains("/CustomEntry", System.Text.Encoding.Latin1.GetString(prepared.PreparedPdf));
     }
 
@@ -140,9 +141,12 @@ public class IncrementalSigningTests
             FieldLock = new() { Mode = "All" },
             AdditionalEntries = new()
             {
-                ["CustomNull"] = new("Null"), ["CustomBool"] = new("Boolean", true),
-                ["CustomInt"] = new("Integer", 42), ["CustomReal"] = new("Real", 1.25),
-                ["CustomName"] = new("Name", "Value"), ["CustomBytes"] = new("Bytes", new byte[] { 1, 2 }),
+                ["CustomNull"] = new("Null"),
+                ["CustomBool"] = new("Boolean", true),
+                ["CustomInt"] = new("Integer", 42),
+                ["CustomReal"] = new("Real", 1.25),
+                ["CustomName"] = new("Name", "Value"),
+                ["CustomBytes"] = new("Bytes", new byte[] { 1, 2 }),
                 ["CustomArray"] = new("Array", new[] { new PdfObjectValue("Integer", 7) }),
                 ["CustomDict"] = new("Dictionary", new Dictionary<string, PdfObjectValue> { ["Key"] = new("Text", "text") })
             }

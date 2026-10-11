@@ -1,3 +1,34 @@
+# Current parity target — Rust 5.4.2
+
+The bridge target is **all functional capabilities of Rust**, including options,
+results and errors. A matching core version does not establish full API parity.
+Tracking: [#81](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/81), coordinated
+by [core #710](https://github.com/bzsanti/oxidizePdf/issues/710).
+
+| Capability | Current status |
+| --- | --- |
+| Existing-document preservation, lossless page mutations, CMS signing, incremental editors, security redaction, revision comparison | Bindings exist; complete option/result audit pending |
+| Recovery with full diagnostics, extraction/parser settings, NBSP normalization, effective PDF version, build identification | Implemented locally with explicit recovery/budgets and contract gate; CI pending |
+| Signature slots and handwriting completion | Integrated via #82; 14 platform CI checks passed |
+| Batch, recovery/streaming and experimental SPI | Exposure and equivalence audit pending |
+| Generation, graphics, parsing, forms, layout and remaining public API | Partial exposure; full functional audit pending |
+| Tesseract recognition and optional production features | Full exposure pending |
+
+The audited subset is recorded in `docs/parity-contract.json`. CI reflects every
+listed callable, option/result property and default, requires behavioral tests,
+and rejects an unreviewed core-pin change. An isolated test host also checks that
+native startup works before any PDF-generation API is called.
+
+No current overall coverage percentage has been established. The historical
+matrix below includes obsolete versions and must not be used to claim current
+completeness. Package publication is separate from the parity implementation.
+
+The core currently leaves space-decision arrays empty; the bridge exposes the
+option and result schema without fabricating diagnostics. Legacy parser recovery
+flags do not permit incomplete Flate data; recovery is a separate explicit API.
+
+## Historical matrix (not a current completeness claim)
+
 # Feature Parity — oxidize-pdf-dotnet vs oxidize-pdf core
 
 Version 0.18.0: official oxidize-pdf 5.1.5; native FFI 0.14.0.

@@ -15,7 +15,8 @@ public class BookmarkReadingTests
         var outline = new PdfOutline();
         outline.AddItem(new PdfOutlineItem("Parent", 0)
         {
-            IsBold = true, IsOpen = false,
+            IsBold = true,
+            IsOpen = false,
             Children = [new PdfOutlineItem("Child", 1) { IsItalic = true }]
         });
         outline.AddItem(new PdfOutlineItem("Sibling", 0));

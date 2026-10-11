@@ -16,6 +16,11 @@ public sealed class PageTextFragments
 /// <summary>A positioned text run extracted from a PDF page.</summary>
 public sealed class ExtractedTextFragment
 {
+    /// <summary>Original gray/RGB/CMYK fill color, when known.</summary>
+    [JsonPropertyName("color")] public PdfExtractedColor? Color { get; set; }
+    /// <summary>Optional space-insertion diagnostics requested by the caller.</summary>
+    [JsonPropertyName("space_decisions")] public PdfSpaceDecision[] SpaceDecisions { get; set; } = [];
+
     /// <summary>Text content.</summary>
     [JsonPropertyName("text")] public string Text { get; set; } = string.Empty;
     /// <summary>Horizontal position in page coordinates.</summary>

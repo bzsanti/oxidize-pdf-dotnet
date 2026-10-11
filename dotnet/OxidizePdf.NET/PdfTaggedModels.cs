@@ -26,11 +26,11 @@ public sealed class PdfTaggedValidation
     /// <summary>Root object identity.</summary>
     [JsonPropertyName("structure_tree_root")] public PdfTaggedObjectId? StructureTreeRoot { get; set; }
     /// <summary>Custom-to-standard role mapping.</summary>
-    [JsonPropertyName("role_map")] public Dictionary<string,string> RoleMap { get; set; } = [];
+    [JsonPropertyName("role_map")] public Dictionary<string, string> RoleMap { get; set; } = [];
     /// <summary>Declared attribute classes.</summary>
     [JsonPropertyName("class_names")] public string[] ClassNames { get; set; } = [];
     /// <summary>Class values as typed PDF value JSON.</summary>
-    [JsonPropertyName("class_map")] public Dictionary<string,JsonElement> ClassMap { get; set; } = [];
+    [JsonPropertyName("class_map")] public Dictionary<string, JsonElement> ClassMap { get; set; } = [];
     /// <summary>Marked artifacts in content.</summary>
     [JsonPropertyName("artifacts")] public PdfTaggedArtifact[] Artifacts { get; set; } = [];
     /// <summary>Inspected structure elements.</summary>
@@ -69,7 +69,7 @@ public sealed class PdfTaggedElement
     /// <summary>Original dictionary keys.</summary>
     [JsonPropertyName("dictionary_keys")] public string[] DictionaryKeys { get; set; } = [];
     /// <summary>Original values as typed PDF value JSON; strings retain raw bytes.</summary>
-    [JsonPropertyName("dictionary")] public Dictionary<string,JsonElement> Dictionary { get; set; } = [];
+    [JsonPropertyName("dictionary")] public Dictionary<string, JsonElement> Dictionary { get; set; } = [];
 }
 
 /// <summary>One marked-content artifact.</summary>

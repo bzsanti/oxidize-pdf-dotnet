@@ -104,7 +104,10 @@ public class Upstream460Tests
         Assert.Equal("Right top\nRight bottom\nLeft top\nLeft bottom", streamOrder);
         Assert.Equal("Left top\nLeft bottom\nRight top\nRight bottom", readingOrder);
 
-        var carriageReturns = BuildPdfWithContent("BT /F1 10 Tf 50 700 Td (A\\015B\\015\\012C) Tj ET");
+        // WinAnsi codes 0x0D and 0x0A are undefined glyphs. An explicit
+        // ToUnicode map makes them Unicode controls for the CR policy test.
+        var carriageReturns = BuildPdfWithContent(
+            "BT /F1 10 Tf 50 700 Td (A\\015B\\015\\012C) Tj ET", unicodeControls: true);
         var remove = await extractor.ExtractTextAsync(carriageReturns,
             new ExtractionOptions { CarriageReturnHandling = CarriageReturnHandling.Remove });
         var spaces = await extractor.ExtractTextAsync(carriageReturns,
@@ -141,27 +144,38 @@ public class Upstream460Tests
                 [new PdfTextNoteMutation.Add(0, double.NaN, 2, "note")]));
     }
 
-    private static byte[] BuildPdfWithContent(string content)
+    private static byte[] BuildPdfWithContent(string content, bool unicodeControls = false)
     {
-        var objects = new[]
+        var objects = new List<string>
         {
             "<< /Type /Catalog /Pages 2 0 R >>",
             "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
             $"<< /Length {Encoding.ASCII.GetByteCount(content)} >>\nstream\n{content}\nendstream",
-            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding" +
+            (unicodeControls ? " /ToUnicode 6 0 R" : "") + " >>"
         };
+        if (unicodeControls)
+        {
+            const string cmap = "/CIDInit /ProcSet findresource begin 12 dict begin begincmap\n" +
+                "/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n" +
+                "/CMapName /ControlText def /CMapType 2 def\n" +
+                "1 begincodespacerange <00> <FF> endcodespacerange\n" +
+                "1 beginbfrange <00> <7F> <0000> endbfrange\n" +
+                "endcmap CMapName currentdict /CMap defineresource pop end end";
+            objects.Add($"<< /Length {Encoding.ASCII.GetByteCount(cmap)} >>\nstream\n{cmap}\nendstream");
+        }
         var pdf = new StringBuilder("%PDF-1.4\n");
         var offsets = new List<int>();
-        for (var index = 0; index < objects.Length; index++)
+        for (var index = 0; index < objects.Count; index++)
         {
             offsets.Add(Encoding.ASCII.GetByteCount(pdf.ToString()));
             pdf.Append(index + 1).Append(" 0 obj\n").Append(objects[index]).Append("\nendobj\n");
         }
         var xref = Encoding.ASCII.GetByteCount(pdf.ToString());
-        pdf.Append("xref\n0 6\n0000000000 65535 f \n");
+        pdf.Append($"xref\n0 {objects.Count + 1}\n0000000000 65535 f \n");
         foreach (var offset in offsets) pdf.Append(offset.ToString("D10")).Append(" 00000 n \n");
-        pdf.Append("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n")
+        pdf.Append($"trailer\n<< /Size {objects.Count + 1} /Root 1 0 R >>\nstartxref\n")
             .Append(xref).Append("\n%%EOF\n");
         return Encoding.ASCII.GetBytes(pdf.ToString());
     }

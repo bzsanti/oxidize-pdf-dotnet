@@ -31,10 +31,12 @@ pub mod pipeline_config;
 pub mod security;
 pub mod semantic;
 pub mod semantic_compare;
+pub mod signature_slots;
 pub mod signing;
 pub mod table;
 pub mod tagged;
 pub mod text;
+pub mod text_extraction;
 pub mod text_validation;
 pub mod types;
 

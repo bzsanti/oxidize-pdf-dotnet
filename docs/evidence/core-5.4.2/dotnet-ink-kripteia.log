@@ -1,0 +1,16 @@
+## Calidad de Tests (Kripteia)
+
+=== Kripteia Test Quality Report ===
+Overall Score: 100 | Tests: 0 | Files: 0
+
+--- Files ---
+Path                                                          Tests  Score
+--------------------------------------------------------------------------
+
+
+## Analisis de Seguridad (Kripteia Security)
+
+=== Kripteia Security Analysis ===
+
+--- Unsafe Usages (1) ---
+  /tmp/bindings-core-5.4.2/dotnet/native/src/ink.rs:138 — fn oxidize_ink_json [FFI]

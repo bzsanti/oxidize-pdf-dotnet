@@ -16,7 +16,8 @@ public class OcrLayerTests
     }
     private static PdfOcrPage Page() => new()
     {
-        Language = "es", Fragments =
+        Language = "es",
+        Fragments =
         [
             new() { Text = "Reconocido", Region = [50, 500, 100, 20], Confidence = 0.99, ReadingOrder = 0 },
             new() { Text = "日本語", Region = [160, 500, 100, 20], Confidence = 0.8, ReadingOrder = 1 }

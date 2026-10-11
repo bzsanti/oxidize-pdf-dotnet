@@ -33,12 +33,27 @@ public static partial class PdfOperations
             {
                 case PdfInkMutation.Add add:
                     ValidateInk(add.Strokes, add.Color, add.Width, add.Opacity);
-                    return (object)new { operation = "add", page_index = add.PageIndex, strokes = add.Strokes,
-                        color = add.Color, width = add.Width, opacity = add.Opacity };
+                    return (object)new
+                    {
+                        operation = "add",
+                        page_index = add.PageIndex,
+                        strokes = add.Strokes,
+                        color = add.Color,
+                        width = add.Width,
+                        opacity = add.Opacity
+                    };
                 case PdfInkMutation.Update update when update.Id.ObjectNumber > 0:
                     ValidateInk(update.Strokes, update.Color, update.Width, update.Opacity);
-                    return new { operation = "update", object_number = update.Id.ObjectNumber, generation_number = update.Id.GenerationNumber,
-                        strokes = update.Strokes, color = update.Color, width = update.Width, opacity = update.Opacity };
+                    return new
+                    {
+                        operation = "update",
+                        object_number = update.Id.ObjectNumber,
+                        generation_number = update.Id.GenerationNumber,
+                        strokes = update.Strokes,
+                        color = update.Color,
+                        width = update.Width,
+                        opacity = update.Opacity
+                    };
                 case PdfInkMutation.Remove remove when remove.Id.ObjectNumber > 0:
                     return new { operation = "remove", object_number = remove.Id.ObjectNumber, generation_number = remove.Id.GenerationNumber };
                 default:

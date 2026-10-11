@@ -652,6 +652,61 @@ pub unsafe extern "C" fn oxidize_document_add_font_from_file(
     })
 }
 
+/// Set emission of oxidize build-identification metadata (0 enabled, 1 disabled).
+///
+/// # Safety
+/// Handle must be live and exclusively accessible for this call.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_set_build_identification(
+    handle: *mut DocumentHandle,
+    policy: u8,
+) -> c_int {
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("Null document");
+            return ErrorCode::NullPointer as c_int;
+        }
+        let policy = match policy {
+            0 => oxidize_pdf::document::BuildIdentification::Enabled,
+            1 => oxidize_pdf::document::BuildIdentification::Disabled,
+            _ => {
+                set_last_error("Invalid build identification policy");
+                return ErrorCode::InvalidArgument as c_int;
+            }
+        };
+        (*handle).inner.set_build_identification(policy);
+        ErrorCode::Success as c_int
+    })
+}
+/// Read the build-identification policy.
+///
+/// # Safety
+/// Handle must be live for this call and output must be writable.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_document_get_build_identification(
+    handle: *const DocumentHandle,
+    output: *mut u8,
+) -> c_int {
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if output.is_null() {
+            set_last_error("Null policy output");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *output = 0;
+        if handle.is_null() {
+            set_last_error("Null document");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *output = match (*handle).inner.build_identification() {
+            oxidize_pdf::document::BuildIdentification::Enabled => 0,
+            oxidize_pdf::document::BuildIdentification::Disabled => 1,
+        };
+        ErrorCode::Success as c_int
+    })
+}
+
 #[cfg(test)]
 mod fontmetricsstore_binding_tests {
     //! Regression suite for the per-`Document` `FontMetricsStore` binding introduced upstream in oxidize-pdf 2.8.0 (issue #230).

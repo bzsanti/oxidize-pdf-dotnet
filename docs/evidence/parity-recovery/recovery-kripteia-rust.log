@@ -1,0 +1,949 @@
+## Calidad de Tests (Kripteia)
+
+=== Kripteia Test Quality Report ===
+Overall Score: 97 | Tests: 224 | Files: 20
+
+--- Files ---
+Path                                                          Tests  Score
+--------------------------------------------------------------------------
+/tmp/bindings-core-5.4.2/dotnet/native/src/chunking.rs            8     99
+/tmp/bindings-core-5.4.2/dotnet/native/src/cid_font.rs            4    100
+/tmp/bindings-core-5.4.2/dotnet/native/src/columns.rs             3     97
+/tmp/bindings-core-5.4.2/dotnet/native/src/document.rs            3    100
+...dings-core-5.4.2/dotnet/native/src/document_metadata.rs       16     99
+/tmp/bindings-core-5.4.2/dotnet/native/src/existing_pdf.rs        1    100
+/tmp/bindings-core-5.4.2/dotnet/native/src/forms.rs              22    100
+/tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs           36     98
+/tmp/bindings-core-5.4.2/dotnet/native/src/image.rs               3     97
+/tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs             21    100
+/tmp/bindings-core-5.4.2/dotnet/native/src/lib.rs                 7     91
+/tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs          2     90
+/tmp/bindings-core-5.4.2/dotnet/native/src/page.rs               18     98
+/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs             53     96
+...indings-core-5.4.2/dotnet/native/src/pipeline_config.rs       12     87
+/tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs            4    100
+...indings-core-5.4.2/dotnet/native/src/signature_slots.rs        2     95
+/tmp/bindings-core-5.4.2/dotnet/native/src/tagged.rs              4     98
+...indings-core-5.4.2/dotnet/native/src/text_extraction.rs        2     95
+...indings-core-5.4.2/dotnet/native/src/text_validation.rs        3    100
+
+--- Worst Offenders ---
+  ffi_guard_unit_swallows_panic (/tmp/bindings-core-5.4.2/dotnet/native/src/lib.rs:297) - Score: 65
+    - Test 'ffi_guard_unit_swallows_panic' does not call any production code
+    - Test 'ffi_guard_unit_swallows_panic' executes production code without asserting on its behaviour
+  ffi_guard_ptr_returns_value_when_no_panic (/tmp/bindings-core-5.4.2/dotnet/native/src/lib.rs:283) - Score: 80
+    - Test 'ffi_guard_ptr_returns_value_when_no_panic' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'ffi_guard_ptr_returns_value_when_no_panic' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'ffi_guard_ptr_returns_value_when_no_panic' has multiple assertions without diagnostic messages
+    - Test 'ffi_guard_ptr_returns_value_when_no_panic' does not call any production code
+  oxidize_rag_chunks_with_config_both_supplied (/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:4029) - Score: 80
+    - Test 'oxidize_rag_chunks_with_config_both_supplied' only exercises the happy path — no None, Err, or edge-case inputs
+    - Test 'oxidize_rag_chunks_with_config_both_supplied' does not call any production code
+  oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer (/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:4088) - Score: 80
+    - Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has identical neighborhood to 'oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error'
+    i Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+    - Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  oxidize_semantic_chunks_accepts_custom_partition_config (/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:4166) - Score: 80
+    - Test 'oxidize_semantic_chunks_accepts_custom_partition_config' only exercises the happy path — no None, Err, or edge-case inputs
+    - Test 'oxidize_semantic_chunks_accepts_custom_partition_config' does not call any production code
+
+--- Details ---
+/tmp/bindings-core-5.4.2/dotnet/native/src/chunking.rs:
+  chunk_pdf_returns_chunk_array_with_content (line 460) - Score: 100
+    i Test 'chunk_pdf_returns_chunk_array_with_content' has multiple assertions without diagnostic messages
+    i Test 'chunk_pdf_returns_chunk_array_with_content' uses .unwrap() which silently discards error information
+  chunk_pdf_with_detection_populates_language (line 478) - Score: 100
+    i Test 'chunk_pdf_with_detection_populates_language' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'chunk_pdf_with_detection_populates_language' uses .unwrap() which silently discards error information
+  chunk_pdf_null_pdf_returns_null_pointer (line 496) - Score: 100
+    i Test 'chunk_pdf_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+  document_language_aggregates_dominant_language (line 504) - Score: 100
+    i Test 'document_language_aggregates_dominant_language' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'document_language_aggregates_dominant_language' uses .unwrap() which silently discards error information
+  document_language_returns_null_when_no_language (line 522) - Score: 90
+    - Test 'document_language_returns_null_when_no_language' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'document_language_returns_null_when_no_language' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'document_language_returns_null_when_no_language' uses .unwrap() which silently discards error information
+  token_efficient_export_then_parse_round_trips (line 560) - Score: 100
+    i Test 'token_efficient_export_then_parse_round_trips' has multiple assertions without diagnostic messages
+    i Test 'token_efficient_export_then_parse_round_trips' uses .unwrap() which silently discards error information
+  export_chunks_invalid_json_returns_invalid_argument (line 602) - Score: 100
+    i Test 'export_chunks_invalid_json_returns_invalid_argument' has multiple assertions without diagnostic messages
+    i Test 'export_chunks_invalid_json_returns_invalid_argument' uses .unwrap() which silently discards error information
+  parse_chunks_wrong_magic_returns_invalid_argument (line 611) - Score: 100
+    i Test 'parse_chunks_wrong_magic_returns_invalid_argument' has multiple assertions without diagnostic messages
+    i Test 'parse_chunks_wrong_magic_returns_invalid_argument' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/cid_font.rs:
+  cid_keyed_font_roundtrip_emits_type0_cidfonttype2_and_tounicode (line 222) - Score: 100
+    i Test 'cid_keyed_font_roundtrip_emits_type0_cidfonttype2_and_tounicode' uses .unwrap() which silently discards error information
+  show_cid_array_emits_tj_with_coalesced_glyph_cids (line 304) - Score: 100
+    i Test 'show_cid_array_emits_tj_with_coalesced_glyph_cids' uses .unwrap() which silently discards error information
+  add_cid_keyed_font_rejects_malformed_mapping_json (line 374) - Score: 100
+    i Test 'add_cid_keyed_font_rejects_malformed_mapping_json' uses .unwrap() which silently discards error information
+  add_cid_keyed_font_rejects_null_mapping_json (line 398) - Score: 100
+    i Test 'add_cid_keyed_font_rejects_null_mapping_json' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/columns.rs:
+  render_columns_emits_text_in_multiple_columns (line 189) - Score: 90
+    - Test 'render_columns_emits_text_in_multiple_columns' only exercises the happy path — no None, Err, or edge-case inputs
+  render_columns_zero_count_returns_invalid_argument (line 221) - Score: 100
+    i Test 'render_columns_zero_count_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'render_columns_zero_count_returns_invalid_argument' uses .unwrap() which silently discards error information
+  render_columns_null_returns_null_pointer (line 235) - Score: 100
+    i Test 'render_columns_null_returns_null_pointer' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'render_columns_null_returns_null_pointer' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:
+  add_font_from_bytes_populates_document_font_metrics_store (line 677) - Score: 100
+    i Test 'add_font_from_bytes_populates_document_font_metrics_store' uses .unwrap() which silently discards error information
+  document_new_page_propagates_metrics_store_to_page (line 701) - Score: 100
+    i Test 'document_new_page_propagates_metrics_store_to_page' uses .unwrap() which silently discards error information
+  measure_text_with_real_metrics_differs_from_fallback (line 722) - Score: 100
+    i Test 'measure_text_with_real_metrics_differs_from_fallback' has multiple assertions without diagnostic messages
+    i Test 'measure_text_with_real_metrics_differs_from_fallback' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/document_metadata.rs:
+  save_with_modern_config_produces_pdf15_with_xref_stream (line 496) - Score: 100
+    i Test 'save_with_modern_config_produces_pdf15_with_xref_stream' has multiple assertions without diagnostic messages
+  save_with_legacy_config_produces_pdf14_without_xref_stream (line 516) - Score: 100
+    i Test 'save_with_legacy_config_produces_pdf14_without_xref_stream' has multiple assertions without diagnostic messages
+  open_action_goto_fit_emits_goto_in_catalog (line 541) - Score: 100
+    i Test 'open_action_goto_fit_emits_goto_in_catalog' has multiple assertions without diagnostic messages
+  open_action_uri_emits_uri_action (line 558) - Score: 100
+    i Test 'open_action_uri_emits_uri_action' has multiple assertions without diagnostic messages
+  open_action_null_handle_returns_null_pointer (line 581) - Score: 100
+    i Test 'open_action_null_handle_returns_null_pointer' uses .unwrap() which silently discards error information
+  viewer_prefs_hide_toolbar_and_fit_window_emit_dict (line 590) - Score: 100
+    i Test 'viewer_prefs_hide_toolbar_and_fit_window_emit_dict' has multiple assertions without diagnostic messages
+    i Test 'viewer_prefs_hide_toolbar_and_fit_window_emit_dict' uses .unwrap() which silently discards error information
+  viewer_prefs_page_layout_two_column_left (line 608) - Score: 100
+    i Test 'viewer_prefs_page_layout_two_column_left' has multiple assertions without diagnostic messages
+    i Test 'viewer_prefs_page_layout_two_column_left' uses .unwrap() which silently discards error information
+  named_destination_single_emits_name_tree_entry (line 624) - Score: 100
+    i Test 'named_destination_single_emits_name_tree_entry' has multiple assertions without diagnostic messages
+    i Test 'named_destination_single_emits_name_tree_entry' uses .unwrap() which silently discards error information
+  named_destination_duplicate_name_last_write_wins (line 639) - Score: 100
+    i Test 'named_destination_duplicate_name_last_write_wins' has multiple assertions without diagnostic messages
+    i Test 'named_destination_duplicate_name_last_write_wins' uses .unwrap() which silently discards error information
+  named_destination_empty_name_returns_invalid_argument (line 668) - Score: 100
+    i Test 'named_destination_empty_name_returns_invalid_argument' uses .unwrap() which silently discards error information
+  page_labels_roman_then_decimal_emits_page_labels_dict (line 687) - Score: 90
+    - Test 'page_labels_roman_then_decimal_emits_page_labels_dict' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'page_labels_roman_then_decimal_emits_page_labels_dict' has multiple assertions without diagnostic messages
+    i Test 'page_labels_roman_then_decimal_emits_page_labels_dict' uses .unwrap() which silently discards error information
+  page_labels_with_prefix_and_start_emits_prefix_and_st (line 704) - Score: 90
+    - Test 'page_labels_with_prefix_and_start_emits_prefix_and_st' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'page_labels_with_prefix_and_start_emits_prefix_and_st' has multiple assertions without diagnostic messages
+    i Test 'page_labels_with_prefix_and_start_emits_prefix_and_st' uses .unwrap() which silently discards error information
+  page_labels_empty_ranges_returns_invalid_argument (line 721) - Score: 100
+    i Test 'page_labels_empty_ranges_returns_invalid_argument' uses .unwrap() which silently discards error information
+  page_labels_null_handle_returns_null_pointer (line 732) - Score: 100
+    i Test 'page_labels_null_handle_returns_null_pointer' uses .unwrap() which silently discards error information
+  save_with_config_null_handle_returns_null_pointer (line 741) - Score: 100
+    i Test 'save_with_config_null_handle_returns_null_pointer' has multiple assertions without diagnostic messages
+    i Test 'save_with_config_null_handle_returns_null_pointer' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/existing_pdf.rs:
+  rotation_updates_only_the_requested_page (line 331) - Score: 100
+    i Test 'rotation_updates_only_the_requested_page' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'rotation_updates_only_the_requested_page' has multiple assertions without diagnostic messages
+    i Test 'rotation_updates_only_the_requested_page' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/forms.rs:
+  text_field_round_trip_emits_acroform_and_field_dict (line 595) - Score: 100
+    i Test 'text_field_round_trip_emits_acroform_and_field_dict' has multiple assertions without diagnostic messages
+  text_field_is_recoverable_via_read_path (line 642) - Score: 100
+    i Test 'text_field_is_recoverable_via_read_path' has multiple assertions without diagnostic messages
+  checkbox_round_trips_checked_state (line 663) - Score: 100
+    i Test 'checkbox_round_trips_checked_state' has multiple assertions without diagnostic messages
+  radio_round_trips_selected_value_and_type (line 684) - Score: 100
+    i Test 'radio_round_trips_selected_value_and_type' has multiple assertions without diagnostic messages
+  combobox_round_trips_options_and_value (line 707) - Score: 100
+    i Test 'combobox_round_trips_options_and_value' has multiple assertions without diagnostic messages
+  listbox_round_trips_options_and_type (line 737) - Score: 100
+    i Test 'listbox_round_trips_options_and_type' has multiple assertions without diagnostic messages
+  pushbutton_round_trips_type (line 762) - Score: 100
+    i Test 'pushbutton_round_trips_type' has multiple assertions without diagnostic messages
+  read_only_and_required_flags_round_trip (line 779) - Score: 100
+    i Test 'read_only_and_required_flags_round_trip' has multiple assertions without diagnostic messages
+  fill_field_updates_value_observable_via_read_path (line 798) - Score: 100
+    i Test 'fill_field_updates_value_observable_via_read_path' uses .unwrap() which silently discards error information
+  fill_field_unknown_name_returns_invalid_argument (line 841) - Score: 100
+    i Test 'fill_field_unknown_name_returns_invalid_argument' uses .unwrap() which silently discards error information
+  fill_existing_form_sets_value_recoverable_via_read_path (line 878) - Score: 100
+    i Test 'fill_existing_form_sets_value_recoverable_via_read_path' uses .unwrap() which silently discards error information
+  fill_existing_form_unknown_field_errors_and_nulls_out (line 939) - Score: 100
+    i Test 'fill_existing_form_unknown_field_errors_and_nulls_out' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'fill_existing_form_unknown_field_errors_and_nulls_out' uses .unwrap() which silently discards error information
+  fill_existing_form_empty_field_list_is_invalid_argument (line 963) - Score: 100
+    i Test 'fill_existing_form_empty_field_list_is_invalid_argument' has multiple assertions without diagnostic messages
+    i Test 'fill_existing_form_empty_field_list_is_invalid_argument' uses .unwrap() which silently discards error information
+  fill_existing_form_empty_pdf_is_parse_error (line 982) - Score: 100
+    i Test 'fill_existing_form_empty_pdf_is_parse_error' uses .unwrap() which silently discards error information
+  add_field_null_handle_returns_null_pointer (line 1002) - Score: 100
+    i Test 'add_field_null_handle_returns_null_pointer' uses .unwrap() which silently discards error information
+  add_field_bad_json_returns_serialization_error (line 1013) - Score: 100
+    i Test 'add_field_bad_json_returns_serialization_error' uses .unwrap() which silently discards error information
+  add_field_unknown_kind_returns_invalid_argument (line 1025) - Score: 100
+    i Test 'add_field_unknown_kind_returns_invalid_argument' uses .unwrap() which silently discards error information
+  page_add_widget_null_page_returns_null_pointer (line 1037) - Score: 100
+    i Test 'page_add_widget_null_page_returns_null_pointer' uses .unwrap() which silently discards error information
+  page_add_widget_bad_json_returns_serialization_error (line 1046) - Score: 100
+    i Test 'page_add_widget_bad_json_returns_serialization_error' uses .unwrap() which silently discards error information
+  multiple_fields_all_recovered_via_read_path (line 1057) - Score: 100
+    i Test 'multiple_fields_all_recovered_via_read_path' has multiple assertions without diagnostic messages
+    i Test 'multiple_fields_all_recovered_via_read_path' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:
+  fill_cal_gray_valid_params_returns_success (line 897) - Score: 100
+    i Test 'fill_cal_gray_valid_params_returns_success' asserts against a hardcoded constant instead of a computed expected value
+  stroke_cal_gray_null_page_returns_null_pointer_error (line 910) - Score: 90
+    i Test 'stroke_cal_gray_null_page_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+    - Test 'stroke_cal_gray_null_page_returns_null_pointer_error' has low assert-to-setup ratio (8%): 1 asserts vs 12 setup lines
+  fill_lab_valid_params_returns_success (line 1014) - Score: 100
+    i Test 'fill_lab_valid_params_returns_success' asserts against a hardcoded constant instead of a computed expected value
+  stroke_lab_null_page_returns_null_pointer_error (line 1028) - Score: 90
+    i Test 'stroke_lab_null_page_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+    - Test 'stroke_lab_null_page_returns_null_pointer_error' has low assert-to-setup ratio (6%): 1 asserts vs 17 setup lines
+  fill_cal_rgb_valid_params_returns_success (line 1155) - Score: 100
+    i Test 'fill_cal_rgb_valid_params_returns_success' asserts against a hardcoded constant instead of a computed expected value
+  stroke_cal_rgb_null_page_returns_null_pointer_error (line 1169) - Score: 90
+    i Test 'stroke_cal_rgb_null_page_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+    - Test 'stroke_cal_rgb_null_page_returns_null_pointer_error' has low assert-to-setup ratio (4%): 1 asserts vs 25 setup lines
+  fill_icc_valid_params_returns_success (line 1530) - Score: 100
+    i Test 'fill_icc_valid_params_returns_success' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'fill_icc_valid_params_returns_success' uses .unwrap() which silently discards error information
+  fill_icc_null_page_returns_error (line 1544) - Score: 100
+    i Test 'fill_icc_null_page_returns_error' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'fill_icc_null_page_returns_error' uses .unwrap() which silently discards error information
+  fill_icc_empty_components_returns_invalid_argument (line 1559) - Score: 100
+    i Test 'fill_icc_empty_components_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'fill_icc_empty_components_returns_invalid_argument' uses .unwrap() which silently discards error information
+  fill_cal_gray_named_valid_params_returns_success (line 1581) - Score: 100
+    i Test 'fill_cal_gray_named_valid_params_returns_success' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'fill_cal_gray_named_valid_params_returns_success' uses .unwrap() which silently discards error information
+  fill_cal_gray_named_null_page_returns_error (line 1604) - Score: 100
+    i Test 'fill_cal_gray_named_null_page_returns_error' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'fill_cal_gray_named_null_page_returns_error' uses .unwrap() which silently discards error information
+  fill_cal_gray_named_null_name_returns_error (line 1624) - Score: 100
+    i Test 'fill_cal_gray_named_null_name_returns_error' asserts against a hardcoded constant instead of a computed expected value
+  add_tiling_pattern_valid_returns_success (line 1808) - Score: 90
+    - Test 'add_tiling_pattern_valid_returns_success' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'add_tiling_pattern_valid_returns_success' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_tiling_pattern_valid_returns_success' uses .unwrap() which silently discards error information
+  add_tiling_pattern_null_page_returns_null_pointer_error (line 1837) - Score: 100
+    i Test 'add_tiling_pattern_null_page_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_tiling_pattern_null_page_returns_null_pointer_error' uses .unwrap() which silently discards error information
+  add_tiling_pattern_invalid_paint_type_returns_invalid_argument (line 1860) - Score: 100
+    i Test 'add_tiling_pattern_invalid_paint_type_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_tiling_pattern_invalid_paint_type_returns_invalid_argument' uses .unwrap() which silently discards error information
+  add_form_xobject_valid_returns_success (line 2475) - Score: 90
+    - Test 'add_form_xobject_valid_returns_success' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'add_form_xobject_valid_returns_success' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_form_xobject_valid_returns_success' uses .unwrap() which silently discards error information
+  add_form_xobject_with_transparency_group_marks_form_as_transparent (line 2503) - Score: 90
+    - Test 'add_form_xobject_with_transparency_group_marks_form_as_transparent' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'add_form_xobject_with_transparency_group_marks_form_as_transparent' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_form_xobject_with_transparency_group_marks_form_as_transparent' uses .unwrap() which silently discards error information
+  add_form_xobject_null_page_returns_null_pointer_error (line 2541) - Score: 100
+    i Test 'add_form_xobject_null_page_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_form_xobject_null_page_returns_null_pointer_error' uses .unwrap() which silently discards error information
+  invoke_xobject_null_page_returns_null_pointer_error (line 2563) - Score: 100
+    i Test 'invoke_xobject_null_page_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'invoke_xobject_null_page_returns_null_pointer_error' uses .unwrap() which silently discards error information
+  apply_soft_mask_luminosity_registers_extgstate_with_soft_mask (line 2572) - Score: 100
+    i Test 'apply_soft_mask_luminosity_registers_extgstate_with_soft_mask' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'apply_soft_mask_luminosity_registers_extgstate_with_soft_mask' uses .unwrap() which silently discards error information
+  apply_soft_mask_invalid_type_returns_invalid_argument (line 2593) - Score: 100
+    i Test 'apply_soft_mask_invalid_type_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+  apply_soft_mask_null_page_returns_null_pointer_error (line 2603) - Score: 100
+    i Test 'apply_soft_mask_null_page_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+  draw_text_at_emits_text_operators_in_graphics_content (line 2611) - Score: 100
+    i Test 'draw_text_at_emits_text_operators_in_graphics_content' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'draw_text_at_emits_text_operators_in_graphics_content' uses .unwrap() which silently discards error information
+  draw_text_at_null_text_returns_null_pointer_error (line 2640) - Score: 90
+    i Test 'draw_text_at_null_text_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+    - Test 'draw_text_at_null_text_returns_null_pointer_error' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  clip_ellipse_emits_path_and_clip_operators (line 2657) - Score: 100
+    i Test 'clip_ellipse_emits_path_and_clip_operators' asserts against a hardcoded constant instead of a computed expected value
+  clip_ellipse_zero_radius_returns_invalid_argument (line 2673) - Score: 100
+    i Test 'clip_ellipse_zero_radius_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+  clip_ellipse_negative_radius_returns_invalid_argument (line 2683) - Score: 100
+    i Test 'clip_ellipse_negative_radius_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+  clip_ellipse_null_page_returns_null_pointer_error (line 2693) - Score: 100
+    i Test 'clip_ellipse_null_page_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+  axial_shading_emits_type2_dict_and_sh_operator (line 2760) - Score: 100
+    i Test 'axial_shading_emits_type2_dict_and_sh_operator' has multiple assertions without diagnostic messages
+  radial_shading_emits_type3_dict (line 2784) - Score: 100
+    i Test 'radial_shading_emits_type3_dict' has multiple assertions without diagnostic messages
+  add_shading_unknown_kind_returns_invalid_argument (line 2820) - Score: 100
+    i Test 'add_shading_unknown_kind_returns_invalid_argument' uses .unwrap() which silently discards error information
+  add_shading_too_few_stops_returns_invalid_argument (line 2835) - Score: 100
+    i Test 'add_shading_too_few_stops_returns_invalid_argument' uses .unwrap() which silently discards error information
+  axial_missing_coords_returns_invalid_argument (line 2850) - Score: 100
+    i Test 'axial_missing_coords_returns_invalid_argument' uses .unwrap() which silently discards error information
+  add_shading_null_page_returns_null_pointer (line 2866) - Score: 100
+    i Test 'add_shading_null_page_returns_null_pointer' uses .unwrap() which silently discards error information
+  paint_shading_null_page_returns_null_pointer (line 2878) - Score: 100
+    i Test 'paint_shading_null_page_returns_null_pointer' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:
+  draw_image_with_transparency_with_mask_emits_cm_do_and_gs (line 321) - Score: 100
+    i Test 'draw_image_with_transparency_with_mask_emits_cm_do_and_gs' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'draw_image_with_transparency_with_mask_emits_cm_do_and_gs' uses .unwrap() which silently discards error information
+  draw_image_with_transparency_no_mask_emits_cm_do_without_gs (line 348) - Score: 100
+    i Test 'draw_image_with_transparency_no_mask_emits_cm_do_without_gs' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'draw_image_with_transparency_no_mask_emits_cm_do_without_gs' uses .unwrap() which silently discards error information
+  draw_image_with_transparency_null_image_returns_null_pointer_error (line 373) - Score: 90
+    i Test 'draw_image_with_transparency_null_image_returns_null_pointer_error' asserts against a hardcoded constant instead of a computed expected value
+    - Test 'draw_image_with_transparency_null_image_returns_null_pointer_error' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:
+  test_flow_layout_create_a4_returns_non_null (line 875) - Score: 100
+    i Test 'test_flow_layout_create_a4_returns_non_null' has multiple assertions without diagnostic messages
+  test_flow_layout_create_custom_returns_non_null (line 890) - Score: 100
+    i Test 'test_flow_layout_create_custom_returns_non_null' has multiple assertions without diagnostic messages
+  test_flow_layout_add_text_returns_success (line 901) - Score: 100
+    i Test 'test_flow_layout_add_text_returns_success' uses .unwrap() which silently discards error information
+  test_flow_layout_add_text_null_handle_returns_error (line 913) - Score: 100
+    i Test 'test_flow_layout_add_text_null_handle_returns_error' uses .unwrap() which silently discards error information
+  test_flow_layout_add_text_with_line_height_success (line 927) - Score: 100
+    i Test 'test_flow_layout_add_text_with_line_height_success' uses .unwrap() which silently discards error information
+  test_flow_layout_add_table_success (line 954) - Score: 100
+    i Test 'test_flow_layout_add_table_success' uses .unwrap() which silently discards error information
+  test_flow_layout_add_rich_text_success (line 968) - Score: 100
+    i Test 'test_flow_layout_add_rich_text_success' uses .unwrap() which silently discards error information
+  test_flow_layout_add_rich_text_invalid_json_returns_error (line 980) - Score: 100
+    i Test 'test_flow_layout_add_rich_text_invalid_json_returns_error' uses .unwrap() which silently discards error information
+  test_flow_layout_build_into_creates_pages (line 990) - Score: 100
+    i Test 'test_flow_layout_build_into_creates_pages' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'test_flow_layout_build_into_creates_pages' has multiple assertions without diagnostic messages
+    i Test 'test_flow_layout_build_into_creates_pages' uses .unwrap() which silently discards error information
+  test_flow_layout_a4_content_width (line 1011) - Score: 100
+    i Test 'test_flow_layout_a4_content_width' has multiple assertions without diagnostic messages
+  test_flow_layout_a4_usable_height (line 1022) - Score: 100
+    i Test 'test_flow_layout_a4_usable_height' has multiple assertions without diagnostic messages
+  test_document_builder_create_a4_success (line 1035) - Score: 100
+    i Test 'test_document_builder_create_a4_success' has multiple assertions without diagnostic messages
+  test_document_builder_add_text_success (line 1050) - Score: 100
+    i Test 'test_document_builder_add_text_success' uses .unwrap() which silently discards error information
+  test_document_builder_add_table_success (line 1071) - Score: 100
+    i Test 'test_document_builder_add_table_success' uses .unwrap() which silently discards error information
+  test_document_builder_add_rich_text_success (line 1085) - Score: 100
+    i Test 'test_document_builder_add_rich_text_success' uses .unwrap() which silently discards error information
+  test_document_builder_build_produces_document (line 1097) - Score: 100
+    i Test 'test_document_builder_build_produces_document' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'test_document_builder_build_produces_document' has multiple assertions without diagnostic messages
+    i Test 'test_document_builder_build_produces_document' uses .unwrap() which silently discards error information
+  test_document_builder_build_twice_returns_error (line 1124) - Score: 100
+    i Test 'test_document_builder_build_twice_returns_error' has multiple assertions without diagnostic messages
+    i Test 'test_document_builder_build_twice_returns_error' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/lib.rs:
+  test_version (line 235) - Score: 100
+    i Test 'test_version' has multiple assertions without diagnostic messages
+  ffi_guard_returns_closure_value_when_no_panic (line 264) - Score: 90
+    - Test 'ffi_guard_returns_closure_value_when_no_panic' does not call any production code
+  ffi_guard_converts_panic_into_error_code_and_message (line 270) - Score: 100
+    i Test 'ffi_guard_converts_panic_into_error_code_and_message' has multiple assertions without diagnostic messages
+  ffi_guard_ptr_returns_value_when_no_panic (line 283) - Score: 80
+    - Test 'ffi_guard_ptr_returns_value_when_no_panic' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'ffi_guard_ptr_returns_value_when_no_panic' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'ffi_guard_ptr_returns_value_when_no_panic' has multiple assertions without diagnostic messages
+    - Test 'ffi_guard_ptr_returns_value_when_no_panic' does not call any production code
+  ffi_guard_unit_swallows_panic (line 297) - Score: 65
+    - Test 'ffi_guard_unit_swallows_panic' does not call any production code
+    - Test 'ffi_guard_unit_swallows_panic' executes production code without asserting on its behaviour
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:
+  bounded_image_extraction_rejects_zero_limits (line 1427) - Score: 90
+    i Test 'bounded_image_extraction_rejects_zero_limits' has multiple assertions without diagnostic messages
+    - Test 'bounded_image_extraction_rejects_zero_limits' has low assert-to-setup ratio (14%): 2 asserts vs 12 setup lines
+  text_note_exports_reject_null_inputs (line 1446) - Score: 90
+    - Test 'text_note_exports_reject_null_inputs' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'text_note_exports_reject_null_inputs' has multiple assertions without diagnostic messages
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:
+  from_parsed_bytes_preserves_page_geometry (line 788) - Score: 90
+    - Test 'from_parsed_bytes_preserves_page_geometry' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'from_parsed_bytes_preserves_page_geometry' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'from_parsed_bytes_preserves_page_geometry' has multiple assertions without diagnostic messages
+  from_parsed_bytes_overlay_roundtrip_keeps_both_markers (line 814) - Score: 100
+    i Test 'from_parsed_bytes_overlay_roundtrip_keeps_both_markers' has multiple assertions without diagnostic messages
+    i Test 'from_parsed_bytes_overlay_roundtrip_keeps_both_markers' uses .unwrap() which silently discards error information
+  begin_screen_space_null_returns_null_pointer (line 852) - Score: 100
+    i Test 'begin_screen_space_null_returns_null_pointer' asserts against a hardcoded constant instead of a computed expected value
+  marked_content_with_actual_text_emits_utf16be_value (line 860) - Score: 100
+    i Test 'marked_content_with_actual_text_emits_utf16be_value' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'marked_content_with_actual_text_emits_utf16be_value' has multiple assertions without diagnostic messages
+    i Test 'marked_content_with_actual_text_emits_utf16be_value' uses .unwrap() which silently discards error information
+  begin_screen_space_zero_scale_returns_invalid_argument (line 891) - Score: 90
+    i Test 'begin_screen_space_zero_scale_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+    - Test 'begin_screen_space_zero_scale_returns_invalid_argument' does not call any production code
+  begin_screen_space_emits_yflip_cm_for_page_height (line 901) - Score: 100
+    i Test 'begin_screen_space_emits_yflip_cm_for_page_height' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'begin_screen_space_emits_yflip_cm_for_page_height' uses .unwrap() which silently discards error information
+  marked_content_emits_bdc_emc_and_returns_mcid (line 930) - Score: 100
+    i Test 'marked_content_emits_bdc_emc_and_returns_mcid' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'marked_content_emits_bdc_emc_and_returns_mcid' uses .unwrap() which silently discards error information
+  end_marked_content_without_begin_returns_error (line 976) - Score: 90
+    i Test 'end_marked_content_without_begin_returns_error' asserts against a hardcoded constant instead of a computed expected value
+    - Test 'end_marked_content_without_begin_returns_error' does not call any production code
+  begin_screen_space_scale_factor_applies_to_height_offset (line 986) - Score: 100
+    i Test 'begin_screen_space_scale_factor_applies_to_height_offset' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'begin_screen_space_scale_factor_applies_to_height_offset' has multiple assertions without diagnostic messages
+    i Test 'begin_screen_space_scale_factor_applies_to_height_offset' uses .unwrap() which silently discards error information
+  add_icc_color_space_null_page_returns_error (line 1011) - Score: 100
+    i Test 'add_icc_color_space_null_page_returns_error' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_icc_color_space_null_page_returns_error' uses .unwrap() which silently discards error information
+  add_icc_color_space_empty_data_returns_invalid_argument (line 1028) - Score: 100
+    i Test 'add_icc_color_space_empty_data_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_icc_color_space_empty_data_returns_invalid_argument' uses .unwrap() which silently discards error information
+  icc_based_valid_n3_device_rgb_returns_success (line 1046) - Score: 100
+    i Test 'icc_based_valid_n3_device_rgb_returns_success' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'icc_based_valid_n3_device_rgb_returns_success' uses .unwrap() which silently discards error information
+  icc_based_null_page_returns_null_pointer (line 1060) - Score: 100
+    i Test 'icc_based_null_page_returns_null_pointer' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'icc_based_null_page_returns_null_pointer' uses .unwrap() which silently discards error information
+  icc_based_invalid_n_returns_invalid_argument (line 1075) - Score: 100
+    i Test 'icc_based_invalid_n_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'icc_based_invalid_n_returns_invalid_argument' uses .unwrap() which silently discards error information
+  add_color_space_cal_gray_null_page_returns_error (line 1094) - Score: 100
+    i Test 'add_color_space_cal_gray_null_page_returns_error' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_color_space_cal_gray_null_page_returns_error' uses .unwrap() which silently discards error information
+  add_color_space_cal_gray_valid_returns_success (line 1113) - Score: 100
+    i Test 'add_color_space_cal_gray_valid_returns_success' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'add_color_space_cal_gray_valid_returns_success' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:
+  oxidize_partition_with_profile_returns_json_array (line 3640) - Score: 100
+    i Test 'oxidize_partition_with_profile_returns_json_array' has multiple assertions without diagnostic messages
+  oxidize_partition_with_profile_rejects_bad_discriminant (line 3659) - Score: 100
+    i Test 'oxidize_partition_with_profile_rejects_bad_discriminant' has multiple assertions without diagnostic messages
+  oxidize_partition_with_profile_null_pdf_returns_null_pointer (line 3668) - Score: 100
+    i Test 'oxidize_partition_with_profile_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_partition_with_profile_empty_pdf_returns_parse_error (line 3676) - Score: 100
+    i Test 'oxidize_partition_with_profile_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+  oxidize_partition_with_config_emits_well_formed_elements (line 3728) - Score: 90
+    - Test 'oxidize_partition_with_config_emits_well_formed_elements' only exercises the happy path — no None, Err, or edge-case inputs
+  oxidize_partition_with_config_accepts_xycut_reading_order (line 3776) - Score: 90
+    - Test 'oxidize_partition_with_config_accepts_xycut_reading_order' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'oxidize_partition_with_config_accepts_xycut_reading_order' has multiple assertions without diagnostic messages
+  oxidize_partition_with_config_accepts_integer_min_gap (line 3802) - Score: 90
+    - Test 'oxidize_partition_with_config_accepts_integer_min_gap' does not call any production code
+  oxidize_partition_with_config_rejects_bad_json (line 3821) - Score: 100
+    i Test 'oxidize_partition_with_config_rejects_bad_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_partition_with_config_rejects_bad_json' uses .unwrap() which silently discards error information
+  oxidize_partition_with_config_rejects_missing_fields (line 3833) - Score: 100
+    i Test 'oxidize_partition_with_config_rejects_missing_fields' uses .unwrap() which silently discards error information
+  oxidize_partition_with_config_null_config_returns_null_pointer (line 3845) - Score: 100
+    i Test 'oxidize_partition_with_config_null_config_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_profile_returns_well_formed_chunks (line 3867) - Score: 100
+    i Test 'oxidize_rag_chunks_with_profile_returns_well_formed_chunks' uses .unwrap() which silently discards error information
+  oxidize_rag_chunks_with_profile_accepts_all_valid_profiles (line 3912) - Score: 90
+    - Test 'oxidize_rag_chunks_with_profile_accepts_all_valid_profiles' does not call any production code
+  oxidize_rag_chunks_with_profile_rejects_bad_discriminant (line 3924) - Score: 100
+    i Test 'oxidize_rag_chunks_with_profile_rejects_bad_discriminant' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_profile_null_pdf_returns_null_pointer (line 3934) - Score: 100
+    i Test 'oxidize_rag_chunks_with_profile_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_profile_empty_pdf_returns_parse_error (line 3942) - Score: 100
+    i Test 'oxidize_rag_chunks_with_profile_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_config_both_null_uses_defaults (line 3974) - Score: 100
+    i Test 'oxidize_rag_chunks_with_config_both_null_uses_defaults' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_config_only_hybrid_supplied (line 3984) - Score: 100
+    i Test 'oxidize_rag_chunks_with_config_only_hybrid_supplied' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_config_only_partition_supplied (line 4006) - Score: 100
+    i Test 'oxidize_rag_chunks_with_config_only_partition_supplied' has multiple assertions without diagnostic messages
+    i Test 'oxidize_rag_chunks_with_config_only_partition_supplied' uses .unwrap() which silently discards error information
+  oxidize_rag_chunks_with_config_both_supplied (line 4029) - Score: 80
+    - Test 'oxidize_rag_chunks_with_config_both_supplied' only exercises the happy path — no None, Err, or edge-case inputs
+    - Test 'oxidize_rag_chunks_with_config_both_supplied' does not call any production code
+  oxidize_rag_chunks_with_config_rejects_bad_partition_json (line 4052) - Score: 90
+    - Test 'oxidize_rag_chunks_with_config_rejects_bad_partition_json' has identical neighborhood to 'oxidize_rag_chunks_with_config_rejects_bad_hybrid_json'
+    i Test 'oxidize_rag_chunks_with_config_rejects_bad_partition_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_rag_chunks_with_config_rejects_bad_partition_json' uses .unwrap() which silently discards error information
+  oxidize_rag_chunks_with_config_rejects_bad_hybrid_json (line 4070) - Score: 90
+    - Test 'oxidize_rag_chunks_with_config_rejects_bad_hybrid_json' has identical neighborhood to 'oxidize_rag_chunks_with_config_rejects_bad_partition_json'
+    i Test 'oxidize_rag_chunks_with_config_rejects_bad_hybrid_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_rag_chunks_with_config_rejects_bad_hybrid_json' uses .unwrap() which silently discards error information
+  oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer (line 4088) - Score: 80
+    - Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has identical neighborhood to 'oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error'
+    i Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+    - Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error (line 4104) - Score: 90
+    - Test 'oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error' has identical neighborhood to 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer'
+    i Test 'oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+  oxidize_semantic_chunks_returns_well_formed_chunks (line 4134) - Score: 100
+    i Test 'oxidize_semantic_chunks_returns_well_formed_chunks' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_returns_well_formed_chunks' uses .unwrap() which silently discards error information
+  oxidize_semantic_chunks_accepts_custom_partition_config (line 4166) - Score: 80
+    - Test 'oxidize_semantic_chunks_accepts_custom_partition_config' only exercises the happy path — no None, Err, or edge-case inputs
+    - Test 'oxidize_semantic_chunks_accepts_custom_partition_config' does not call any production code
+  oxidize_semantic_chunks_rejects_null_semantic_config (line 4183) - Score: 100
+    i Test 'oxidize_semantic_chunks_rejects_null_semantic_config' has multiple assertions without diagnostic messages
+  oxidize_semantic_chunks_rejects_bad_semantic_json (line 4202) - Score: 100
+    i Test 'oxidize_semantic_chunks_rejects_bad_semantic_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_rejects_bad_semantic_json' uses .unwrap() which silently discards error information
+  oxidize_semantic_chunks_rejects_bad_partition_json (line 4220) - Score: 100
+    i Test 'oxidize_semantic_chunks_rejects_bad_partition_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_rejects_bad_partition_json' uses .unwrap() which silently discards error information
+  oxidize_semantic_chunks_null_pdf_returns_null_pointer (line 4242) - Score: 90
+    - Test 'oxidize_semantic_chunks_null_pdf_returns_null_pointer' has identical neighborhood to 'oxidize_semantic_chunks_empty_pdf_returns_parse_error'
+    i Test 'oxidize_semantic_chunks_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_null_pdf_returns_null_pointer' uses .unwrap() which silently discards error information
+  oxidize_semantic_chunks_empty_pdf_returns_parse_error (line 4262) - Score: 90
+    - Test 'oxidize_semantic_chunks_empty_pdf_returns_parse_error' has identical neighborhood to 'oxidize_semantic_chunks_null_pdf_returns_null_pointer'
+    i Test 'oxidize_semantic_chunks_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_empty_pdf_returns_parse_error' uses .unwrap() which silently discards error information
+  oxidize_to_markdown_with_options_metadata_true_emits_yaml_frontmatter (line 4294) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_metadata_true_emits_yaml_frontmatter' has multiple assertions without diagnostic messages
+  oxidize_to_markdown_with_options_metadata_false_no_yaml (line 4319) - Score: 90
+    i Test 'oxidize_to_markdown_with_options_metadata_false_no_yaml' has multiple assertions without diagnostic messages
+    - Test 'oxidize_to_markdown_with_options_metadata_false_no_yaml' does not call any production code
+  oxidize_to_markdown_with_options_pages_only_emits_page_markers_no_yaml (line 4334) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_pages_only_emits_page_markers_no_yaml' has multiple assertions without diagnostic messages
+  oxidize_to_markdown_with_options_both_true_emits_yaml_and_page_markers (line 4348) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_both_true_emits_yaml_and_page_markers' has multiple assertions without diagnostic messages
+  oxidize_to_markdown_with_options_distinct_flag_combinations_produce_distinct_output (line 4366) - Score: 90
+    - Test 'oxidize_to_markdown_with_options_distinct_flag_combinations_produce_distinct_output' does not call any production code
+  oxidize_to_markdown_with_options_rejects_bad_json (line 4391) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_rejects_bad_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_to_markdown_with_options_rejects_bad_json' uses .unwrap() which silently discards error information
+  oxidize_to_markdown_with_options_null_options_returns_null_pointer (line 4403) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_null_options_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_to_markdown_with_options_empty_pdf_returns_parse_error (line 4414) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+    i Test 'oxidize_to_markdown_with_options_empty_pdf_returns_parse_error' uses .unwrap() which silently discards error information
+  oxidize_estimate_tokens_uses_word_count_x_1_33 (line 4429) - Score: 90
+    i Test 'oxidize_estimate_tokens_uses_word_count_x_1_33' uses .unwrap() which silently discards error information
+    - Test 'oxidize_estimate_tokens_uses_word_count_x_1_33' has low assert-to-setup ratio (17%): 3 asserts vs 15 setup lines
+  oxidize_estimate_tokens_null_out_returns_null_pointer (line 4465) - Score: 100
+    i Test 'oxidize_estimate_tokens_null_out_returns_null_pointer' uses .unwrap() which silently discards error information
+  oxidize_chunk_text_splits_long_input_with_expected_schema (line 4481) - Score: 100
+    i Test 'oxidize_chunk_text_splits_long_input_with_expected_schema' has multiple assertions without diagnostic messages
+  oxidize_chunk_text_overlap_produces_shared_words_between_consecutive_chunks (line 4510) - Score: 100
+    i Test 'oxidize_chunk_text_overlap_produces_shared_words_between_consecutive_chunks' has multiple assertions without diagnostic messages
+    i Test 'oxidize_chunk_text_overlap_produces_shared_words_between_consecutive_chunks' uses .unwrap() which silently discards error information
+  oxidize_chunk_text_short_input_single_chunk (line 4534) - Score: 100
+    i Test 'oxidize_chunk_text_short_input_single_chunk' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'oxidize_chunk_text_short_input_single_chunk' has multiple assertions without diagnostic messages
+  oxidize_chunk_text_rejects_overlap_ge_size (line 4546) - Score: 100
+    i Test 'oxidize_chunk_text_rejects_overlap_ge_size' has multiple assertions without diagnostic messages
+    i Test 'oxidize_chunk_text_rejects_overlap_ge_size' uses .unwrap() which silently discards error information
+  oxidize_chunk_text_rejects_zero_chunk_size (line 4561) - Score: 100
+    i Test 'oxidize_chunk_text_rejects_zero_chunk_size' has multiple assertions without diagnostic messages
+    i Test 'oxidize_chunk_text_rejects_zero_chunk_size' uses .unwrap() which silently discards error information
+  oxidize_chunk_text_null_text_returns_null_pointer (line 4570) - Score: 100
+    i Test 'oxidize_chunk_text_null_text_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_chunk_text_null_out_returns_null_pointer (line 4578) - Score: 100
+    i Test 'oxidize_chunk_text_null_out_returns_null_pointer' uses .unwrap() which silently discards error information
+  negative_ff_does_not_activate_flags (line 4588) - Score: 100
+    i Test 'negative_ff_does_not_activate_flags' asserts against a hardcoded constant instead of a computed expected value
+  extraction_options_ffi_size_is_72 (line 4616) - Score: 100
+    i Test 'extraction_options_ffi_size_is_72' asserts against a hardcoded constant instead of a computed expected value
+  extraction_options_ffi_field_offsets (line 4623) - Score: 90
+    i Test 'extraction_options_ffi_field_offsets' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'extraction_options_ffi_field_offsets' has multiple assertions without diagnostic messages
+    - Test 'extraction_options_ffi_field_offsets' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/pipeline_config.rs:
+  partition_config_roundtrip_simple (line 190) - Score: 90
+    - Test 'partition_config_roundtrip_simple' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'partition_config_roundtrip_simple' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'partition_config_roundtrip_simple' has multiple assertions without diagnostic messages
+    i Test 'partition_config_roundtrip_simple' uses .unwrap() which silently discards error information
+  partition_config_prefer_ruling_tables_explicit_false_is_honored (line 213) - Score: 80
+    - Test 'partition_config_prefer_ruling_tables_explicit_false_is_honored' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'partition_config_prefer_ruling_tables_explicit_false_is_honored' uses .unwrap() which silently discards error information
+    - Test 'partition_config_prefer_ruling_tables_explicit_false_is_honored' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  partition_config_detect_spatial_tables_explicit_false_is_honored (line 230) - Score: 80
+    - Test 'partition_config_detect_spatial_tables_explicit_false_is_honored' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'partition_config_detect_spatial_tables_explicit_false_is_honored' uses .unwrap() which silently discards error information
+    - Test 'partition_config_detect_spatial_tables_explicit_false_is_honored' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  partition_config_xycut (line 247) - Score: 80
+    - Test 'partition_config_xycut' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'partition_config_xycut' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'partition_config_xycut' uses .unwrap() which silently discards error information
+    - Test 'partition_config_xycut' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  partition_config_xycut_integer_min_gap (line 266) - Score: 80
+    - Test 'partition_config_xycut_integer_min_gap' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'partition_config_xycut_integer_min_gap' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'partition_config_xycut_integer_min_gap' uses .unwrap() which silently discards error information
+    - Test 'partition_config_xycut_integer_min_gap' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  partition_config_reading_order_none (line 286) - Score: 80
+    - Test 'partition_config_reading_order_none' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'partition_config_reading_order_none' uses .unwrap() which silently discards error information
+    - Test 'partition_config_reading_order_none' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  profile_discriminants (line 302) - Score: 100
+    i Test 'profile_discriminants' has multiple assertions without diagnostic messages
+  hybrid_config_roundtrip_same_type_only (line 323) - Score: 90
+    - Test 'hybrid_config_roundtrip_same_type_only' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'hybrid_config_roundtrip_same_type_only' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'hybrid_config_roundtrip_same_type_only' has multiple assertions without diagnostic messages
+    i Test 'hybrid_config_roundtrip_same_type_only' uses .unwrap() which silently discards error information
+  hybrid_config_roundtrip_any_inline_content (line 341) - Score: 90
+    - Test 'hybrid_config_roundtrip_any_inline_content' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'hybrid_config_roundtrip_any_inline_content' has multiple assertions without diagnostic messages
+    i Test 'hybrid_config_roundtrip_any_inline_content' uses .unwrap() which silently discards error information
+  semantic_config_roundtrip (line 356) - Score: 90
+    - Test 'semantic_config_roundtrip' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'semantic_config_roundtrip' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'semantic_config_roundtrip' has multiple assertions without diagnostic messages
+    i Test 'semantic_config_roundtrip' uses .unwrap() which silently discards error information
+  markdown_options_roundtrip (line 370) - Score: 90
+    - Test 'markdown_options_roundtrip' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'markdown_options_roundtrip' has multiple assertions without diagnostic messages
+    i Test 'markdown_options_roundtrip' uses .unwrap() which silently discards error information
+  reading_order_unknown_tag_panics (line 380) - Score: 90
+    - Test 'reading_order_unknown_tag_panics' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'reading_order_unknown_tag_panics' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs:
+  mark_and_export_entity_plain_json_carries_content_jsonld_carries_context (line 343) - Score: 100
+    i Test 'mark_and_export_entity_plain_json_carries_content_jsonld_carries_context' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'mark_and_export_entity_plain_json_carries_content_jsonld_carries_context' has multiple assertions without diagnostic messages
+    i Test 'mark_and_export_entity_plain_json_carries_content_jsonld_carries_context' uses .unwrap() which silently discards error information
+  set_content_unknown_entity_returns_invalid_argument (line 410) - Score: 100
+    i Test 'set_content_unknown_entity_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+  relate_entities_records_relationship_in_export (line 424) - Score: 100
+    i Test 'relate_entities_records_relationship_in_export' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'relate_entities_records_relationship_in_export' has multiple assertions without diagnostic messages
+  mark_entity_null_handle_returns_null_pointer (line 448) - Score: 100
+    i Test 'mark_entity_null_handle_returns_null_pointer' asserts against a hardcoded constant instead of a computed expected value
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/signature_slots.rs:
+  null_input_clears_output_before_returning_error (line 145) - Score: 100
+    i Test 'null_input_clears_output_before_returning_error' has multiple assertions without diagnostic messages
+    i Test 'null_input_clears_output_before_returning_error' uses .unwrap() which silently discards error information
+  malformed_and_unknown_fields_fail_closed (line 155) - Score: 90
+    - Test 'malformed_and_unknown_fields_fail_closed' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'malformed_and_unknown_fields_fail_closed' has multiple assertions without diagnostic messages
+    i Test 'malformed_and_unknown_fields_fail_closed' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/tagged.rs:
+  set_struct_tree_emits_struct_tree_root_and_elements (line 195) - Score: 100
+    i Test 'set_struct_tree_emits_struct_tree_root_and_elements' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'set_struct_tree_emits_struct_tree_root_and_elements' has multiple assertions without diagnostic messages
+    i Test 'set_struct_tree_emits_struct_tree_root_and_elements' uses .unwrap() which silently discards error information
+  set_struct_tree_null_returns_error (line 258) - Score: 100
+    i Test 'set_struct_tree_null_returns_error' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'set_struct_tree_null_returns_error' uses .unwrap() which silently discards error information
+  set_struct_tree_empty_elements_returns_invalid_argument (line 269) - Score: 100
+    i Test 'set_struct_tree_empty_elements_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'set_struct_tree_empty_elements_returns_invalid_argument' uses .unwrap() which silently discards error information
+  set_struct_tree_child_before_parent_returns_invalid_argument (line 279) - Score: 90
+    i Test 'set_struct_tree_child_before_parent_returns_invalid_argument' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'set_struct_tree_child_before_parent_returns_invalid_argument' uses .unwrap() which silently discards error information
+    - Test 'set_struct_tree_child_before_parent_returns_invalid_argument' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/text_extraction.rs:
+  fragment_mapping_preserves_original_color_and_space_decisions (line 239) - Score: 90
+    - Test 'fragment_mapping_preserves_original_color_and_space_decisions' has low assert-to-setup ratio (8%): 2 asserts vs 22 setup lines
+  null_input_clears_output_and_does_not_dereference_bytes (line 274) - Score: 100
+    i Test 'null_input_clears_output_and_does_not_dereference_bytes' has multiple assertions without diagnostic messages
+    i Test 'null_input_clears_output_and_does_not_dereference_bytes' uses .unwrap() which silently discards error information
+
+/tmp/bindings-core-5.4.2/dotnet/native/src/text_validation.rs:
+  validate_contract_finds_date_and_amount (line 210) - Score: 100
+    i Test 'validate_contract_finds_date_and_amount' has multiple assertions without diagnostic messages
+  extract_key_info_groups_dates_and_amounts (line 229) - Score: 100
+    i Test 'extract_key_info_groups_dates_and_amounts' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'extract_key_info_groups_dates_and_amounts' has multiple assertions without diagnostic messages
+    i Test 'extract_key_info_groups_dates_and_amounts' uses .unwrap() which silently discards error information
+  validate_contract_null_returns_null_pointer (line 248) - Score: 100
+    i Test 'validate_contract_null_returns_null_pointer' asserts against a hardcoded constant instead of a computed expected value
+
+
+## Analisis de Seguridad (Kripteia Security)
+
+=== Kripteia Security Analysis ===
+
+--- Unsafe Usages (287) ---
+  /tmp/bindings-core-5.4.2/dotnet/native/src/signing.rs:153 — fn oxidize_signature_prepare [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/signing.rs:202 — fn oxidize_signature_finalize [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/signing.rs:240 — fn oxidize_signature_free [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/signing.rs:252 — fn oxidize_signature_layout [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/redaction.rs:35 — fn oxidize_redaction [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/cid_font.rs:36 — fn oxidize_document_add_cid_keyed_font [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/cid_font.rs:123 — fn oxidize_page_show_cid_array [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:19 — fn oxidize_document_create [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:36 — fn oxidize_document_free [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:51 — fn oxidize_document_set_title [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:79 — fn oxidize_document_set_author [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:107 — fn oxidize_document_set_subject [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:135 — fn oxidize_document_set_keywords [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:163 — fn oxidize_document_set_creator [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:191 — fn oxidize_document_set_producer [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:218 — fn oxidize_document_set_creation_date [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:245 — fn oxidize_document_set_modification_date [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:273 — fn oxidize_document_save_to_file [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:319 — fn oxidize_document_new_page_a4 [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:341 — fn oxidize_document_new_page_letter [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:366 — fn oxidize_document_new_page [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:413 — fn oxidize_document_add_page [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:436 — fn oxidize_document_save_to_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:474 — fn oxidize_document_page_count [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:496 — fn oxidize_document_add_font_from_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:538 — fn oxidize_document_set_outline [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:622 — fn oxidize_document_add_font_from_file [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:772 — fn oxidize_document_set_build_identification [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document.rs:799 — fn oxidize_document_get_build_identification [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/existing_pdf.rs:290 — fn oxidize_existing_pdf_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/outline_read.rs:81 — fn oxidize_read_bookmarks [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:27 — fn oxidize_page_add_link_uri [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:60 — fn oxidize_page_add_link_goto [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:93 — fn oxidize_page_add_highlight [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:121 — fn oxidize_page_add_underline [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:146 — fn oxidize_page_add_strikeout [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:174 — fn oxidize_page_add_text_note [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:214 — fn oxidize_page_add_stamp [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:270 — fn oxidize_page_add_annotation_line [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:298 — fn oxidize_page_add_annotation_rect [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/annotations.rs:336 — fn oxidize_page_add_annotation_circle [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:36 — fn oxidize_page_from_parsed_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:87 — fn oxidize_page_create [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:102 — fn oxidize_page_create_preset [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:137 — fn oxidize_page_begin_screen_space [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:176 — fn oxidize_page_begin_marked_content [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:214 — fn oxidize_page_begin_marked_content_with_actual_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:265 — fn oxidize_page_end_marked_content [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:290 — fn oxidize_page_free [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:305 — fn oxidize_page_set_margins [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:330 — fn oxidize_page_get_width [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:351 — fn oxidize_page_set_rotation [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:373 — fn oxidize_page_get_rotation [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:395 — fn oxidize_page_get_height [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:417 — fn oxidize_page_get_margins [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:456 — fn oxidize_page_add_color_space_cal_gray [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:509 — fn oxidize_page_add_color_space_cal_rgb [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:574 — fn oxidize_page_add_color_space_lab [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:635 — fn oxidize_page_add_icc_color_space [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/page.rs:695 — fn oxidize_page_add_color_space_icc_based [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/tagged.rs:152 — fn oxidize_document_set_struct_tree_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:24 — fn oxidize_flow_layout_create_a4 [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:50 — fn oxidize_flow_layout_create [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:89 — fn oxidize_flow_layout_free [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:104 — fn oxidize_flow_layout_add_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:136 — fn oxidize_flow_layout_add_text_with_line_height [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:173 — fn oxidize_flow_layout_add_spacer [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:196 — fn oxidize_flow_layout_add_table [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:223 — fn oxidize_flow_layout_add_rich_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:249 — fn oxidize_flow_layout_add_image [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:284 — fn oxidize_flow_layout_add_image_centered [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:318 — fn oxidize_flow_layout_build_into [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:342 — fn oxidize_flow_layout_content_width [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:363 — fn oxidize_flow_layout_usable_height [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:391 — fn oxidize_document_builder_create_a4 [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:415 — fn oxidize_document_builder_create [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:453 — fn oxidize_document_builder_free [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:487 — fn oxidize_document_builder_add_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:522 — fn oxidize_document_builder_add_text_with_line_height [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:559 — fn oxidize_document_builder_add_spacer [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:585 — fn oxidize_document_builder_add_table [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:613 — fn oxidize_document_builder_add_rich_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:642 — fn oxidize_document_builder_add_image [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:680 — fn oxidize_document_builder_add_image_centered [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:717 — fn oxidize_document_builder_build [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:767 — fn parse_simple_table
+  /tmp/bindings-core-5.4.2/dotnet/native/src/layout.rs:838 — fn parse_rich_text
+  /tmp/bindings-core-5.4.2/dotnet/native/src/ink.rs:138 — fn oxidize_ink_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/signature_slots.rs:95 — fn oxidize_signature_slots [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:19 — fn oxidize_image_from_jpeg [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:58 — fn oxidize_image_from_png [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:97 — fn oxidize_image_from_file [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:135 — fn oxidize_image_free [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:150 — fn oxidize_image_get_width [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:171 — fn oxidize_image_get_height [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:193 — fn oxidize_page_add_image [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:222 — fn oxidize_page_draw_image [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/image.rs:269 — fn oxidize_page_draw_image_with_transparency [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document_metadata.rs:69 — fn oxidize_document_set_open_action_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document_metadata.rs:216 — fn oxidize_document_set_viewer_preferences_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document_metadata.rs:260 — fn oxidize_document_add_named_destination_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document_metadata.rs:348 — fn oxidize_document_set_page_labels_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/document_metadata.rs:400 — fn oxidize_document_save_to_bytes_with_config [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/highlights.rs:98 — fn oxidize_highlights_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/ocr_layer.rs:42 — fn oxidize_ocr_layer [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/tagged_existing.rs:157 — fn oxidize_tagged_existing [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/forms.rs:151 — fn oxidize_document_enable_forms [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/forms.rs:182 — fn oxidize_document_add_form_field_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/forms.rs:325 — fn oxidize_page_add_form_widget_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/forms.rs:376 — fn oxidize_document_fill_field [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/forms.rs:453 — fn oxidize_fill_existing_form_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/columns.rs:85 — fn oxidize_page_render_columns_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/table.rs:21 — fn oxidize_table_builder_create [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/table.rs:65 — fn oxidize_table_builder_free [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/table.rs:79 — fn oxidize_table_builder_set_position [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/table.rs:109 — fn oxidize_table_builder_add_row [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/table.rs:154 — fn oxidize_page_add_table [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:402 — fn oxidize_extract_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:468 — fn oxidize_extract_chunks [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:543 — fn oxidize_get_page_count [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:594 — fn oxidize_extract_text_from_page [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:672 — fn oxidize_extract_chunks_from_page [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:762 — fn oxidize_is_encrypted [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:798 — fn oxidize_unlock_pdf [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:854 — fn oxidize_get_pdf_version [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:898 — fn oxidize_get_page_dimensions [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:951 — fn oxidize_get_metadata [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1031 — fn oxidize_extract_text_with_options [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1054 — fn oxidize_extract_text_with_options_v2 [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1151 — fn oxidize_extract_text_fragments [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1208 — fn structured_export_impl
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1293 — fn oxidize_to_markdown_with_options [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1425 — fn oxidize_to_markdown [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1443 — fn oxidize_to_contextual [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1465 — fn oxidize_to_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1485 — fn oxidize_partition [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1590 — fn oxidize_partition_with_profile [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1711 — fn oxidize_partition_with_config [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1830 — fn oxidize_rag_chunks_with_profile [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1953 — fn oxidize_semantic_chunks [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2100 — fn oxidize_rag_chunks_with_config [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2229 — fn oxidize_rag_chunks [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2319 — fn oxidize_estimate_tokens [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2377 — fn oxidize_chunk_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2465 — fn oxidize_get_annotations [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2578 — fn oxidize_get_page_resources [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2683 — fn oxidize_get_resolved_font_resource [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2796 — fn oxidize_get_page_content_stream [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2892 — fn oxidize_analyze_page_content [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3038 — fn oxidize_has_signatures [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3075 — fn oxidize_get_signatures [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3130 — fn oxidize_verify_signatures [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3474 — fn oxidize_has_form_fields [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3531 — fn oxidize_get_form_fields [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:14 — fn oxidize_page_set_font [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:36 — fn oxidize_page_set_text_color_rgb [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:62 — fn oxidize_page_set_text_color_gray [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:86 — fn oxidize_page_set_text_color_cmyk [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:113 — fn oxidize_page_set_text_stroke_color_rgb [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:139 — fn oxidize_page_set_text_stroke_color_gray [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:163 — fn oxidize_page_set_text_stroke_color_cmyk [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:190 — fn oxidize_page_set_character_spacing [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:211 — fn oxidize_page_set_word_spacing [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:232 — fn oxidize_page_set_leading [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:251 — fn oxidize_page_text_at [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:285 — fn oxidize_page_set_custom_font [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:319 — fn oxidize_page_set_horizontal_scaling [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:340 — fn oxidize_page_set_text_rise [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:358 — fn oxidize_page_set_rendering_mode [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:389 — fn oxidize_text_flow_create [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:408 — fn oxidize_text_flow_free [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:422 — fn oxidize_text_flow_set_font [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:443 — fn oxidize_text_flow_set_alignment [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:464 — fn oxidize_text_flow_write_wrapped [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text.rs:496 — fn oxidize_page_add_text_flow [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/header_footer.rs:14 — fn oxidize_page_set_header [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/header_footer.rs:46 — fn oxidize_page_set_footer [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:70 — fn set_out_bytes
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:89 — fn oxidize_split_pdf_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:162 — fn oxidize_merge_pdfs_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:278 — fn oxidize_rotate_pdf_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:341 — fn oxidize_extract_pages_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:414 — fn oxidize_reorder_pages_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:486 — fn oxidize_swap_pages_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:538 — fn oxidize_move_page_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:595 — fn oxidize_reverse_pages_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:661 — fn oxidize_split_pdf_bytes_with_options [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:811 — fn oxidize_merge_pdfs_with_ranges [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:933 — fn oxidize_rotate_pages_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:1019 — fn oxidize_overlay_pdf_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:1099 — fn oxidize_extract_images_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:1122 — fn oxidize_extract_images_bytes_with_limits [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:1284 — fn oxidize_list_text_notes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/operations.rs:1329 — fn oxidize_edit_text_notes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/geometric.rs:243 — fn oxidize_geometric_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:16 — fn oxidize_page_set_fill_color_rgb [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:42 — fn oxidize_page_set_fill_color_gray [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:66 — fn oxidize_page_set_fill_color_cmyk [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:95 — fn oxidize_page_set_stroke_color_rgb [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:121 — fn oxidize_page_set_stroke_color_gray [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:145 — fn oxidize_page_set_stroke_color_cmyk [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:174 — fn oxidize_page_set_line_width [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:192 — fn oxidize_page_set_fill_opacity [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:213 — fn oxidize_page_set_stroke_opacity [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:236 — fn oxidize_page_rect [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:260 — fn oxidize_page_circle [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:285 — fn oxidize_page_move_to [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:303 — fn oxidize_page_line_to [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:321 — fn oxidize_page_curve_to [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:347 — fn oxidize_page_close_path [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:367 — fn oxidize_page_fill [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:385 — fn oxidize_page_stroke [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:403 — fn oxidize_page_fill_and_stroke [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:423 — fn oxidize_page_set_line_cap [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:441 — fn oxidize_page_set_line_join [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:462 — fn oxidize_page_set_miter_limit [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:480 — fn oxidize_page_set_dash_pattern [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:503 — fn oxidize_page_set_line_solid [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:523 — fn oxidize_page_save_state [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:541 — fn oxidize_page_restore_state [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:561 — fn oxidize_page_clip_rect [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:588 — fn oxidize_page_clip_circle [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:614 — fn oxidize_page_clear_clipping [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:634 — fn oxidize_page_set_blend_mode [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:660 — fn oxidize_page_translate [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:678 — fn oxidize_page_scale [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:696 — fn oxidize_page_rotate_radians [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:714 — fn oxidize_page_transform [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:749 — fn oxidize_page_set_fill_color_icc [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:789 — fn oxidize_page_set_stroke_color_icc [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:829 — fn oxidize_page_set_fill_color_cal_gray [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:863 — fn oxidize_page_set_stroke_color_cal_gray [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:936 — fn oxidize_page_set_fill_color_lab [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:975 — fn oxidize_page_set_stroke_color_lab [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1059 — fn oxidize_page_set_fill_color_cal_rgb [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1107 — fn oxidize_page_set_stroke_color_cal_rgb [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1209 — fn oxidize_page_set_fill_color_cal_gray_named [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1255 — fn oxidize_page_set_stroke_color_cal_gray_named [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1304 — fn oxidize_page_set_fill_color_cal_rgb_named [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1365 — fn oxidize_page_set_stroke_color_cal_rgb_named [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1428 — fn oxidize_page_set_fill_color_lab_named [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1480 — fn oxidize_page_set_stroke_color_lab_named [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1663 — fn oxidize_page_add_tiling_pattern [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1742 — fn oxidize_page_set_fill_pattern [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1775 — fn oxidize_page_set_stroke_pattern [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1902 — fn oxidize_page_add_form_xobject [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:1972 — fn oxidize_page_invoke_xobject [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:2010 — fn oxidize_page_apply_soft_mask [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:2069 — fn oxidize_page_draw_text_at [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:2111 — fn oxidize_page_clip_ellipse [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:2210 — fn oxidize_page_add_shading_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:2424 — fn oxidize_page_paint_shading [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/graphics.rs:2456 — fn oxidize_page_end_path [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/security.rs:13 — fn oxidize_document_encrypt [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/security.rs:61 — fn oxidize_document_encrypt_with_permissions [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/security.rs:121 — fn oxidize_document_encrypt_aes128 [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/security.rs:166 — fn oxidize_document_encrypt_aes128_with_permissions [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/security.rs:215 — fn oxidize_document_encrypt_aes256 [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/security.rs:260 — fn oxidize_document_encrypt_aes256_with_permissions [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/measure.rs:17 — fn oxidize_measure_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs:41 — fn read_str
+  /tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs:61 — fn oxidize_document_mark_entity [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs:100 — fn oxidize_document_set_entity_content [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs:135 — fn oxidize_document_add_entity_metadata [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs:178 — fn oxidize_document_set_entity_confidence [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs:209 — fn oxidize_document_relate_entities [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs:255 — fn oxidize_document_export_semantic_entities_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/semantic.rs:299 — fn oxidize_document_export_semantic_entities_json_ld [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/lists.rs:57 — fn oxidize_page_add_ordered_list [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/lists.rs:103 — fn oxidize_page_add_unordered_list [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/free_text.rs:100 — fn oxidize_free_text_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text_extraction.rs:189 — fn oxidize_text_extraction [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text_validation.rs:66 — fn emit_json
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text_validation.rs:95 — fn oxidize_text_validate_contract [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text_validation.rs:128 — fn oxidize_text_search_target [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/text_validation.rs:169 — fn oxidize_text_extract_key_info [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/lib.rs:136 — fn oxidize_free_string [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/lib.rs:161 — fn oxidize_free_bytes [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/lib.rs:178 — fn oxidize_get_last_error [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/lib.rs:207 — fn oxidize_version [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/chunking.rs:142 — fn emit_cstring
+  /tmp/bindings-core-5.4.2/dotnet/native/src/chunking.rs:156 — fn read_chunks
+  /tmp/bindings-core-5.4.2/dotnet/native/src/chunking.rs:199 — fn oxidize_chunk_pdf [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/chunking.rs:287 — fn oxidize_document_language [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/chunking.rs:337 — fn oxidize_export_chunks_token_efficient [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/chunking.rs:386 — fn oxidize_parse_chunks_token_efficient [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/semantic_compare.rs:31 — fn oxidize_compare_semantically [FFI]
