@@ -68,4 +68,20 @@ public class SignatureSlotTests
         Assert.Throws<OperationCanceledException>(() => { _ = PdfSignatureSlots.ListAsync(Pdf(), cts.Token); });
         Assert.Throws<ArgumentException>(() => { _ = PdfSignatureSlots.ListAsync([]); });
     }
+
+    [Fact]
+    public async Task DigitalSignatureValueCompletesSlotAndPreventsRemoval()
+    {
+        var created = await PdfSignatureSlots.CreateAsync(Pdf(), "approval", 0, [10, 20, 200, 100]);
+        // Core application slots require an appearance before digital completion.
+        var drawn = await PdfSignatureSlots.DrawAsync(created, "approval", [[[0.1, 0.2], [0.9, 0.8]]]);
+        using var prepared = await PdfSigning.PrepareAsync(drawn, new() { FieldName = "approval", Existing = true });
+        // Structural DER fixture only: DigitallySigned reports a stored signature
+        // value, not cryptographic authenticity or certificate trust.
+        var filled = prepared.Complete([0x30, 3, 2, 1, 1]);
+        var slot = await PdfSignatureSlots.ReadAsync(filled, "approval");
+        Assert.True(slot.DigitallySigned);
+        Assert.True(slot.Completed);
+        await Assert.ThrowsAsync<PdfExtractionException>(() => PdfSignatureSlots.RemoveAsync(filled, "approval"));
+    }
 }

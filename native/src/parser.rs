@@ -1177,24 +1177,8 @@ pub unsafe extern "C" fn oxidize_extract_text_fragments(
             let extracted = oxidize_pdf::text::TextExtractor::with_options(options)
                 .extract_from_page(&document, page_number - 1)
                 .map_err(|e| e.to_string())?;
-            let fragments: Vec<_> = extracted
-                .fragments
-                .iter()
-                .map(|f| {
-                    serde_json::json!({
-                        "text": f.text, "x": f.x, "y": f.y, "width": f.width,
-                        "height": f.height, "font_size": f.font_size, "font_name": f.font_name,
-                        "is_bold": f.is_bold, "is_italic": f.is_italic,
-                        "render_mode": f.render_mode as u8, "mcid": f.mcid,
-                        "struct_tag": f.struct_tag,
-                    })
-                })
-                .collect();
-            serde_json::to_string(&serde_json::json!({
-                "text": extracted.text, "truncated": extracted.truncated,
-                "fragments": fragments,
-            }))
-            .map_err(|e| e.to_string())
+            serde_json::to_string(&crate::text_extraction::extracted(extracted))
+                .map_err(|e| e.to_string())
         })();
         match result {
             Ok(json) => match CString::new(json) {

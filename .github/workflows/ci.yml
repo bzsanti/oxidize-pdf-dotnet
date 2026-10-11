@@ -139,6 +139,10 @@ jobs:
         working-directory: dotnet
         run: dotnet test --no-build --configuration Release --verbosity normal
 
+      - name: Verify native startup and recovery in an isolated test host
+        working-directory: dotnet
+        run: dotnet test OxidizePdf.NET.Tests/OxidizePdf.NET.Tests.csproj --no-build --configuration Release --filter FullyQualifiedName~TextRecoveryTests.RecoveryIsExplicitAndReportsContentsOrFormIdentity
+
   # Lint and format checks
   lint:
     name: Lint and Format

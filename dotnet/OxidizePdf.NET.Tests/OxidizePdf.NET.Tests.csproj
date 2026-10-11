@@ -38,4 +38,9 @@
     <Copy SourceFiles="@(NativeTestBinaries)" DestinationFolder="$(OutDir)runtimes\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 
+  <ItemGroup>
+    <None Include="../../docs/parity-contract.json" Link="parity-contract.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../native/Cargo.toml" Link="parity-native-Cargo.toml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

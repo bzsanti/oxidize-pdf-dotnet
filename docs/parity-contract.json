@@ -1,0 +1,174 @@
+{
+  "core": "5.4.2",
+  "scope": "Audited signature slots and complete text extraction/recovery settings. Remaining Rust API pending audit; no total parity claim.",
+  "callables": {
+    "PdfSignatureSlots.CreateAsync": [
+      "pdf",
+      "name",
+      "pageIndex",
+      "rectangle",
+      "metadata",
+      "ct"
+    ],
+    "PdfSignatureSlots.ListAsync": [
+      "pdf",
+      "ct"
+    ],
+    "PdfSignatureSlots.ReadAsync": [
+      "pdf",
+      "name",
+      "ct"
+    ],
+    "PdfSignatureSlots.RemoveAsync": [
+      "pdf",
+      "name",
+      "ct"
+    ],
+    "PdfSignatureSlots.DrawAsync": [
+      "pdf",
+      "name",
+      "strokes",
+      "complete",
+      "label",
+      "ct"
+    ],
+    "PdfSignatureSlots.CompleteAsync": [
+      "pdf",
+      "name",
+      "strokes",
+      "complete",
+      "ct"
+    ],
+    "PdfTextExtraction.ExtractAsync": [
+      "pdf",
+      "options",
+      "parserOptions",
+      "pageIndex",
+      "ct"
+    ],
+    "PdfTextExtraction.RecoverAsync": [
+      "pdf",
+      "maxStreamBytes",
+      "options",
+      "parserOptions",
+      "pageIndex",
+      "ct"
+    ],
+    "PdfTextExtraction.GetEffectiveVersionAsync": [
+      "pdf",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfDocument.SetBuildIdentification": [
+      "policy"
+    ]
+  },
+  "properties": {
+    "PdfSignatureSlot": [
+      "Name",
+      "Metadata",
+      "PageIndex",
+      "Rotation",
+      "Rectangle",
+      "Completed",
+      "DigitallySigned"
+    ],
+    "PdfDocument": [
+      "BuildIdentification"
+    ],
+    "PdfExtractedPage": [
+      "PageIndex",
+      "Text",
+      "Diagnostics"
+    ],
+    "PdfTextRecoveryDiagnostic": [
+      "Location",
+      "ContentsIndex",
+      "FormName",
+      "ObjectId",
+      "Action",
+      "FilterIndex",
+      "Kind",
+      "Error"
+    ],
+    "PdfExtractedColor": [
+      "Space",
+      "Components"
+    ],
+    "PdfSpaceDecision": [
+      "Offset",
+      "Dx",
+      "Threshold",
+      "Confidence",
+      "Inserted"
+    ],
+    "Models.PageTextFragments": [
+      "Text",
+      "Truncated",
+      "Fragments"
+    ],
+    "Models.ExtractedTextFragment": [
+      "Text",
+      "X",
+      "Y",
+      "Width",
+      "Height",
+      "FontSize",
+      "FontName",
+      "IsBold",
+      "IsItalic",
+      "RenderMode",
+      "MarkedContentId",
+      "StructureTag",
+      "Color",
+      "SpaceDecisions"
+    ]
+  },
+  "defaults": {
+    "PdfTextExtractionOptions": {
+      "PreserveLayout": false,
+      "SpaceThreshold": 0.3,
+      "NewlineThreshold": 10,
+      "SortByPosition": true,
+      "DetectColumns": false,
+      "ColumnThreshold": 50,
+      "MergeHyphenated": true,
+      "TjSpaceThreshold": 0.2,
+      "ReconstructParagraphs": false,
+      "IncludeArtifacts": false,
+      "ReorderColumns": false,
+      "ReadingOrder": false,
+      "CarriageReturnHandling": 0,
+      "MaxExtractedBytes": null,
+      "IncludeLinkAnnotations": false,
+      "IncludeUnreliableFigureText": false,
+      "NormalizeNonBreakingSpaces": false,
+      "TrackSpaceDecisions": false
+    },
+    "PdfParserOptions": {
+      "StrictMode": true,
+      "RecoverFromStreamErrors": false,
+      "IgnoreCorruptStreams": false,
+      "PartialContentAllowed": false,
+      "MaxRecoveryAttempts": 3,
+      "LogRecoveryDetails": false,
+      "LenientStreams": false,
+      "MaxRecoveryBytes": 1000,
+      "CollectWarnings": false,
+      "LenientEncoding": true,
+      "PreferredEncoding": null,
+      "LenientSyntax": false
+    }
+  },
+  "behavior_tests": [
+    "SignatureSlotTests.SlotLifecyclePreservesRevisionsAndSeparatesHandwritingFromCms",
+    "SignatureSlotTests.InvalidTargetsAndStrokesAreRejectedWithoutChangingInput",
+    "SignatureSlotTests.PreCancelledOperationAndEmptyPdfFailBeforeNativeCall",
+    "TextRecoveryTests.RecoveryIsExplicitAndReportsContentsOrFormIdentity",
+    "TextRecoveryTests.OmissionIsReportedAndResourceLimitIsNotDowngraded",
+    "TextRecoveryTests.NormalizationZeroBudgetAndFragmentMetadataAreExposed",
+    "TextRecoveryTests.BuildIdentificationControlsSerializedMetadata",
+    "TextRecoveryTests.EveryCarriageReturnPolicyReachesTheNewExtractor",
+    "SignatureSlotTests.DigitalSignatureValueCompletesSlotAndPreventsRemoval"
+  ]
+}
