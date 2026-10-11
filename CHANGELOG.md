@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-11
+
+- Update the exact Rust core dependency to the published 5.4.2.
+- Add typed signature-slot creation, reading, removal, drawing and completion.
+- Expose complete text-extraction and parse options, bounded recovery diagnostics,
+  effective PDF version, original text colors and build identification controls.
+- Initialize native-library resolution for static extraction APIs as well as documents.
+- Enforce extraction contracts, defaults and core-version consistency in CI.
+
+Targets .NET 8/9/10, with native libraries for eight supported runtime identifiers.
+Implementation PRs #80, #82 and #83 passed all 14 CI checks each.
+Full functional parity remains tracked in #81.
+
+Known upstream limitation: core 5.4.2 does not enforce DocMDP on incremental
+text-note and highlight mutations (#712 in oxidizePdf). Its merged upstream fix
+is not part of this package's published core dependency. FreeText, Ink and
+geometric editing use the existing permission checks.
+
+
 ## [0.18.0] - 2026-09-27
 
 ### Added
