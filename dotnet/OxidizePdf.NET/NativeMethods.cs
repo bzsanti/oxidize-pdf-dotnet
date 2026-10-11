@@ -9,6 +9,12 @@ internal static class NativeMethods
 {
     private const string LibraryName = "oxidize_pdf_ffi";
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_set_build_identification(DocumentSafeHandle handle, byte policy);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_get_build_identification(DocumentSafeHandle handle, out byte policy);
+
+
     /// <summary>
     /// Error codes returned by native functions
     /// </summary>

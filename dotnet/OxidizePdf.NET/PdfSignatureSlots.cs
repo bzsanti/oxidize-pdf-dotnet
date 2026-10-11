@@ -17,7 +17,7 @@ public sealed class PdfSignatureSlot
     [JsonPropertyName("rotation")] public int Rotation { get; init; }
     /// <summary>Rectangle [left, bottom, right, top], in PDF points.</summary>
     [JsonPropertyName("rect")] public double[] Rectangle { get; init; } = [];
-    /// <summary>Whether application handwriting is marked complete.</summary>
+    /// <summary>Whether handwriting is marked complete or a digital signature value is present.</summary>
     [JsonPropertyName("completed")] public bool Completed { get; init; }
     /// <summary>Whether a digital signature value exists; this is not a validity assertion.</summary>
     [JsonPropertyName("digitally_signed")] public bool DigitallySigned { get; init; }
