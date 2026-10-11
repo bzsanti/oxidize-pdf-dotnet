@@ -1,5 +1,7 @@
 # OxidizePdf.NET
 
+> Development update: Rust core pinned to **5.4.2**. See [compatibility and validation](docs/UPSTREAM-5.4.2.md).
+
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0%2B-purple)](https://dotnet.microsoft.com/)
