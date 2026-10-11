@@ -19,3 +19,5 @@ The source base is published 0.18.0 main f2c42a2. develop lacked that release; i
 Evidence: `docs/evidence/core-5.4.2/`. Remaining acceptance: platform CI and integration into develop. PyPI/NuGet versions and tags are unchanged; package publication is separate.
 
 CI follow-up: Rust 1.99 adds chunks_exact_to_as_chunks. The equivalent coordinate iterator adjustment passes all 220 native tests, Clippy, and the focused managed ink tests. Kripteia was repeated for ink.rs and InkEditingTests.cs; the existing FFI guard and coordinate limits are unchanged. This is a CI compatibility correction within #79.
+
+The full CI formatter also identified pre-existing whitespace in nine C# files from 0.18.0. Applied dotnet format whitespace; comparison confirms unchanged non-whitespace content and manual diff inspection confirms only layout changes outside literals. Full dotnet format --verify-no-changes now passes. Behavioral/security evidence remains applicable to these formatting-only edits.

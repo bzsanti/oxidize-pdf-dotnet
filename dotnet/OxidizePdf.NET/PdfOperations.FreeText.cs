@@ -33,12 +33,27 @@ public static partial class PdfOperations
             {
                 case PdfFreeTextMutation.Add add:
                     ValidateFreeText(add.Rectangle, add.Contents, add.DefaultAppearance, add.Alignment);
-                    return (object)new { operation = "add", page_index = add.PageIndex, rect = add.Rectangle,
-                        contents = add.Contents, default_appearance = add.DefaultAppearance, alignment = (byte)add.Alignment };
+                    return (object)new
+                    {
+                        operation = "add",
+                        page_index = add.PageIndex,
+                        rect = add.Rectangle,
+                        contents = add.Contents,
+                        default_appearance = add.DefaultAppearance,
+                        alignment = (byte)add.Alignment
+                    };
                 case PdfFreeTextMutation.Update update when update.Id.ObjectNumber > 0:
                     ValidateFreeText(update.Rectangle, update.Contents, update.DefaultAppearance, update.Alignment);
-                    return new { operation = "update", object_number = update.Id.ObjectNumber, generation_number = update.Id.GenerationNumber,
-                        rect = update.Rectangle, contents = update.Contents, default_appearance = update.DefaultAppearance, alignment = (byte)update.Alignment };
+                    return new
+                    {
+                        operation = "update",
+                        object_number = update.Id.ObjectNumber,
+                        generation_number = update.Id.GenerationNumber,
+                        rect = update.Rectangle,
+                        contents = update.Contents,
+                        default_appearance = update.DefaultAppearance,
+                        alignment = (byte)update.Alignment
+                    };
                 case PdfFreeTextMutation.Remove remove when remove.Id.ObjectNumber > 0:
                     return new { operation = "remove", object_number = remove.Id.ObjectNumber, generation_number = remove.Id.GenerationNumber };
                 default:
