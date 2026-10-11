@@ -57,7 +57,9 @@ fn strokes(values: Vec<Vec<f64>>) -> Result<Vec<InkStroke>, String> {
             }
             InkStroke::new(
                 stroke
-                    .chunks_exact(2)
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
                     .map(|p| oxidize_pdf::Point::new(p[0], p[1]))
                     .collect(),
             )

@@ -1,0 +1,22 @@
+## Calidad de Tests (Kripteia)
+
+=== Kripteia Test Quality Report ===
+Overall Score: 100 | Tests: 4 | Files: 1
+
+--- Files ---
+Path                                                          Tests  Score
+--------------------------------------------------------------------------
+...2/dotnet/dotnet/OxidizePdf.NET.Tests/InkEditingTests.cs        4    100
+
+--- Worst Offenders ---
+  InkEditingTests.Lifecycle_PreservesColorSpaceStrokesAndIdentity (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/InkEditingTests.cs:14) - Score: 100
+  InkEditingTests.InvalidInputAndConflictingBatchesAreRejected (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/InkEditingTests.cs:49) - Score: 100
+  InkEditingTests.RetainsFreeTextAndRejectsEncryption (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/InkEditingTests.cs:70) - Score: 100
+  InkEditingTests.DocMdpPolicy_IsEnforced (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/InkEditingTests.cs:85) - Score: 100
+
+
+## Analisis de Seguridad (Kripteia Security)
+
+=== Kripteia Security Analysis ===
+
+No security issues found.
