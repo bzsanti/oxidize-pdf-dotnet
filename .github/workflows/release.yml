@@ -204,6 +204,11 @@ jobs:
       - name: Generate Release Notes
         id: notes
         run: |
+          notes="RELEASE-NOTES-v${{ steps.version.outputs.VERSION }}.md"
+          if [ -f "$notes" ]; then
+            cp "$notes" release_notes.md
+            exit 0
+          fi
           cat << EOF > release_notes.md
           ## OxidizePdf.NET v${{ steps.version.outputs.VERSION }}
 

@@ -1,0 +1,202 @@
+## Calidad de Tests (Kripteia)
+
+=== Kripteia Test Quality Report ===
+Overall Score: 96 | Tests: 53 | Files: 1
+
+--- Files ---
+Path                                                          Tests  Score
+--------------------------------------------------------------------------
+/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs             53     96
+
+--- Worst Offenders ---
+  oxidize_rag_chunks_with_config_both_supplied (/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:4045) - Score: 80
+    - Test 'oxidize_rag_chunks_with_config_both_supplied' only exercises the happy path — no None, Err, or edge-case inputs
+    - Test 'oxidize_rag_chunks_with_config_both_supplied' does not call any production code
+  oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer (/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:4104) - Score: 80
+    - Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has identical neighborhood to 'oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error'
+    i Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+    - Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  oxidize_semantic_chunks_accepts_custom_partition_config (/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:4182) - Score: 80
+    - Test 'oxidize_semantic_chunks_accepts_custom_partition_config' only exercises the happy path — no None, Err, or edge-case inputs
+    - Test 'oxidize_semantic_chunks_accepts_custom_partition_config' does not call any production code
+  oxidize_partition_with_config_emits_well_formed_elements (/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3744) - Score: 90
+    - Test 'oxidize_partition_with_config_emits_well_formed_elements' only exercises the happy path — no None, Err, or edge-case inputs
+  oxidize_partition_with_config_accepts_xycut_reading_order (/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3792) - Score: 90
+    - Test 'oxidize_partition_with_config_accepts_xycut_reading_order' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'oxidize_partition_with_config_accepts_xycut_reading_order' has multiple assertions without diagnostic messages
+
+--- Details ---
+/tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:
+  oxidize_partition_with_profile_returns_json_array (line 3656) - Score: 100
+    i Test 'oxidize_partition_with_profile_returns_json_array' has multiple assertions without diagnostic messages
+  oxidize_partition_with_profile_rejects_bad_discriminant (line 3675) - Score: 100
+    i Test 'oxidize_partition_with_profile_rejects_bad_discriminant' has multiple assertions without diagnostic messages
+  oxidize_partition_with_profile_null_pdf_returns_null_pointer (line 3684) - Score: 100
+    i Test 'oxidize_partition_with_profile_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_partition_with_profile_empty_pdf_returns_parse_error (line 3692) - Score: 100
+    i Test 'oxidize_partition_with_profile_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+  oxidize_partition_with_config_emits_well_formed_elements (line 3744) - Score: 90
+    - Test 'oxidize_partition_with_config_emits_well_formed_elements' only exercises the happy path — no None, Err, or edge-case inputs
+  oxidize_partition_with_config_accepts_xycut_reading_order (line 3792) - Score: 90
+    - Test 'oxidize_partition_with_config_accepts_xycut_reading_order' only exercises the happy path — no None, Err, or edge-case inputs
+    i Test 'oxidize_partition_with_config_accepts_xycut_reading_order' has multiple assertions without diagnostic messages
+  oxidize_partition_with_config_accepts_integer_min_gap (line 3818) - Score: 90
+    - Test 'oxidize_partition_with_config_accepts_integer_min_gap' does not call any production code
+  oxidize_partition_with_config_rejects_bad_json (line 3837) - Score: 100
+    i Test 'oxidize_partition_with_config_rejects_bad_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_partition_with_config_rejects_bad_json' uses .unwrap() which silently discards error information
+  oxidize_partition_with_config_rejects_missing_fields (line 3849) - Score: 100
+    i Test 'oxidize_partition_with_config_rejects_missing_fields' uses .unwrap() which silently discards error information
+  oxidize_partition_with_config_null_config_returns_null_pointer (line 3861) - Score: 100
+    i Test 'oxidize_partition_with_config_null_config_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_profile_returns_well_formed_chunks (line 3883) - Score: 100
+    i Test 'oxidize_rag_chunks_with_profile_returns_well_formed_chunks' uses .unwrap() which silently discards error information
+  oxidize_rag_chunks_with_profile_accepts_all_valid_profiles (line 3928) - Score: 90
+    - Test 'oxidize_rag_chunks_with_profile_accepts_all_valid_profiles' does not call any production code
+  oxidize_rag_chunks_with_profile_rejects_bad_discriminant (line 3940) - Score: 100
+    i Test 'oxidize_rag_chunks_with_profile_rejects_bad_discriminant' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_profile_null_pdf_returns_null_pointer (line 3950) - Score: 100
+    i Test 'oxidize_rag_chunks_with_profile_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_profile_empty_pdf_returns_parse_error (line 3958) - Score: 100
+    i Test 'oxidize_rag_chunks_with_profile_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_config_both_null_uses_defaults (line 3990) - Score: 100
+    i Test 'oxidize_rag_chunks_with_config_both_null_uses_defaults' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_config_only_hybrid_supplied (line 4000) - Score: 100
+    i Test 'oxidize_rag_chunks_with_config_only_hybrid_supplied' has multiple assertions without diagnostic messages
+  oxidize_rag_chunks_with_config_only_partition_supplied (line 4022) - Score: 100
+    i Test 'oxidize_rag_chunks_with_config_only_partition_supplied' has multiple assertions without diagnostic messages
+    i Test 'oxidize_rag_chunks_with_config_only_partition_supplied' uses .unwrap() which silently discards error information
+  oxidize_rag_chunks_with_config_both_supplied (line 4045) - Score: 80
+    - Test 'oxidize_rag_chunks_with_config_both_supplied' only exercises the happy path — no None, Err, or edge-case inputs
+    - Test 'oxidize_rag_chunks_with_config_both_supplied' does not call any production code
+  oxidize_rag_chunks_with_config_rejects_bad_partition_json (line 4068) - Score: 90
+    - Test 'oxidize_rag_chunks_with_config_rejects_bad_partition_json' has identical neighborhood to 'oxidize_rag_chunks_with_config_rejects_bad_hybrid_json'
+    i Test 'oxidize_rag_chunks_with_config_rejects_bad_partition_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_rag_chunks_with_config_rejects_bad_partition_json' uses .unwrap() which silently discards error information
+  oxidize_rag_chunks_with_config_rejects_bad_hybrid_json (line 4086) - Score: 90
+    - Test 'oxidize_rag_chunks_with_config_rejects_bad_hybrid_json' has identical neighborhood to 'oxidize_rag_chunks_with_config_rejects_bad_partition_json'
+    i Test 'oxidize_rag_chunks_with_config_rejects_bad_hybrid_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_rag_chunks_with_config_rejects_bad_hybrid_json' uses .unwrap() which silently discards error information
+  oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer (line 4104) - Score: 80
+    - Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has identical neighborhood to 'oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error'
+    i Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+    - Test 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error (line 4120) - Score: 90
+    - Test 'oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error' has identical neighborhood to 'oxidize_rag_chunks_with_config_null_pdf_returns_null_pointer'
+    i Test 'oxidize_rag_chunks_with_config_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+  oxidize_semantic_chunks_returns_well_formed_chunks (line 4150) - Score: 100
+    i Test 'oxidize_semantic_chunks_returns_well_formed_chunks' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_returns_well_formed_chunks' uses .unwrap() which silently discards error information
+  oxidize_semantic_chunks_accepts_custom_partition_config (line 4182) - Score: 80
+    - Test 'oxidize_semantic_chunks_accepts_custom_partition_config' only exercises the happy path — no None, Err, or edge-case inputs
+    - Test 'oxidize_semantic_chunks_accepts_custom_partition_config' does not call any production code
+  oxidize_semantic_chunks_rejects_null_semantic_config (line 4199) - Score: 100
+    i Test 'oxidize_semantic_chunks_rejects_null_semantic_config' has multiple assertions without diagnostic messages
+  oxidize_semantic_chunks_rejects_bad_semantic_json (line 4218) - Score: 100
+    i Test 'oxidize_semantic_chunks_rejects_bad_semantic_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_rejects_bad_semantic_json' uses .unwrap() which silently discards error information
+  oxidize_semantic_chunks_rejects_bad_partition_json (line 4236) - Score: 100
+    i Test 'oxidize_semantic_chunks_rejects_bad_partition_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_rejects_bad_partition_json' uses .unwrap() which silently discards error information
+  oxidize_semantic_chunks_null_pdf_returns_null_pointer (line 4258) - Score: 90
+    - Test 'oxidize_semantic_chunks_null_pdf_returns_null_pointer' has identical neighborhood to 'oxidize_semantic_chunks_empty_pdf_returns_parse_error'
+    i Test 'oxidize_semantic_chunks_null_pdf_returns_null_pointer' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_null_pdf_returns_null_pointer' uses .unwrap() which silently discards error information
+  oxidize_semantic_chunks_empty_pdf_returns_parse_error (line 4278) - Score: 90
+    - Test 'oxidize_semantic_chunks_empty_pdf_returns_parse_error' has identical neighborhood to 'oxidize_semantic_chunks_null_pdf_returns_null_pointer'
+    i Test 'oxidize_semantic_chunks_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+    i Test 'oxidize_semantic_chunks_empty_pdf_returns_parse_error' uses .unwrap() which silently discards error information
+  oxidize_to_markdown_with_options_metadata_true_emits_yaml_frontmatter (line 4310) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_metadata_true_emits_yaml_frontmatter' has multiple assertions without diagnostic messages
+  oxidize_to_markdown_with_options_metadata_false_no_yaml (line 4335) - Score: 90
+    i Test 'oxidize_to_markdown_with_options_metadata_false_no_yaml' has multiple assertions without diagnostic messages
+    - Test 'oxidize_to_markdown_with_options_metadata_false_no_yaml' does not call any production code
+  oxidize_to_markdown_with_options_pages_only_emits_page_markers_no_yaml (line 4350) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_pages_only_emits_page_markers_no_yaml' has multiple assertions without diagnostic messages
+  oxidize_to_markdown_with_options_both_true_emits_yaml_and_page_markers (line 4364) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_both_true_emits_yaml_and_page_markers' has multiple assertions without diagnostic messages
+  oxidize_to_markdown_with_options_distinct_flag_combinations_produce_distinct_output (line 4382) - Score: 90
+    - Test 'oxidize_to_markdown_with_options_distinct_flag_combinations_produce_distinct_output' does not call any production code
+  oxidize_to_markdown_with_options_rejects_bad_json (line 4407) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_rejects_bad_json' has multiple assertions without diagnostic messages
+    i Test 'oxidize_to_markdown_with_options_rejects_bad_json' uses .unwrap() which silently discards error information
+  oxidize_to_markdown_with_options_null_options_returns_null_pointer (line 4419) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_null_options_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_to_markdown_with_options_empty_pdf_returns_parse_error (line 4430) - Score: 100
+    i Test 'oxidize_to_markdown_with_options_empty_pdf_returns_parse_error' has multiple assertions without diagnostic messages
+    i Test 'oxidize_to_markdown_with_options_empty_pdf_returns_parse_error' uses .unwrap() which silently discards error information
+  oxidize_estimate_tokens_uses_word_count_x_1_33 (line 4445) - Score: 90
+    i Test 'oxidize_estimate_tokens_uses_word_count_x_1_33' uses .unwrap() which silently discards error information
+    - Test 'oxidize_estimate_tokens_uses_word_count_x_1_33' has low assert-to-setup ratio (17%): 3 asserts vs 15 setup lines
+  oxidize_estimate_tokens_null_out_returns_null_pointer (line 4481) - Score: 100
+    i Test 'oxidize_estimate_tokens_null_out_returns_null_pointer' uses .unwrap() which silently discards error information
+  oxidize_chunk_text_splits_long_input_with_expected_schema (line 4497) - Score: 100
+    i Test 'oxidize_chunk_text_splits_long_input_with_expected_schema' has multiple assertions without diagnostic messages
+  oxidize_chunk_text_overlap_produces_shared_words_between_consecutive_chunks (line 4526) - Score: 100
+    i Test 'oxidize_chunk_text_overlap_produces_shared_words_between_consecutive_chunks' has multiple assertions without diagnostic messages
+    i Test 'oxidize_chunk_text_overlap_produces_shared_words_between_consecutive_chunks' uses .unwrap() which silently discards error information
+  oxidize_chunk_text_short_input_single_chunk (line 4550) - Score: 100
+    i Test 'oxidize_chunk_text_short_input_single_chunk' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'oxidize_chunk_text_short_input_single_chunk' has multiple assertions without diagnostic messages
+  oxidize_chunk_text_rejects_overlap_ge_size (line 4562) - Score: 100
+    i Test 'oxidize_chunk_text_rejects_overlap_ge_size' has multiple assertions without diagnostic messages
+    i Test 'oxidize_chunk_text_rejects_overlap_ge_size' uses .unwrap() which silently discards error information
+  oxidize_chunk_text_rejects_zero_chunk_size (line 4577) - Score: 100
+    i Test 'oxidize_chunk_text_rejects_zero_chunk_size' has multiple assertions without diagnostic messages
+    i Test 'oxidize_chunk_text_rejects_zero_chunk_size' uses .unwrap() which silently discards error information
+  oxidize_chunk_text_null_text_returns_null_pointer (line 4586) - Score: 100
+    i Test 'oxidize_chunk_text_null_text_returns_null_pointer' has multiple assertions without diagnostic messages
+  oxidize_chunk_text_null_out_returns_null_pointer (line 4594) - Score: 100
+    i Test 'oxidize_chunk_text_null_out_returns_null_pointer' uses .unwrap() which silently discards error information
+  negative_ff_does_not_activate_flags (line 4604) - Score: 100
+    i Test 'negative_ff_does_not_activate_flags' asserts against a hardcoded constant instead of a computed expected value
+  extraction_options_ffi_size_is_72 (line 4632) - Score: 100
+    i Test 'extraction_options_ffi_size_is_72' asserts against a hardcoded constant instead of a computed expected value
+  extraction_options_ffi_field_offsets (line 4639) - Score: 90
+    i Test 'extraction_options_ffi_field_offsets' asserts against a hardcoded constant instead of a computed expected value
+    i Test 'extraction_options_ffi_field_offsets' has multiple assertions without diagnostic messages
+    - Test 'extraction_options_ffi_field_offsets' does not call any production code
+
+
+## Analisis de Seguridad (Kripteia Security)
+
+=== Kripteia Security Analysis ===
+
+--- Unsafe Usages (37) ---
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:402 — fn oxidize_extract_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:468 — fn oxidize_extract_chunks [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:543 — fn oxidize_get_page_count [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:594 — fn oxidize_extract_text_from_page [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:672 — fn oxidize_extract_chunks_from_page [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:762 — fn oxidize_is_encrypted [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:798 — fn oxidize_unlock_pdf [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:854 — fn oxidize_get_pdf_version [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:898 — fn oxidize_get_page_dimensions [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:951 — fn oxidize_get_metadata [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1031 — fn oxidize_extract_text_with_options [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1054 — fn oxidize_extract_text_with_options_v2 [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1151 — fn oxidize_extract_text_fragments [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1224 — fn structured_export_impl
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1309 — fn oxidize_to_markdown_with_options [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1441 — fn oxidize_to_markdown [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1459 — fn oxidize_to_contextual [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1481 — fn oxidize_to_json [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1501 — fn oxidize_partition [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1606 — fn oxidize_partition_with_profile [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1727 — fn oxidize_partition_with_config [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1846 — fn oxidize_rag_chunks_with_profile [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:1969 — fn oxidize_semantic_chunks [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2116 — fn oxidize_rag_chunks_with_config [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2245 — fn oxidize_rag_chunks [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2335 — fn oxidize_estimate_tokens [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2393 — fn oxidize_chunk_text [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2481 — fn oxidize_get_annotations [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2594 — fn oxidize_get_page_resources [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2699 — fn oxidize_get_resolved_font_resource [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2812 — fn oxidize_get_page_content_stream [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:2908 — fn oxidize_analyze_page_content [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3054 — fn oxidize_has_signatures [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3091 — fn oxidize_get_signatures [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3146 — fn oxidize_verify_signatures [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3490 — fn oxidize_has_form_fields [FFI]
+  /tmp/bindings-core-5.4.2/dotnet/native/src/parser.rs:3547 — fn oxidize_get_form_fields [FFI]
