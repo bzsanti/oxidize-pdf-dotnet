@@ -10,6 +10,10 @@ internal static class NativeMethods
     private const string LibraryName = "oxidize_pdf_ffi";
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_merge_pdfs_with_metadata(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string requestJson, out IntPtr output, out nuint length);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_set_build_identification(DocumentSafeHandle handle, byte policy);
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_get_build_identification(DocumentSafeHandle handle, out byte policy);

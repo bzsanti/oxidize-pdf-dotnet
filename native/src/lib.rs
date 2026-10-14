@@ -23,6 +23,7 @@ pub mod ink;
 pub mod layout;
 pub mod lists;
 pub mod measure;
+pub mod merge_metadata;
 pub mod operations;
 pub mod outline_read;
 pub mod page;

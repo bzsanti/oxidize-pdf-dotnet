@@ -67,7 +67,7 @@ where
 
 /// Allocate a byte buffer on the heap for the caller.  The caller must free it with
 /// `oxidize_free_bytes`.
-unsafe fn set_out_bytes(bytes: Vec<u8>, out_bytes: *mut *mut u8, out_len: *mut usize) {
+pub(crate) unsafe fn set_out_bytes(bytes: Vec<u8>, out_bytes: *mut *mut u8, out_len: *mut usize) {
     let len = bytes.len();
     let mut boxed = bytes.into_boxed_slice();
     *out_bytes = boxed.as_mut_ptr();
@@ -769,7 +769,7 @@ pub unsafe extern "C" fn oxidize_split_pdf_bytes_with_options(
 /// JSON representation of a page range for merge inputs.
 #[derive(serde::Deserialize)]
 #[serde(tag = "kind")]
-enum PageRangeJson {
+pub(crate) enum PageRangeJson {
     All,
     Single { index: usize },
     Range { from: usize, to: usize },
@@ -777,7 +777,7 @@ enum PageRangeJson {
 }
 
 impl PageRangeJson {
-    fn into_core(self) -> oxidize_pdf::operations::PageRange {
+    pub(crate) fn into_core(self) -> oxidize_pdf::operations::PageRange {
         match self {
             PageRangeJson::All => oxidize_pdf::operations::PageRange::All,
             PageRangeJson::Single { index } => oxidize_pdf::operations::PageRange::Single(index),
@@ -791,11 +791,11 @@ impl PageRangeJson {
 
 /// JSON representation of a single merge input.
 #[derive(serde::Deserialize)]
-struct MergeInputJson {
+pub(crate) struct MergeInputJson {
     /// Base64-encoded PDF bytes.
-    pdf: String,
+    pub(crate) pdf: String,
     /// Optional page range selector.
-    pages: Option<PageRangeJson>,
+    pub(crate) pages: Option<PageRangeJson>,
 }
 
 /// Merge multiple PDFs with per-input page range selection.

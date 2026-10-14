@@ -1,3 +1,131 @@
+# Active increment — merge metadata modes (#103), 2026-10-14
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| OPS-013 / core 5.4.2 MetadataMode: four variants, default FromFirst | Demonstrated locally | Additive MergeWithMetadataAsync; legacy overload/default-literal tests |
+| Source identity, custom fields, invalid indexes and empty selections | Demonstrated locally | 16 real-FFI cases, including third input, page order and zero-page source |
+| Info copying vs structural preservation/XMP | Demonstrated locally | Structural-policy regression, source XMP/private Info omitted by reconstruction |
+| Owned result, snapshot inputs, typed failures and cleanup | Demonstrated locally | Invalid arguments/PDF/pages, FFI reset tests, private RAII temporary inputs |
+| Unicode values survive core serialization | Demonstrated locally | UTF-16BE repair of generated Info; all source modes/remerge and independent qpdf |
+| Parity gate, quality/security and platform CI before integration | Local evidence complete | Feature-branch platform CI pending; do not integrate until green |
+
+`PdfOperations.MergeWithMetadataAsync(inputs, options, ct)` returns an owned PDF
+byte array. `PdfMergeMetadataOptions.Mode` supports FromFirst (default),
+FromDocument (requires zero-based SourceIndex), Custom (requires Custom fields),
+and None. Irrelevant fields, unknown modes and invalid source indexes are rejected.
+The distinct method name preserves `MergeAsync(inputs, default)` overload resolution.
+
+```csharp
+var merged = await PdfOperations.MergeWithMetadataAsync(inputs,
+    new PdfMergeMetadataOptions { Mode = PdfMergeMetadataMode.FromDocument, SourceIndex = 2 });
+var custom = await PdfOperations.MergeWithMetadataAsync(inputs,
+    new PdfMergeMetadataOptions { Mode = PdfMergeMetadataMode.Custom,
+        Custom = new PdfMergeMetadata { Title = "Informe", Author = "Equipo" } });
+```
+
+Only Title, Author, Subject and Keywords are copied. Null custom fields are
+omitted; empty strings are values. None does not remove writer-generated Info.
+SourceIndex addresses the original input list independently of selected pages;
+a zero-page input can supply metadata. Empty input lists and explicit empty page
+lists are rejected. Source Info reading retains the core's best-effort behavior:
+missing/unreadable fields are omitted, not taken from another input.
+
+This reconstructing API does not preserve XMP, bookmarks, forms or arbitrary Info
+keys. `PdfExistingDocumentOperations` and its preservation reports/policies remain
+separate: ReconstructWithFirstInputMetadata is also not XMP preservation.
+Input bytes, page selectors and options are snapshotted before scheduling;
+cancellation affects queued work only. Core file-based merge uses private temporary
+inputs with RAII cleanup. No caller-specified files are written. PdfMergeException
+(derived from PdfExtractionException) categorizes native failures; managed argument
+validation uses standard argument exceptions. No total parser resource-budget or
+interruptibility guarantee is introduced.
+
+## Quality review — merge metadata increment
+
+### Resumen ejecutivo
+
+Reviewed the complete #103 implementation diff against `fb48c77`, core 5.4.2,
+managed 0.19.0 and native 0.14.0. Local verification and review are complete;
+platform CI remains a blocker to integration. No dependency/version change,
+automatic PR or package publication. Two implementation findings below are fixed.
+
+### Contratos y evidencia
+
+38 focused .NET cases pass: 16 merge-metadata cases, existing structural-operation
+regression, parity contract and ABI exports. Independent hand-written PDF fixtures
+contain distinguishable source Info, page labels in content, private Info and XMP.
+Assertions read serialized results through real FFI, including non-first source,
+page range/list order and duplicates, Unicode/empty/null custom values, missing
+source Info, zero-page metadata source, invalid indexes/combinations, malformed
+PDF, page bounds, cancellation and snapshots of mutable caller inputs.
+
+All 232 native tests pass, including malformed JSON, negative/out-of-range source
+indexes, conflicting mode fields, base64/empty inputs, empty/reversed page ranges,
+null pointers, invalid UTF-8 and resetting each writable output independently.
+Denied-warning Clippy, Rust/.NET formatting and whitespace checks pass.
+
+A compiled disposable copy in `/tmp/merge-metadata-mutant` forces SourceIndex to
+zero: the selected-input theory fails for indexes 1 and 2 on `second-title` and
+`third-title` versus actual `first-title`; index 0 still passes. The reviewed tree
+and runtime are unchanged. The Unicode test initially failed on mojibake before
+the repair and now passes for all source modes and a second merge. Independently,
+`qpdf --check` finds no syntax/stream errors and qpdf JSON decodes all four custom
+Unicode fields exactly, including supplementary characters and escaped syntax.
+Evidence: `/tmp/merge-metadata-*.log` and `/tmp/merge-metadata-qpdf.json`.
+
+### Hallazgos
+
+1. **Ignored fields on fieldless native modes**: `native/src/merge_metadata.rs:22` —
+   Serde's unit variants accepted an irrelevant index despite deny_unknown_fields.
+   Resolved with empty struct variants; the real FFI now rejects the request and
+   leaves outputs null/zero. Existing legacy JSON types keep their accepted schema.
+2. **Core writer corrupts Unicode Info**: `native/src/merge_metadata.rs:113` —
+   core 5.4.2 writes String metadata as raw UTF-8 in PDF 1.x, which its reader
+   correctly interprets as PDFDocEncoding. The new operation repairs only its
+   freshly generated Info using a single incremental revision: non-ASCII selected
+   fields become UTF-16BE hex strings, all remaining generated Info bytes remain
+   intact, names are escaped and xref/root/size/previous-offset are explicit.
+   It rejects unexpected generated value/trailer shapes. There is no arbitrary
+   input editor, global writer patch or XMP conversion. The pinned core fix can
+   later replace this bounded workaround. Legacy writer Unicode behavior remains
+   outside this increment; record for the writer/Info audit in #87, without
+   claiming the new repair fixes unrelated APIs.
+
+No unresolved finding within #103. Manual review traced option validation, core
+selection, stable input indexes, snapshot serialization, thread-local error fetch,
+pointer preconditions, panic containment, checked output length and exactly-once
+buffer release even on managed copy failure. Only internally generated paths enter
+filesystem writes. Temp-directory destruction follows success/error/unwind. The
+Info revision accepts only the fresh, unencrypted classic-xref writer shape and
+string fields of the pinned core; arbitrary input dictionaries are never copied
+into its syntax. Partial-failure cleanup is reasoned from RAII, not fault-injected
+filesystem failures. Legacy temporary-path behavior was not changed; new calls
+use the private-directory pattern already used by structural operations.
+
+### Calidad de Tests (Kripteia)
+
+Rust score 97, 232 detected tests/24 files; new boundary tests score 100. C# score
+95, 991 detected tests/125 files; new class score 100 (11 methods/16 cases). Prior
+worst scores are in unchanged panic/disposal tests, already tracked by prior
+reviews. Scores do not establish provenance or Unicode correctness; actual output
+assertions, the negative control and the independent PDF reader provide that evidence.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Rust lists 292 unsafe usages across the native tree; new FFI pointers, ownership
+and error paths were manually reviewed and boundary-tested. No new secret,
+taint-flow or dangerous-function finding. C# reports no security issues with
+partial/error syntax in 34 files, including the new test class; compilation and
+manual review supplement that coverage limitation. Both mandatory analyses
+completed; their telemetry warnings do not prevent analysis.
+
+### Métricas
+
+- Changed implementation/test/contract files reviewed: 8, plus supporting consumers/core.
+- Confirmed findings: 2, both resolved before the final read-only review.
+- Product files modified during the final read-only review: 0.
+- Pending verification: feature-branch platform CI before integration.
+
 # Completed increment — named image XObjects (#97), 2026-10-14
 
 | Requirement / source | State / evidence | Blocker / next action |
