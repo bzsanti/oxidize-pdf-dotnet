@@ -1,25 +1,34 @@
 # Session handoff — 2026-10-14
 
-Completed parity increment #105: `PdfExtractor.GetPageGeometryAsync` exposes
-existing-page rotation and MediaBox/CropBox without changing the tuple API.
-Implementation: `bb7a6e9`; test-only PKCS security correction: `f5baa0e`.
-Validated for integration into `develop` without an automatic PR, as required by #81.
-Current tracking: [FEATURE_PARITY.md](docs/FEATURE_PARITY.md).
+Completed parity increment #96: `PdfExtractor.GetPageResourceProvenanceAsync`.
+Implementation `72c880f` is validated for integration into develop, without an
+automatic PR as required by #81. Existing flattened resource APIs remain intact.
+The result identifies direct/inherited/absent ownership, page/ancestor/dictionary
+references, sorted category/resource names and declared resource references.
+Traversal/entry/name budgets fail without partial output; referenced resource
+contents are not loaded. Core parsing precedes the bounded provenance walk.
 
-Validation: 225 native tests, Clippy, 15 focused geometry/contract/ABI cases;
-after the test-only PKCS update, 28 geometry/contract/signing/slot cases pass.
-All 14 platform CI jobs pass on `f5baa0e`:
-https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38545842115
-The first CI attempt discovered two newly published vulnerabilities in test-only
-PKCS 10.0.11; upgraded to patched 10.0.13 without suppressing NuGet audits.
-Final handoff edits are documentation only and reuse this exact code evidence.
+Validation: 226 native tests, Clippy, Rust/.NET formatting, 35 focused .NET cases
+(20 provenance + 8 geometry + 6 contract + 1 ABI). A compiled disposable mutation
+ignoring MaxEntries was rejected by the exact-budget real-FFI test.
+Both Kripteia scans and manual quality/security review completed with no unresolved
+finding in this increment; automated C# syntax coverage limitations are recorded.
+All 14 platform CI jobs passed on the implementation revision:
+https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38555998665
+Final documentation-only closure skips redundant CI; source/test/configuration
+identity with the validated revision is checked before integration.
 
-Next increment: #96 (resource provenance), then #97 (named images), then #95
-(bounded raw streams). Core `inherited_resources` may contain resolved direct
-resource references too, so provenance must inspect dictionary ownership and
-ancestor references, not infer origin from that field alone. Keep the existing
-flattened resource API. Remaining acceptance stays in #81 and its open children.
+Tracking: [FEATURE_PARITY.md](docs/FEATURE_PARITY.md). #105 was completed earlier.
+Next: #95 (bounded raw streams), then #97 (named images). This revises the earlier
+order based on source evidence: core image extraction processes page batches and
+its image-preparation helper is private. Reuse the public document-aware bounded
+decoder from #95 and `resource_provenance::find_resources` from #96 for #97.
+Do not treat core inherited_resources as origin: it can hold resolved direct refs.
 
-Repository baseline cleanup is complete: stale upstream-4.0.0 branch removed;
-pending work preserved in `8d83a2a` and reconciled in `de37d12`.
-Core 5.4.2 / managed 0.19.0 / native FFI 0.14.0. No new release. No worktrees.
+Core 5.4.2 / managed 0.19.0 / native FFI 0.14.0. Test-only PKCS is 10.0.13.
+No new release or worktree. Original checkout cleanup remains preserved in
+8d83a2a/de37d12; the active integration branch is develop after delivery.
+
+Evidence retained: /tmp/resource-provenance-native-tests.log,
+/tmp/resource-provenance-kripteia-{rust,csharp}.log,
+/tmp/resource-provenance-mutant/ and /tmp/resource-provenance-ci-result.json.

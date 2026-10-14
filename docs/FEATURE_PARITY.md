@@ -1,4 +1,9 @@
-# Active increment — resource provenance (#96), 2026-10-14
+# Completed increment — resource provenance (#96), 2026-10-14
+
+Implementation: `72c880f`.
+[Successful platform CI](https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38555998665)
+covers eight native builds, four .NET test jobs, lint and security. All passed.
+#96 meets its implementation/integration gate; no package release is requested.
 
 | Requirement | State / evidence | Blocker / closure evidence |
 | --- | --- | --- |
@@ -6,7 +11,7 @@
 | Resolved view without altering old API | Demonstrated: sorted entries, references and resolved summary | Old flattened API comparison and empty override tests pass |
 | Bounded malformed-input behavior | Demonstrated: cycle/type/reference errors and exact limits | Native boundary tests and real-FFI rejection cases pass |
 | Real behavior and parity enforcement | Demonstrated: 20 resource cases + existing geometry/contract/ABI | 35 focused tests pass; 226 native tests pass |
-| Quality/security and platform CI | Local review complete, no unresolved finding | Platform CI pending before integration |
+| Quality/security and platform CI | Local review complete and all 14 platform jobs passed | None |
 
 Use Rust 5.4.2 parsed-page/object APIs. `inherited_resources` alone cannot identify
 provenance because the core also uses it for resolved direct references. Walk only
@@ -14,7 +19,10 @@ the parent chain needed to find the nearest `/Resources`; never merge dictionari
 across ancestors. A present but invalid dictionary errors; an empty one masks parents.
 The new resolved view lists standard named resource categories without loading
 referenced resource contents. ProcSet/custom non-dictionary categories remain keys.
-#97 can reuse the effective-resource lookup; stream decoding remains in #95.
+#97 can reuse the effective-resource lookup. Next implement #95 before #97:
+core image extraction prepares entire page batches and its preparation helper is
+private; the public document-aware bounded stream decoder should be exposed once
+and reused for named-image selection, avoiding a second decoding path.
 
 ### Quality review — resource provenance increment
 
@@ -68,9 +76,12 @@ inspection and compilation supplement that incomplete analysis. Both analyses
 completed successfully despite read-only telemetry warnings. No new secret,
 taint-flow or dangerous-function finding was emitted for this increment.
 
-Metrics: 8 changed code/test/contract files reviewed plus existing FFI helpers and
+Metrics: 7 changed code/test/contract files reviewed plus existing FFI helpers and
 core lookup dependencies; 0 unresolved findings; 0 product files modified by the
-read-only review. Remaining verification: all platform CI jobs before integration.
+read-only review. Platform CI passed all 14 jobs on `72c880f` before integration.
+Subsequent edits only update documentation; runtime/test/configuration trees are
+verified byte-identical to this validated revision, so the closure commit skips
+redundant CI execution.
 Evidence: `/tmp/resource-provenance-native-tests.log`,
 `/tmp/resource-provenance-kripteia-rust.log`,
 `/tmp/resource-provenance-kripteia-csharp.log`, and the disposable mutation above.
