@@ -16,6 +16,22 @@ Scope follows Rust 5.4.2 `ParsedPage`: MediaBox and CropBox are the typed boxes
 supported by the parser. BleedBox/TrimBox/ArtBox are not parsed geometry fields.
 No normalization of raw rotation beyond the core's behavior is introduced.
 
+### CI blocker discovered and correction
+
+Initial CI run [38544224542](https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38544224542)
+passed eight native builds, lint/security and three .NET platforms. macOS stopped
+at restore: test-only `System.Security.Cryptography.Pkcs` 10.0.11 was flagged by
+NU1902/NU1903 for advisories published 2026-10-13. Upgrade that test dependency
+to 10.0.13, the patched version for both
+[GHSA-2fmv-rv2c-59x7](https://github.com/advisories/GHSA-2fmv-rv2c-59x7) and
+[GHSA-846f-f764-76mx](https://github.com/advisories/GHSA-846f-f764-76mx).
+This is necessary to pass the required security/platform gate; the product
+library has no PKCS dependency. No audit suppression or test weakening.
+Restore and 28 targeted geometry/contract/signing/slot tests pass, including
+real CMS creation and CheckSignature. Remaining closure evidence: platform CI.
+The source-level geometry review below remains applicable; only the test project
+package reference changes. Initial failure log: `/tmp/geometry-ci-failed.log`.
+
 ### Quality review — geometry increment
 
 Scope: `native/src/parser.rs`, managed `NativeMethods.cs`, `PdfExtractor.cs`,
