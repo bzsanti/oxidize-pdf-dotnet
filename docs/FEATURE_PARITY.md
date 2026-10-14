@@ -1,13 +1,13 @@
-# Active increment — merge metadata modes (#103), 2026-10-14
+# Completed increment — merge metadata modes (#103), 2026-10-14
 
 | Requirement / source | State / evidence | Blocker / next action |
 | --- | --- | --- |
-| OPS-013 / core 5.4.2 MetadataMode: four variants, default FromFirst | Demonstrated locally | Additive MergeWithMetadataAsync; legacy overload/default-literal tests |
-| Source identity, custom fields, invalid indexes and empty selections | Demonstrated locally | 16 real-FFI cases, including third input, page order and zero-page source |
-| Info copying vs structural preservation/XMP | Demonstrated locally | Structural-policy regression, source XMP/private Info omitted by reconstruction |
-| Owned result, snapshot inputs, typed failures and cleanup | Demonstrated locally | Invalid arguments/PDF/pages, FFI reset tests, private RAII temporary inputs |
-| Unicode values survive core serialization | Demonstrated locally | UTF-16BE repair of generated Info; all source modes/remerge and independent qpdf |
-| Parity gate, quality/security and platform CI before integration | Local evidence complete | Feature-branch platform CI pending; do not integrate until green |
+| OPS-013 / core 5.4.2 MetadataMode: four variants, default FromFirst | Demonstrated | Additive MergeWithMetadataAsync; legacy overload/default-literal tests |
+| Source identity, custom fields, invalid indexes and empty selections | Demonstrated | 16 real-FFI cases, including third input, page order and zero-page source |
+| Info copying vs structural preservation/XMP | Demonstrated | Structural-policy regression, source XMP/private Info omitted by reconstruction |
+| Owned result, snapshot inputs, typed failures and cleanup | Demonstrated | Invalid arguments/PDF/pages, FFI reset tests, private RAII temporary inputs |
+| Unicode values survive core serialization | Demonstrated | UTF-16BE repair of generated Info; all source modes/remerge and independent qpdf |
+| Parity gate, quality/security and platform CI before integration | Demonstrated: local checks/review and all 14 CI jobs pass on `7a9ac2a` | None |
 
 `PdfOperations.MergeWithMetadataAsync(inputs, options, ct)` returns an owned PDF
 byte array. `PdfMergeMetadataOptions.Mode` supports FromFirst (default),
@@ -44,9 +44,9 @@ interruptibility guarantee is introduced.
 
 ### Resumen ejecutivo
 
-Reviewed the complete #103 implementation diff against `fb48c77`, core 5.4.2,
-managed 0.19.0 and native 0.14.0. Local verification and review are complete;
-platform CI remains a blocker to integration. No dependency/version change,
+Reviewed implementation `7a9ac2a99a47bbc3910e85a94f511f8363997555` against `fb48c77`,
+core 5.4.2, managed 0.19.0 and native 0.14.0. Local review/verification and all
+14 platform CI jobs are complete before integration. No dependency/version change,
 automatic PR or package publication. Two implementation findings below are fixed.
 
 ### Contratos y evidencia
@@ -124,7 +124,11 @@ completed; their telemetry warnings do not prevent analysis.
 - Changed implementation/test/contract files reviewed: 8, plus supporting consumers/core.
 - Confirmed findings: 2, both resolved before the final read-only review.
 - Product files modified during the final read-only review: 0.
-- Pending verification: feature-branch platform CI before integration.
+- Pending verification: none.
+- Platform CI: all 14 jobs pass on the implementation SHA:
+  https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38641793379
+- The closure commit changes documentation only; implementation/test/contract
+  tree identity with the validated SHA is verified before pushing develop.
 
 # Completed increment — named image XObjects (#97), 2026-10-14
 
