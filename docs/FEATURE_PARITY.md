@@ -1,16 +1,21 @@
-# Active increment — page geometry (#105), 2026-10-14
+# Completed increment — page geometry (#105), 2026-10-14
+
+Implementation commits: `bb7a6e9` and `f5baa0e`.
+[Successful platform CI](https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38545842115):
+eight native platform builds, four .NET test jobs, lint and security, all passed.
+No package release was requested. #105 meets its implementation/integration gate.
 
 Sequence: existing-page geometry (#105), then resource provenance (#96) before
 named images (#97) and bounded stream access (#95). Geometry is independent;
 resource identity/lookup should be shared by the later reader capabilities.
-Other issues remain open under #81; no total parity claim.
+Remaining issues stay open under #81; no total parity claim.
 
 | Requirement | Evidence / state | Blocker / closure evidence |
 | --- | --- | --- |
-| Typed geometry, preserve tuple API | Implemented: `GetPageGeometryAsync` / `oxidize_get_page_geometry` | Local tests pass; platform CI pending |
+| Typed geometry, preserve tuple API | Implemented: `GetPageGeometryAsync` / `oxidize_get_page_geometry` | Demonstrated: local tests and platform CI pass |
 | Indexing and ownership | Demonstrated: one-based indexes, configured size cap, owned snapshot | Invalid indexes/input, cancellation and snapshot tests pass |
 | Real FFI behavior | Demonstrated: 8 geometry cases through real FFI | Four rotations, nearest inheritance/page override, absent crop/rotation, bounds and ownership |
-| Contract, quality/security, platform CI | Contract gate and local review pass | Platform CI required before integration |
+| Contract, quality/security, platform CI | Contract gate, local review and all 14 CI jobs pass | None |
 
 Scope follows Rust 5.4.2 `ParsedPage`: MediaBox and CropBox are the typed boxes
 supported by the parser. BleedBox/TrimBox/ArtBox are not parsed geometry fields.
@@ -28,7 +33,7 @@ to 10.0.13, the patched version for both
 This is necessary to pass the required security/platform gate; the product
 library has no PKCS dependency. No audit suppression or test weakening.
 Restore and 28 targeted geometry/contract/signing/slot tests pass, including
-real CMS creation and CheckSignature. Remaining closure evidence: platform CI.
+real CMS creation and CheckSignature. Platform CI subsequently passed all 14 jobs.
 The source-level geometry review below remains applicable; only the test project
 package reference changes. Initial failure log: `/tmp/geometry-ci-failed.log`.
 
@@ -38,7 +43,7 @@ Scope: `native/src/parser.rs`, managed `NativeMethods.cs`, `PdfExtractor.cs`,
 `Models/PageGeometry.cs`, `PageGeometryTests.cs`, parity contract and CI trigger.
 Reviewed consumers: existing pinned JSON helper, thread-local error retrieval,
 `oxidize_free_string`, Rust `ParsedPage` and inheritance resolution. Existing
-APIs remain unchanged. No architecture expansion or dependency update.
+APIs remain unchanged. No architecture expansion. The subsequent test-only PKCS security update is documented above.
 
 Contracts and evidence: independently authored two-leaf/three-level page trees
 verify all four rotations, original nonzero box origins, nearest inherited boxes
@@ -81,8 +86,9 @@ the implementation before the test-only ThrowsAsync correction; that correction
 was manually reviewed and validated by the compiler/test rerun.
 
 Metrics: 8 changed implementation/test/contract/CI files reviewed; 0 unresolved
-findings; 0 product files changed during the read-only review. Platform validation
-remains pending. Full logs are retained in `/tmp/geometry-kripteia-rust.log`,
+findings; 0 product files changed during the read-only review. Platform validation passed all 14 jobs on `f5baa0e`. Subsequent changes
+are documentation only; runtime, tests, dependency pins and CI configuration
+remain byte-identical to the validated revision. Full logs are retained in `/tmp/geometry-kripteia-rust.log`,
 `/tmp/geometry-kripteia-csharp.log`, `/tmp/geometry-native-tests.log`.
 
 
