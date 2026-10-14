@@ -1,4 +1,4 @@
-# Active increment — named image XObjects (#97), 2026-10-14
+# Completed increment — named image XObjects (#97), 2026-10-14
 
 | Requirement / source | State / evidence | Blocker / next action |
 | --- | --- | --- |
@@ -6,7 +6,7 @@
 | Encoded/decoded metadata and existing count/pixel budgets | Demonstrated | Owned payload/sample data, ordered dictionary, pixel/byte exact boundaries |
 | Inherited/missing/non-image/unsupported-filter behavior | Demonstrated | Typed errors; unrelated corrupt/unsupported resources are not extracted |
 | Explicit nested Forms; preserve batch APIs | Demonstrated | Two-level paths, nearest/absent/empty Resources, cycles and batch PNG regression |
-| Typed contracts, real FFI, parity gate, quality/security and CI | Local evidence complete; platform CI pending | Require all 14 jobs before integration |
+| Typed contracts, real FFI, parity gate, quality/security and CI | Demonstrated: all local checks/review and all 14 CI jobs pass on `0eb2c6f` | None |
 
 Use #96 resource ownership lookup and #95 document-aware bounded decoding. Output
 is a resource extraction, not a rendered PNG: decoded samples retain packing,
@@ -24,9 +24,9 @@ extraction remains unchanged. Budgets apply after core parsing, not to its total
 
 Scope: `named_images.rs`, shared resource/stream helpers and module registration,
 `PdfImages.cs`, independent real-FFI fixtures and parity contract. Source is the
-feature branch based on `0498e5c`, including the current changes. No runtime
-dependency or core version change. Local review/verification is complete; platform
-CI remains the integration blocker. No automatic PR or package release.
+implementation `0eb2c6fc06db0d87108f7feebd77835b61937db4`. No runtime
+dependency or core version change. Local review/verification and all platform CI
+are complete. No automatic PR or package release.
 
 ### Contratos y evidencia
 
@@ -70,7 +70,7 @@ mutated. A second assertion checks the pixel guard before a corrupt Flate decode
    Mapping both generically would mislabel inspection limits as invalid data or
    stream decoding errors. Resolved with internal `ResourceLookupError::DepthLimit`
    (`native/src/resource_provenance.rs:35`) and `inspection_error`
-   (`native/src/named_images.rs:37`), while retaining the existing public provenance
+   (`native/src/named_images.rs:41`), while retaining the existing public provenance
    messages and actual decoder classifications. Real-FFI ancestor-limit and
    metadata-limit tests verify LimitExceeded, with no invented stream error for
    metadata inspection. Existing provenance regression passes.
@@ -109,8 +109,11 @@ secret, taint-flow or dangerous-function finding was reported for this increment
 Seven changed implementation/test/contract files reviewed plus core dependencies
 and existing FFI/bootstrap helpers. One contract-mapping finding corrected before
 final verification; zero unresolved. Review passes were read-only; the correction
-was an authorized implementation step. Pending: all 14 platform CI jobs on the
-implementation revision. Evidence: `/tmp/named-images-{native-tests,dotnet-tests,
+was an authorized implementation step. All 14 platform CI jobs passed before
+integration on the implementation revision:
+https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38630658308
+The closure commit only updates documentation; product/test/contract/workflow
+identity with the validated SHA is verified, so redundant CI is skipped. Evidence: `/tmp/named-images-{native-tests,dotnet-tests,
 clippy,mutation}.log`, `/tmp/named-images-kripteia-{rust,csharp}.log` and disposable
 mutation directory. Package publication is separate.
 
