@@ -1,8 +1,132 @@
 # Feature Parity — oxidize-pdf-dotnet vs oxidize-pdf core
 
-Bridge version: 0.10.0
-Core dependency: oxidize-pdf 2.10.0
-Last updated: 2026-05-28
+## Issue reconciliation — current remote develop, 2026-10-13
+
+The audit below describes this older dirty checkout. Before issue creation,
+remote `develop` was inspected at [`adb94995899bdc57f1d622431a9c6510dd055edd`](https://github.com/bzsanti/oxidize-pdf-dotnet/tree/adb94995899bdc57f1d622431a9c6510dd055edd).
+It already implements five of the eight NEW-* entries: NBSP, signature slots,
+build identification, effective PDF version and text recovery/parser settings.
+Those entries are **not current remote implementation gaps**. Standalone raw
+stream recovery remains covered below. The local checkout was not overwritten.
+
+Twenty specific remaining issues were created after checking all existing issues:
+
+| Audit key | Issue |
+|---|---|
+| NEW-003 | [#86 — expose tagged-PDF preflight and recovery preparation](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/86) |
+| NEW-007 | [#87 — complete incremental writer configuration and Info preservation policy](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/87) |
+| NEW-008 | [#88 — expose complete CID Unicode mapping and vertical font metrics](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/88) |
+| OCR-001-005 | [#89 — expose OCR providers, recognition options and searchable-PDF conversion](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/89) |
+| PDFA-001 | [#90 — expose PDF/A validation levels and structured findings](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/90) |
+| PDFA-002 | [#91 — expose XMP metadata parsing, serialization and PDF integration](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/91) |
+| FORM-INCREMENTAL | [#92 — expose incremental filling of existing AcroForm documents](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/92) |
+| FORM-004 | [#93 — expose the Rust form calculation engine](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/93) |
+| FORM-005 | [#94 — expose form field validation rules and results](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/94) |
+| READ-017 | [#95 — expose raw content streams, filter chains and bounded decoding](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/95) |
+| READ-016 | [#96 — expose direct versus inherited page-resource provenance](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/96) |
+| READ-015 | [#97 — expose selective image XObject extraction by resource name](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/97) |
+| ANN-CREATION | [#98 — complete annotation creation beyond the currently exposed constructors](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/98) |
+| GFX-024 | [#99 — expose arbitrary clipping paths and winding rules](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/99) |
+| STREAMING | [#100 — expose bounded-memory lazy and streaming document APIs](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/100) |
+| BATCH-PERFORMANCE | [#101 — expose batch processing and optional parallel execution controls](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/101) |
+| OPS-012 | [#102 — complete split options and output naming semantics](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/102) |
+| OPS-013 | [#103 — expose all merge metadata source modes](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/103) |
+| TOKENS-TIKTOKEN | [#104 — expose optional exact token counting alongside heuristic estimates](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/104) |
+| READ-010 | [#105 — expose rotation when inspecting existing page geometry](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/105) |
+
+All are linked from umbrella [#81](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/81).
+Historical false gaps (document metadata controls, forms creation, most graphics,
+embedded font programs, per-page extraction) were not duplicated. Remaining
+arbitrary clipping was split from closed #23. Python-specific integrations and
+old cross-bridge naming proposals are not Rust parity gaps.
+
+The earlier CR failure is already addressed on remote develop in #79 by an
+explicit ToUnicode test fixture, preserving all three policy assertions;
+`docs/UPSTREAM-5.4.2.md` records the negative control and successful validation.
+No duplicate upstream bug was filed. PDF/A validation is available in Rust,
+but the 5.4.2 public exports do not include a general PDF/A converter; the older
+broad wording below must not be read as evidence that such a converter exists.
+No new implementation or test execution was performed for issue reconciliation.
+
+## Current source audit — 2026-10-13 / Rust 5.4.2
+
+The manifest pins official `oxidize-pdf = 5.4.2`, with no source patches.
+Latest non-yanked release verified in the [Cargo registry index](https://index.crates.io/ox/id/oxidize-pdf)
+(published 2026-10-11). Scope: current managed/FFI sources and the published
+Rust 5.1.5 → 5.4.2 source delta, including new files and enabled Cargo features.
+This is a capability audit, not a claim of exhaustive symbol or behavioral parity.
+Validation and update acceptance live in [UPSTREAM_5_MIGRATION.md](UPSTREAM_5_MIGRATION.md).
+
+The historical **83% figure is not a current parity metric**: its rows and totals
+were already inconsistent, omit entire Rust modules, and mark implemented APIs
+as missing. No defensible overall percentage can be inferred from that inventory.
+`PARITY_SPEC.md` is a historical Python/.NET comparison, not current Rust evidence.
+
+### Existing coverage confirmed in source
+
+| Area | Managed / FFI evidence | Limits |
+|---|---|---|
+| Document settings | `PdfDocument.cs`, `document_metadata.rs`: open action, viewer preferences, destinations, labels, save options | Selected core options, not every WriterConfig field |
+| Tagged creation and entities | `SetStructureTree`, `BeginMarkedContent`, entity methods; `tagged.rs`, `semantic.rs` | Does not establish full PDF/UA compliance |
+| Pages, text and graphics | `PdfPage.cs`, `Graphics/`, `TextValidation.cs`; `page.rs`, `graphics.rs`, `columns.rs`, `text_validation.rs` | Includes parsed-page import, screen coordinates, columns, ICC, tiling, gradients, XObjects, groups and masks; arbitrary path clipping remains absent |
+| Forms | `PdfDocument` Add*Field/FillField, `PdfPage.AddFormWidget`; `forms.rs` | Creation/filling on owned documents; not a general incremental existing-form filling API |
+| Extraction / RAG | `PdfExtractor`, `Pipeline/`, `Ai/`; `parser.rs`, `pipeline_config.rs`, `chunking.rs` | Positioned fragments, URI opt-in, reading order, profiles and semantic chunks; parser recovery controls remain limited |
+| Bookmarks | `GetBookmarksAsync`, `SetOutline`; `outline_read.rs`, `document.rs` | Regression validation covers mixed sibling/nested trees |
+| Existing annotations | `PdfOperations` Highlight/FreeText/Ink/Geometric methods and matching native modules | Highlight Add/Remove; other three families Add/Update/Remove |
+| Structural operations | `PdfExistingDocumentOperations`, `existing_pdf.rs` | Explicit preservation policy and reports; bounded wrapper contract |
+| Signing / comparison | `PdfSigning`, `PdfSemanticComparison`; `signing.rs`, `semantic_compare.rs` | External CMS provider and bounded comparison; not every signing workflow |
+| Tagged editing / OCR / redaction | `PdfTaggedOperations`, `PdfOcrLayer`, `PdfRedaction` and matching native modules | OCR consumes caller recognition; irreversible redaction is restricted ASCII; visual masking is distinct |
+
+### New or expanded upstream surfaces not exposed
+
+Paths in the Rust column are relative to the published 5.4.2 crate's `src/`.
+All rows below are follow-up parity work, not blockers to adopting the dependency:
+the current request is to update and analyze, not implement every Rust API.
+
+| ID / priority | Rust evidence | .NET gap / consequence |
+|---|---|---|
+| NEW-001 / high | `text/extraction.rs`: `with_non_breaking_space_normalization` | `ExtractionOptions` has no control for U+00A0/U+202F normalization; core defaults remain in effect |
+| NEW-002 / high | `signatures/preparation.rs`: create/read/list/remove/complete/draw signature slots | No `SignatureSlot` workflow or handwriting completion in `PdfSigning`; existing CMS preparation is a different operation |
+| NEW-003 / high | `writer/incremental_tagged_pdf.rs`: `preflight`, `with_recovered_indexes`, `with_document_language`, `preparation_objects` | Existing tagged editor lacks explicit recovery, missing-language preparation and preparation-object inventory |
+| NEW-004 / medium | `document.rs`: `BuildIdentification`, `set_build_identification` | Cannot disable generated build identification through `PdfDocument`; upstream default is Enabled |
+| NEW-005 / medium | `parser/reader.rs`, `parser/document.rs`: `effective_version`; `parser/objects.rs`: `to_text_with_version` | `GetPdfVersionAsync` still calls `reader.version()` in `native/src/parser.rs`; no catalog-aware effective-version API |
+| NEW-006 / medium | `parser/document.rs`: `decode_stream_with_recovery`, `extract_text_with_recovery` | No explicit recovery context/reporting contract in `PdfExtractor` |
+| NEW-007 / medium | `writer/pdf_writer/mod.rs`: `IncrementalInfoPolicy` | No general Preserve/Replace Info policy for the low-level incremental writer; distinct from existing structural-operation metadata policies |
+| NEW-008 / low | `text/metrics.rs`, `fonts/resolved.rs`, `text/font.rs`: CID collections, Unicode sequences and vertical metrics | Extraction benefits internally; managed font-resource models do not expose the full new CID mapping/vertical-metrics surface |
+
+### Improvements inherited through existing calls
+
+The source delta changes font/CMap and intrinsic-encoding resolution (including
+CJK collections and vertical metrics), text sanitization, filter decoding,
+outline serialization, structural metadata preservation, tagged-page operations,
+and signature handling. Existing wrapper calls use these implementations after
+rebuilding; this does not mean the wrapper exposes every new option or that each
+upstream edge case has a dedicated .NET regression.
+
+`operations/tagged_split.rs` is internal (`pub(super)`), so it is not counted as
+a missing standalone API. Public-key recipient encryption is explicitly unsupported
+in 5.4.2 (`encryption/public_key.rs`: add/decrypt return errors and permission
+verification fails closed); it must not be advertised as working Rust functionality
+missing only from .NET.
+
+### Remaining broader parity gaps
+
+| Priority | Rust area | Current managed boundary / next work |
+|---|---|---|
+| High for scanned ingestion | `text/ocr`, OCR provider/converter APIs; `ocr-tesseract` feature | No bundled recognition provider; `PdfOcrLayer` adds supplied text only. Requires a separate provider/dependency design |
+| Medium | `pdfa`, XMP metadata APIs | No PDF/A validator/converter or dedicated XMP read/write API |
+| Medium | `writer/incremental_form_fill.rs`, `forms` calculations/validation | Owned-document `FillField` does not expose incremental existing-document filling or the full form engines |
+| Medium | `parser::ParseOptions`, recovery and lower-level resource access | Wrapper mostly selects lenient parsing internally; no complete parsing policy or raw resource/stream API |
+| Medium | `annotations` | No creation API for every Rust annotation subtype (for example FileAttachment); existing annotation enumeration is not creation parity |
+| Low / specialist | `graphics` path clipping; broader writer configuration | `ClipEllipse` exists, arbitrary path clipping does not; selected save presets are not all writer controls |
+| Separate API design | `streaming`, `memory`, `batch`, optional `performance` | Byte-array Task APIs do not expose Rust lazy/streaming/batch engines |
+
+Features enabled in `native/Cargo.toml`: compression, semantic, signatures,
+language-detection. Optional OCR, external-images, performance/rayon and tiktoken
+are not enabled. Absence of a feature flag is not proof that all related basic
+capabilities are absent (for example existing JPEG/PNG APIs).
+
+## Historical parity inventory
 
 For the cross-bridge (Python ↔ .NET) RAG-pipeline matrix used to schedule
 work, see [`PARITY_SPEC.md`](PARITY_SPEC.md). This document is the

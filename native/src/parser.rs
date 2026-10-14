@@ -1035,6 +1035,31 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options(
     out_text: *mut *mut c_char,
     out_truncated: *mut bool,
 ) -> c_int {
+    oxidize_extract_text_with_options_v2(
+        pdf_bytes,
+        pdf_len,
+        options,
+        out_text,
+        out_truncated,
+        false,
+        false,
+    )
+}
+
+/// Extract text with optional link targets and unreliable figure text.
+///
+/// # Safety
+/// Same pointer requirements as `oxidize_extract_text_with_options`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_extract_text_with_options_v2(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    options: *const ExtractionOptionsFFI,
+    out_text: *mut *mut c_char,
+    out_truncated: *mut bool,
+    include_link_annotations: bool,
+    include_unreliable_figure_text: bool,
+) -> c_int {
     crate::ffi_guard(move || {
         clear_last_error();
 
@@ -1083,7 +1108,9 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options(
         let document = PdfDocument::new(reader);
         let mut extractor = oxidize_pdf::text::TextExtractor::with_options(core_options)
             .with_reading_order(reading_order)
-            .with_carriage_return_handling(carriage_return_handling);
+            .with_carriage_return_handling(carriage_return_handling)
+            .with_link_annotation_extraction(include_link_annotations)
+            .with_unreliable_figure_text(include_unreliable_figure_text);
         let text_pages = match extractor.extract_from_document(&document) {
             Ok(pages) => pages,
             Err(e) => {
@@ -1111,6 +1138,80 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options(
 
         *out_text = c_string.into_raw();
         ErrorCode::Success as c_int
+    })
+}
+
+/// Extract positioned text fragments for one page (one-based).
+/// Layout extraction is enabled to retain fragment metadata.
+///
+/// # Safety
+/// `pdf_bytes` must reference `pdf_len` readable bytes. `out_json` must be
+/// writable; the returned string must be freed with `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_extract_text_fragments(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    page_number: u32,
+    max_extracted_bytes: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if out_json.is_null() || pdf_bytes.is_null() {
+            set_last_error("Null pointer in fragment extraction");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_json = ptr::null_mut();
+        if pdf_len == 0 || page_number == 0 {
+            set_last_error("PDF data must be nonempty and page number must be positive");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        let result = (|| -> Result<String, String> {
+            let reader = open_lenient(slice::from_raw_parts(pdf_bytes, pdf_len))?;
+            let document = PdfDocument::new(reader);
+            let options = oxidize_pdf::text::ExtractionOptions {
+                preserve_layout: true,
+                max_extracted_bytes: (max_extracted_bytes > 0).then_some(max_extracted_bytes),
+                ..Default::default()
+            };
+            let extracted = oxidize_pdf::text::TextExtractor::with_options(options)
+                .extract_from_page(&document, page_number - 1)
+                .map_err(|e| e.to_string())?;
+            let fragments: Vec<_> = extracted
+                .fragments
+                .iter()
+                .map(|f| {
+                    serde_json::json!({
+                        "text": f.text, "x": f.x, "y": f.y, "width": f.width,
+                        "height": f.height, "font_size": f.font_size, "font_name": f.font_name,
+                        "is_bold": f.is_bold, "is_italic": f.is_italic,
+                        "render_mode": f.render_mode as u8, "mcid": f.mcid,
+                        "struct_tag": f.struct_tag,
+                    })
+                })
+                .collect();
+            serde_json::to_string(&serde_json::json!({
+                "text": extracted.text, "truncated": extracted.truncated,
+                "fragments": fragments,
+            }))
+            .map_err(|e| e.to_string())
+        })();
+        match result {
+            Ok(json) => match CString::new(json) {
+                Ok(value) => {
+                    *out_json = value.into_raw();
+                    ErrorCode::Success as c_int
+                }
+                Err(e) => {
+                    set_last_error(e.to_string());
+                    ErrorCode::SerializationError as c_int
+                }
+            },
+            Err(e) => {
+                set_last_error(e);
+                ErrorCode::PdfParseError as c_int
+            }
+        }
     })
 }
 

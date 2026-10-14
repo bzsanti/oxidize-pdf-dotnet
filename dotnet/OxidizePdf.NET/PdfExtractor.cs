@@ -841,6 +841,51 @@ public class PdfExtractor
     }
 
     /// <summary>
+    /// Extract positioned text fragments, including invisible OCR text and each
+    /// fragment's PDF rendering mode. Page numbers are one-based. A zero byte
+    /// limit means unlimited; a positive limit reports truncation in the result.
+    /// </summary>
+    public Task<PageTextFragments> ExtractTextFragmentsAsync(
+        byte[] pdfBytes, int pageNumber, int maxExtractedBytes = 0,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0) throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        if (pageNumber < 1) throw new ArgumentOutOfRangeException(nameof(pageNumber));
+        if (maxExtractedBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxExtractedBytes));
+        ValidatePdfSize(pdfBytes);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(() => CallNativeJson<PageTextFragments>(pdfBytes,
+            (IntPtr ptr, nuint len, out IntPtr json) => NativeMethods.oxidize_extract_text_fragments(
+                ptr, len, (uint)pageNumber, (nuint)maxExtractedBytes, out json),
+            $"Failed to extract text fragments on page {pageNumber}"), cancellationToken);
+    }
+
+    /// <summary>
+    /// Read bookmarks in preorder. Parent indexes refer to earlier entries in
+    /// the returned list; destinations use zero-based page indexes. Named and
+    /// GoTo destinations are resolved. Other actions are never executed.
+    /// </summary>
+    public Task<List<PdfBookmark>> GetBookmarksAsync(byte[] pdfBytes,
+        BookmarkReadOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0) throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        ValidatePdfSize(pdfBytes);
+        options ??= new BookmarkReadOptions();
+        options.Validate();
+        var maxItems = (nuint)options.MaxItems;
+        var maxDepth = (nuint)options.MaxDepth;
+        var maxDestinations = (nuint)options.MaxNamedDestinations;
+        var maxNodes = (nuint)options.MaxNameTreeNodes;
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(() => CallNativeJson<List<PdfBookmark>>(pdfBytes,
+            (IntPtr ptr, nuint len, out IntPtr json) => NativeMethods.oxidize_read_bookmarks(
+                ptr, len, maxItems, maxDepth, maxDestinations, maxNodes, out json),
+            "Failed to read bookmarks"), cancellationToken);
+    }
+
+    /// <summary>
     /// Get the resources for a specific page (fonts, images, resource keys).
     /// </summary>
     /// <param name="pdfBytes">PDF file content as byte array.</param>
@@ -1349,12 +1394,14 @@ public class PdfExtractor
                 MaxExtractedBytes = (nuint)options.MaxExtractedBytes
             };
 
-            var result = NativeMethods.oxidize_extract_text_with_options(
+            var result = NativeMethods.oxidize_extract_text_with_options_v2(
                 pdfPtr,
                 (nuint)pdfBytes.Length,
                 ref nativeOptions,
                 out textPtr,
-                out bool truncated);
+                out bool truncated,
+                options.IncludeLinkAnnotations,
+                options.IncludeUnreliableFigureText);
 
             ThrowIfError(result, "Failed to extract text with options");
 

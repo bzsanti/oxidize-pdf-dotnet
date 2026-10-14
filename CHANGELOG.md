@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upstream 5.4.2 update (2026-10-13)
+
+- Upgrade the official Rust dependency from 5.1.5 to 5.4.2 without source patches.
+- Audit current Rust/.NET parity and distinguish implemented APIs from new gaps.
+- Verify the four previous bookmark/metadata failures are fixed (20 related tests pass).
+- Compatibility blocker: the existing carriage-return regression receives U+FFFD
+  for undefined WinAnsi codes. Test expectations remain unchanged; see
+  `docs/UPSTREAM_5_MIGRATION.md` for final validation evidence.
+
+### Earlier 5.1.5 integration (historical local notes; published in 0.18.0)
+
+- Pin the official `oxidize-pdf` 5.1.5 package without source patches.
+- Add optional link-annotation text and unreliable-figure extraction, positioned
+  fragments with rendering modes, and bounded bookmark reading.
+- Add incremental Highlight, FreeText, Ink, and geometric annotation APIs.
+- Add explicit-policy structural plans/reports, page mutation batches and reorder.
+- Add external-CMS signing preparation/completion and visible appearances.
+- Add bounded semantic comparison with revision and object attribution.
+- Add existing tagged-PDF inspection, planning and incremental mutation.
+- Add incremental invisible OCR layers from caller-provided recognition results.
+- Add distinct irreversible text removal and visual-mask APIs with risk reports.
+- Known upstream regressions: nested bookmark sibling links (#633) and metadata
+  discard in reconstructive extraction/split (#634); migration is not release-ready.
+- Package/FFI release version assignment remains pending; no release is published
+  by this integration. Existing exports and extraction struct layout are retained.
+
 ### Added
 - Reading-order text extraction and configurable carriage-return handling.
 - `/ActualText` marked-content authoring for accessible replacement text.

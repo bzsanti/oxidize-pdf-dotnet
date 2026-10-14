@@ -1,0 +1,9 @@
+# kripteia.toml — test quality analyzer configuration
+
+# ── Telemetry (opt-in, off by default) ───────────────────────────────────
+# Local-only counters (findings per rule, latencies) in ~/.kripteia/telemetry.db.
+# Per-event data NEVER leaves the machine. Daily aggregates upload only when
+# BOTH flags below are true (and a transport is configured — none ships yet).
+[telemetry]
+enabled = true
+upload_aggregates = false
