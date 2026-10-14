@@ -1,3 +1,81 @@
+# Active increment — resource provenance (#96), 2026-10-14
+
+| Requirement | State / evidence | Blocker / closure evidence |
+| --- | --- | --- |
+| Direct/inherited/absent resource identity | Implemented by `GetPageResourceProvenanceAsync` | Local behavior tests pass |
+| Resolved view without altering old API | Demonstrated: sorted entries, references and resolved summary | Old flattened API comparison and empty override tests pass |
+| Bounded malformed-input behavior | Demonstrated: cycle/type/reference errors and exact limits | Native boundary tests and real-FFI rejection cases pass |
+| Real behavior and parity enforcement | Demonstrated: 20 resource cases + existing geometry/contract/ABI | 35 focused tests pass; 226 native tests pass |
+| Quality/security and platform CI | Local review complete, no unresolved finding | Platform CI pending before integration |
+
+Use Rust 5.4.2 parsed-page/object APIs. `inherited_resources` alone cannot identify
+provenance because the core also uses it for resolved direct references. Walk only
+the parent chain needed to find the nearest `/Resources`; never merge dictionaries
+across ancestors. A present but invalid dictionary errors; an empty one masks parents.
+The new resolved view lists standard named resource categories without loading
+referenced resource contents. ProcSet/custom non-dictionary categories remain keys.
+#97 can reuse the effective-resource lookup; stream decoding remains in #95.
+
+### Quality review — resource provenance increment
+
+Scope: native `resource_provenance.rs` and module registration; managed
+`GetPageResourceProvenanceAsync`, P/Invoke, models/options; 20 real-FFI cases,
+parity contract and existing pinned-JSON/free/error helpers. Core 5.4.2 object
+lookup and page inheritance were inspected as the source of truth. No new
+runtime dependency or changes to existing resource APIs.
+
+Contracts/evidence: independent PDF trees distinguish direct inline/indirect,
+nearest ancestor/root, absent versus empty Resources and per-page overrides.
+Standard categories produce sorted names and declared object/generation references;
+referenced resource contents are deliberately not loaded (including a declared
+unresolvable entry reference). ProcSet/custom category values are not interpreted.
+Malformed required parents/resources/categories fail; ancestors beyond the owner
+are irrelevant. Limits bound this inspection after core page parsing, not the
+core parser's earlier work. All returned names count against the UTF-8 budget,
+including repeated category/font names; JSON syntax/escaping is excluded.
+
+Local validation: 35 focused .NET cases pass (20 provenance, 8 geometry, 6 contract,
+1 ABI); all 226 native tests pass; Clippy with denied warnings, Rust formatting,
+.NET formatting and diff whitespace checks pass. The entry-budget negative control
+was compiled in `/tmp/resource-provenance-mutant`: replacing only managed
+MaxEntries forwarding with 100,000 makes
+`TraversalEntryAndNameBudgetsHaveExactBoundaries` fail at the expected
+Throws assertion (no exception). Its original source/runtime passed. The mutant
+used separate managed binaries and never modified the reviewed tree/runtime.
+
+Findings: no unresolved finding in this increment. Manual review covered output
+reset before errors, valid-pointer preconditions, checked integer narrowing,
+panic containment, same-thread error retrieval, successful CString ownership
+transfer and finally-based freeing, cloned input/options before scheduling,
+parent-cycle detection and budget checks before accumulating reported names.
+The parser's own lenient recovery/caches remain governed by the core and file-size
+cap; the wrapper does not claim a whole-parser allocation/time bound. Raw resource
+references are identities, not a claim that the referenced image/font is valid.
+These explicit limits avoid misleading completeness/security guarantees.
+
+Kripteia test quality: Rust 97, 226 tests/21 files; C# 95, 959 detected tests/122
+files. The new C# test class scored 100 (8 methods, 20 expanded cases). The new
+native boundary test scored 90 with a false "happy path only" claim: it explicitly
+asserts NullPointer, InvalidArgument, PdfParseError and cleared outputs. Its
+multiple assertions report actual return codes at individual call sites. Existing
+worst scores (Rust panic guard 65 and C# disposal tests 65) concern unchanged code;
+the existing review backlog owns them, not the acceptance of this read-only API.
+
+Kripteia security: Rust reported 289 unsafe usages across the FFI, including the
+new entry point, manually traced as above. C# reported no security issues but
+partial/error syntax in 29 files, including the new model/test files; manual
+inspection and compilation supplement that incomplete analysis. Both analyses
+completed successfully despite read-only telemetry warnings. No new secret,
+taint-flow or dangerous-function finding was emitted for this increment.
+
+Metrics: 8 changed code/test/contract files reviewed plus existing FFI helpers and
+core lookup dependencies; 0 unresolved findings; 0 product files modified by the
+read-only review. Remaining verification: all platform CI jobs before integration.
+Evidence: `/tmp/resource-provenance-native-tests.log`,
+`/tmp/resource-provenance-kripteia-rust.log`,
+`/tmp/resource-provenance-kripteia-csharp.log`, and the disposable mutation above.
+
+
 # Completed increment — page geometry (#105), 2026-10-14
 
 Implementation commits: `bb7a6e9` and `f5baa0e`.

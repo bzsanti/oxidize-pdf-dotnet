@@ -1048,6 +1048,46 @@ public class PdfExtractor
             $"Failed to get geometry for page {pageNumber}"), cancellationToken);
     }
 
+    /// <summary>Inspect direct/inherited resource ownership and names on an existing page (one-based).</summary>
+    /// <remarks>
+    /// The nearest Resources entry supplies the entire dictionary; even an empty page dictionary
+    /// overrides ancestors. Inline versus indirect storage does not determine inheritance.
+    /// Standard named categories are resolved one reference deep like the core; resource contents
+    /// are not loaded. ProcSet and custom categories appear only in ResourceKeys.
+    /// Invalid dictionaries, required parent links, cycles or exceeded limits fail without partial
+    /// results. Ancestors beyond the declaring node are not inspected. Core lenient page parsing
+    /// precedes the bounded provenance walk and retains its own limits and recovery behavior.
+    /// Input bytes and options are copied before scheduling; the result owns no native resources.
+    /// Cancellation prevents queued execution but cannot interrupt an active native call.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">PDF bytes are null.</exception>
+    /// <exception cref="ArgumentException">PDF bytes are empty, too large, or limits are invalid.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Page number is less than one or a limit is out of range.</exception>
+    /// <exception cref="PdfExtractionException">Parsing, lookup or bounded inspection fails.</exception>
+    public Task<PageResourceProvenance> GetPageResourceProvenanceAsync(
+        byte[] pdfBytes, int pageNumber, PageResourceReadOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0) throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        if (pageNumber < 1) throw new ArgumentOutOfRangeException(nameof(pageNumber), "Page number must be >= 1");
+        ValidatePdfSize(pdfBytes);
+        var limits = options is null ? new PageResourceReadOptions() : new PageResourceReadOptions
+        {
+            MaxAncestorDepth = options.MaxAncestorDepth,
+            MaxEntries = options.MaxEntries,
+            MaxNameBytes = options.MaxNameBytes
+        };
+        limits.Validate();
+        var snapshot = (byte[])pdfBytes.Clone();
+        return Task.Run(() => CallNativeJson<PageResourceProvenance>(snapshot,
+            (IntPtr ptr, nuint len, out IntPtr json) => NativeMethods.oxidize_get_page_resource_provenance(
+                ptr, len, (nuint)pageNumber, (nuint)limits.MaxAncestorDepth,
+                (nuint)limits.MaxEntries, (nuint)limits.MaxNameBytes, out json),
+            $"Failed to inspect resources for page {pageNumber}"), cancellationToken);
+    }
+
     private void ValidatePdfSize(byte[] pdfBytes)
     {
         if (pdfBytes.LongLength > _maxFileSizeBytes)

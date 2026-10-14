@@ -28,6 +28,7 @@ pub mod outline_read;
 pub mod page;
 pub mod parser;
 pub mod pipeline_config;
+pub mod resource_provenance;
 pub mod security;
 pub mod semantic;
 pub mod semantic_compare;

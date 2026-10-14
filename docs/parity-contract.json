@@ -1,6 +1,6 @@
 {
   "core": "5.4.2",
-  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry. Remaining Rust API pending audit; no total parity claim.",
+  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance. Remaining Rust API pending audit; no total parity claim.",
   "callables": {
     "PdfSignatureSlots.CreateAsync": [
       "pdf",
@@ -65,6 +65,12 @@
     "PdfExtractor.GetPageGeometryAsync": [
       "pdfBytes",
       "pageNumber",
+      "cancellationToken"
+    ],
+    "PdfExtractor.GetPageResourceProvenanceAsync": [
+      "pdfBytes",
+      "pageNumber",
+      "options",
       "cancellationToken"
     ]
   },
@@ -141,6 +147,30 @@
       "Bottom",
       "Right",
       "Top"
+    ],
+    "Models.PageResourceProvenance": [
+      "PageNumber",
+      "PageReference",
+      "Origin",
+      "SourceReference",
+      "ResourceDictionaryReference",
+      "AncestorDepth",
+      "ResolvedResources",
+      "Entries"
+    ],
+    "Models.PageResourceEntry": [
+      "Category",
+      "Name",
+      "Reference"
+    ],
+    "PdfIndirectObjectId": [
+      "ObjectNumber",
+      "GenerationNumber"
+    ],
+    "Models.PageResources": [
+      "FontNames",
+      "HasXObjects",
+      "ResourceKeys"
     ]
   },
   "defaults": {
@@ -177,6 +207,11 @@
       "LenientEncoding": true,
       "PreferredEncoding": null,
       "LenientSyntax": false
+    },
+    "Models.PageResourceReadOptions": {
+      "MaxAncestorDepth": 256,
+      "MaxEntries": 100000,
+      "MaxNameBytes": 1048576
     }
   },
   "behavior_tests": [
@@ -193,6 +228,14 @@
     "PageGeometryTests.InheritedGeometryUsesNearestAncestorAndPageOverrides",
     "PageGeometryTests.MissingCropAndRotationRemainDistinctFromExplicitValues",
     "PageGeometryTests.InvalidInputIndexesLimitsAndCancellationAreRejected",
-    "PageGeometryTests.QueuedInspectionOwnsAnInputSnapshot"
+    "PageGeometryTests.QueuedInspectionOwnsAnInputSnapshot",
+    "PageResourceProvenanceTests.DirectOwnershipDoesNotDependOnDictionaryIndirection",
+    "PageResourceProvenanceTests.InheritedOwnershipIdentifiesNearestDeclaringNode",
+    "PageResourceProvenanceTests.EmptyOverridesAndAbsenceRemainDistinctWithoutCrossPageLeakage",
+    "PageResourceProvenanceTests.ResolvedInventoryIncludesNamedCategoriesAndPreservesFlattenedApi",
+    "PageResourceProvenanceTests.InvalidResourceDeclarationsFailInsteadOfFallingBack",
+    "PageResourceProvenanceTests.RequiredMalformedAncestryIsRejected",
+    "PageResourceProvenanceTests.TraversalEntryAndNameBudgetsHaveExactBoundaries",
+    "PageResourceProvenanceTests.ValidationAndSnapshotOwnershipReachTheRealFfi"
   ]
 }
