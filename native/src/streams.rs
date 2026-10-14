@@ -15,8 +15,8 @@ use std::{
     os::raw::{c_char, c_int},
 };
 
-type Failure = (u8, String);
-type Result<T> = std::result::Result<T, Failure>;
+pub(crate) type Failure = (u8, String);
+pub(crate) type Result<T> = std::result::Result<T, Failure>;
 fn other(e: impl std::fmt::Display) -> Failure {
     (2, e.to_string())
 }
@@ -57,11 +57,11 @@ struct Stream {
     object_id: Option<(u32, u16)>,
     contents_index: Option<usize>,
 }
-fn identity(id: Option<(u32, u16)>) -> Value {
+pub(crate) fn identity(id: Option<(u32, u16)>) -> Value {
     id.map(|(n, g)| json!({"object_number":n,"generation_number":g}))
         .unwrap_or(Value::Null)
 }
-fn resolve(
+pub(crate) fn resolve(
     doc: &PdfDocument<Cursor<&[u8]>>,
     mut value: PdfObject,
     max_depth: usize,
@@ -159,19 +159,24 @@ fn select(doc: &PdfDocument<Cursor<&[u8]>>, r: &Request) -> Result<Vec<Stream>> 
         })
         .collect()
 }
-struct MetadataBudget {
-    nodes: usize,
-    bytes: usize,
+pub(crate) struct MetadataBudget {
+    pub(crate) nodes: usize,
+    pub(crate) bytes: usize,
 }
 impl MetadataBudget {
-    fn bytes(&mut self, n: usize) -> Result<()> {
+    pub(crate) fn bytes(&mut self, n: usize) -> Result<()> {
         self.bytes = self
             .bytes
             .checked_sub(n)
             .ok_or_else(|| limit("Metadata byte budget exceeded"))?;
         Ok(())
     }
-    fn check(&mut self, value: &PdfObject, depth: usize, max_depth: usize) -> Result<()> {
+    pub(crate) fn check(
+        &mut self,
+        value: &PdfObject,
+        depth: usize,
+        max_depth: usize,
+    ) -> Result<()> {
         if depth > max_depth {
             return Err(limit("Metadata depth exceeded"));
         }
@@ -199,6 +204,53 @@ impl MetadataBudget {
         Ok(())
     }
 }
+/// Shared strict/recovery path for arbitrary streams and selected image samples.
+pub(crate) fn decode(
+    doc: &PdfDocument<Cursor<&[u8]>>,
+    stream: &PdfStream,
+    max_decoded_bytes: usize,
+    allow_recovery: bool,
+) -> Result<(Vec<u8>, Vec<Value>)> {
+    let result = if allow_recovery {
+        let recovered = doc
+            .decode_stream_with_recovery(stream, max_decoded_bytes)
+            .map_err(|e| {
+                let kind = match e.kind {
+                    StreamRecoveryErrorKind::InvalidFlate => 0,
+                    StreamRecoveryErrorKind::ResourceLimit => 1,
+                    _ => 2,
+                };
+                (kind, e.to_string())
+            })?;
+        let diagnostics = recovered
+            .diagnostics
+            .into_iter()
+            .map(|d| {
+                let kind = match d.kind {
+                    FlateRecoveryKind::Unverified => 0,
+                    FlateRecoveryKind::Incomplete => 1,
+                    _ => return Err(other("Unknown recovery kind")),
+                };
+                Ok(json!({"filter_index":d.filter_index,"kind":kind,"error":d.error}))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        (recovered.data, diagnostics)
+    } else {
+        // Core 5.4.2 returns an empty Vec for /Filter [] even with nonempty input.
+        // Do not publish that silent data loss as successful complete decoding.
+        if matches!(stream.dict.get("Filter"), Some(PdfObject::Array(a)) if a.0.is_empty())
+            && !stream.data.is_empty()
+        {
+            return Err((3,"Core 5.4.2 strict decoding of an empty Filter array is unsupported; raw bytes remain available".into()));
+        }
+        (
+            doc.decode_stream_with_limit(stream, max_decoded_bytes)
+                .map_err(|e| (3, e.to_string()))?,
+            vec![],
+        )
+    };
+    Ok(result)
+}
 fn dispatch(bytes: &[u8], r: Request) -> Result<Value> {
     if r.options.max_metadata_depth > 16 || r.options.max_reference_depth > 128 {
         return Err(other(
@@ -217,44 +269,12 @@ fn dispatch(bytes: &[u8], r: Request) -> Result<Value> {
             .into_iter()
             .next()
             .ok_or_else(|| other("Missing stream"))?;
-        let (data, diagnostics) = if options.allow_recovery {
-            let recovered = doc
-                .decode_stream_with_recovery(&stream.value, options.max_decoded_bytes)
-                .map_err(|e| {
-                    let kind = match e.kind {
-                        StreamRecoveryErrorKind::InvalidFlate => 0,
-                        StreamRecoveryErrorKind::ResourceLimit => 1,
-                        _ => 2,
-                    };
-                    (kind, e.to_string())
-                })?;
-            let diagnostics = recovered
-                .diagnostics
-                .into_iter()
-                .map(|d| {
-                    let kind = match d.kind {
-                        FlateRecoveryKind::Unverified => 0,
-                        FlateRecoveryKind::Incomplete => 1,
-                        _ => return Err(other("Unknown recovery kind")),
-                    };
-                    Ok(json!({"filter_index":d.filter_index,"kind":kind,"error":d.error}))
-                })
-                .collect::<Result<Vec<_>>>()?;
-            (recovered.data, diagnostics)
-        } else {
-            // Core 5.4.2 returns an empty Vec for /Filter [] even with nonempty input.
-            // Do not publish that silent data loss as successful complete decoding.
-            if matches!(stream.value.dict.get("Filter"), Some(PdfObject::Array(a)) if a.0.is_empty())
-                && !stream.value.data.is_empty()
-            {
-                return Err((3,"Core 5.4.2 strict decoding of an empty Filter array is unsupported; raw bytes remain available".into()));
-            }
-            (
-                doc.decode_stream_with_limit(&stream.value, options.max_decoded_bytes)
-                    .map_err(|e| (3, e.to_string()))?,
-                vec![],
-            )
-        };
+        let (data, diagnostics) = decode(
+            &doc,
+            &stream.value,
+            options.max_decoded_bytes,
+            options.allow_recovery,
+        )?;
         return Ok(
             json!({"data":STANDARD.encode(data),"diagnostics":diagnostics,"object_id":identity(stream.object_id),"contents_index":stream.contents_index}),
         );

@@ -1,31 +1,24 @@
 # Session handoff — 2026-10-14
 
-Completed #95: PdfStreams object/page inspection and bounded strict/explicit-
-recovery decoding, implementation `0e38e7610144ce35cb7e172343a5a70068eb77af`.
-Integrated into develop after all 14 platform CI jobs passed:
-https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38613769172
-No automatic PR (#81), package release or worktree. Closure changes documentation
-only; product/test/contract/workflow identity with the validated SHA is verified.
+Active #97 on feat/rust-parity-named-images: PdfImages.ExtractAsync selects one
+page/resource name, with explicit nested Form paths, resource identity, full
+metadata and original/bounded output bytes. Local implementation/review complete;
+all platform CI must pass before develop integration. No automatic PR or release.
 
-Acceptance/evidence and resolved findings: docs/FEATURE_PARITY.md. 25 focused .NET
-cases (10 new stream cases), 228 native tests, formatting/Clippy pass. Compiled
-disposable mutation ignoring decoded budgets fails both strict/recovery cases as
-intended. Both Kripteia analyses completed; C# syntax coverage limitations manually
-supplemented. No unresolved finding within this increment.
+Output contract: packed PDF samples after bounded stream decoding, or standalone
+JPEG passthrough. No implicit PNG/color/mask transformation or JPEG integrity
+claim. Declared dimensions enforce the existing pixel limit. Missing/non-image/
+unsupported resources fail explicitly; unrelated resources are not extracted.
+See docs/FEATURE_PARITY.md for complete criteria, limits and review evidence.
 
-Contracts: zero-based page/content selectors; raw encoded payload and ordered
-Filter/DecodeParms kept separate from decoded output, including source identity.
-Document-aware decoding resolves indirect parameters; recovery is opt-in and
-reports every incomplete/unverified filter diagnostic. Budgets never return partial
-success. Limits apply after core parsing, not to total parser allocations/time.
-Core 5.4.2 strict `/Filter []` data loss is explicitly rejected; raw inspection and
-explicit recovery remain available. Encoded budgets stop accumulation early.
+Validation: 58 focused .NET cases (19 named-image cases), 230 native tests,
+format/Clippy checks and both Kripteia analyses. The compiled disposable pixel-limit
+mutation fails as intended. Shared #95 decoder and #96 resource helper regressions
+pass; ancestor limits now have an internal typed error without changing the old API.
 
-Next: #97, named image XObject extraction. Reuse core document-aware bounded
-decoding and #96 `resource_provenance::find_resources`; don't duplicate batch image
-extraction internals. Completed previously: #105 and #96. Core 5.4.2 / managed
-0.19.0 / native 0.14.0; test-only PKCS 10.0.13. Preserve original cleanup history
-and no-worktree choice. Active integration branch: develop.
+Next delivery steps: push feature, await all 14 CI jobs, record exact validated SHA,
+fast-forward develop, close #97 and update #81. Prior increments #105/#96/#95 are
+complete. Core 5.4.2, managed 0.19.0, native 0.14.0; test-only PKCS 10.0.13.
+Preserve the no-worktree choice and existing cleanup history.
 
-Evidence: /tmp/raw-streams-*.log, /tmp/raw-streams-ci-result.json and
-/tmp/raw-streams-mutant/. Remaining capabilities stay tracked under #81.
+Evidence: /tmp/named-images-*.log and /tmp/named-images-mutant/.

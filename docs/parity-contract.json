@@ -1,6 +1,6 @@
 {
   "core": "5.4.2",
-  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams. Remaining Rust API pending audit; no total parity claim.",
+  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Remaining Rust API pending audit; no total parity claim.",
   "callables": {
     "PdfSignatureSlots.CreateAsync": [
       "pdf",
@@ -98,6 +98,15 @@
       "pdf",
       "pageIndex",
       "contentsIndex",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfImages.ExtractAsync": [
+      "pdf",
+      "pageIndex",
+      "resourceName",
+      "formPath",
       "options",
       "parserOptions",
       "ct"
@@ -226,6 +235,30 @@
     ],
     "PdfStreamException": [
       "Kind"
+    ],
+    "PdfNamedImage": [
+      "PageIndex",
+      "PageObjectId",
+      "ResourceName",
+      "FormPath",
+      "FormObjectIds",
+      "ObjectId",
+      "ResourceOwnerId",
+      "ResourceDictionaryId",
+      "Width",
+      "Height",
+      "BitsPerComponent",
+      "ImageMask",
+      "EncodedFormat",
+      "OutputFormat",
+      "EncodedData",
+      "Data",
+      "Dictionary",
+      "Diagnostics"
+    ],
+    "PdfImageException": [
+      "Kind",
+      "StreamErrorKind"
     ]
   },
   "defaults": {
@@ -277,6 +310,23 @@
       "MaxMetadataDepth": 16,
       "MaxMetadataNodes": 4096,
       "MaxMetadataBytes": 65536
+    },
+    "PdfNamedImageOptions": {
+      "Limits": {
+        "MaxImages": 1000,
+        "MaxEncodedBytesPerImage": 67108864,
+        "MaxTotalEncodedBytes": 268435456,
+        "MaxDecodedPixelsPerImage": 100000000
+      },
+      "MaxDecodedBytes": 16777216,
+      "AllowRecovery": false,
+      "MaxAncestorDepth": 256,
+      "MaxFormDepth": 16,
+      "MaxReferenceDepth": 32,
+      "MaxNameBytes": 4096,
+      "MaxMetadataDepth": 16,
+      "MaxMetadataNodes": 4096,
+      "MaxMetadataBytes": 65536
     }
   },
   "behavior_tests": [
@@ -310,6 +360,18 @@
     "RawStreamTests.InspectionBudgetsHaveExactAggregateBoundaries",
     "RawStreamTests.InvalidSelectorsAndIndirectMetadataFailExplicitly",
     "RawStreamTests.InputsAreOwnedAndLegacyDecodedApiIsPreserved",
-    "RawStreamTests.IndirectPredictorParametersAreAppliedByTheDocument"
+    "RawStreamTests.IndirectPredictorParametersAreAppliedByTheDocument",
+    "NamedImageTests.SelectsDistinctNamesAndAliasesWithoutExtractingUnrelatedResources",
+    "NamedImageTests.InheritedIndirectResourcesAndEmptyOverridesPreserveOwnership",
+    "NamedImageTests.MissingNonImageAndDanglingResourcesHaveTypedErrors",
+    "NamedImageTests.FormsRequireExplicitPathsAndUseNearestDeclaredResources",
+    "NamedImageTests.ChainedFiltersResolvePredictorsAndRetainColorDecodeAndMaskMetadata",
+    "NamedImageTests.UnsupportedFiltersFailInsteadOfSkippingTheNamedImage",
+    "NamedImageTests.JpegPassthroughAndStencilSamplesHaveExplicitFormats",
+    "NamedImageTests.ImageCountPixelAndByteLimitsAreEnforcedBeforeDecode",
+    "NamedImageTests.RecoveryDiagnosticsAndExpansionLimitsReuseStreamSemantics",
+    "NamedImageTests.LookupAndMetadataLimitsHaveExactBoundaries",
+    "NamedImageTests.ExistingBatchApiStillReturnsEncodedPngFiles",
+    "NamedImageTests.InputsAndNestedSettingsAreSnapshottedAndInvalidInputsFail"
   ]
 }

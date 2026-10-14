@@ -25,17 +25,35 @@ impl From<(u32, u16)> for ObjectId {
 
 /// The first declaring node owns the entire resource dictionary, even when empty.
 pub(crate) struct ResourceSource {
-    owner: Option<ObjectId>,
-    dictionary_reference: Option<ObjectId>,
+    pub(crate) owner: Option<ObjectId>,
+    pub(crate) dictionary_reference: Option<ObjectId>,
     depth: Option<usize>,
     pub(crate) dictionary: Option<PdfDictionary>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum ResourceLookupError {
+    #[error("Resource ancestor depth limit exceeded")]
+    DepthLimit,
+    #[error("{0}")]
+    Invalid(String),
+}
+impl From<String> for ResourceLookupError {
+    fn from(value: String) -> Self {
+        Self::Invalid(value)
+    }
+}
+impl From<&str> for ResourceLookupError {
+    fn from(value: &str) -> Self {
+        Self::Invalid(value.into())
+    }
 }
 
 pub(crate) fn find_resources<R: Read + Seek>(
     document: &PdfDocument<R>,
     page: &ParsedPage,
     max_depth: usize,
-) -> Result<ResourceSource, String> {
+) -> Result<ResourceSource, ResourceLookupError> {
     let mut node = page.dict.clone();
     let mut owner = page.obj_ref;
     let mut visited = HashSet::from([owner]);
@@ -72,7 +90,7 @@ pub(crate) fn find_resources<R: Read + Seek>(
             return Err("Cycle in resource ancestry".into());
         }
         if depth >= max_depth {
-            return Err("Resource ancestor depth limit exceeded".into());
+            return Err(ResourceLookupError::DepthLimit);
         }
         depth += 1;
         let resolved = document
@@ -140,7 +158,7 @@ fn inspect<R: Read + Seek>(
     let page = document
         .get_page((page_number - 1) as u32)
         .map_err(|e| e.to_string())?;
-    let source = find_resources(document, &page, max_depth)?;
+    let source = find_resources(document, &page, max_depth).map_err(|e| e.to_string())?;
     let mut result = Inspection {
         page_number,
         page_reference: page.obj_ref.into(),

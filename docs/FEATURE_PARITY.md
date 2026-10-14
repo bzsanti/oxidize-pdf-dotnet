@@ -1,3 +1,119 @@
+# Active increment — named image XObjects (#97), 2026-10-14
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| READ-015 page/name selection and source identity | Demonstrated | Exact names, aliases, two images, inherited/indirect resources and identities |
+| Encoded/decoded metadata and existing count/pixel budgets | Demonstrated | Owned payload/sample data, ordered dictionary, pixel/byte exact boundaries |
+| Inherited/missing/non-image/unsupported-filter behavior | Demonstrated | Typed errors; unrelated corrupt/unsupported resources are not extracted |
+| Explicit nested Forms; preserve batch APIs | Demonstrated | Two-level paths, nearest/absent/empty Resources, cycles and batch PNG regression |
+| Typed contracts, real FFI, parity gate, quality/security and CI | Local evidence complete; platform CI pending | Require all 14 jobs before integration |
+
+Use #96 resource ownership lookup and #95 document-aware bounded decoding. Output
+is a resource extraction, not a rendered PNG: decoded samples retain packing,
+color-space/Decode/mask metadata; JPEG payloads remain JPEG and are not decoded.
+This avoids reimplementing the private batch PNG converter or processing unrelated
+images. Explicit Form paths resolve each Form's resource dictionary; an absent
+Form Resources uses the current enclosing dictionary, while an empty one masks it.
+No automatic Form search, inline-image scan, graphics-state transform, mask
+composition or palette/color conversion. These transformations are outside the named-resource contract; existing batch
+extraction remains unchanged. Budgets apply after core parsing, not to its total allocations.
+
+## Quality review — named image increment
+
+### Resumen ejecutivo
+
+Scope: `named_images.rs`, shared resource/stream helpers and module registration,
+`PdfImages.cs`, independent real-FFI fixtures and parity contract. Source is the
+feature branch based on `0498e5c`, including the current changes. No runtime
+dependency or core version change. Local review/verification is complete; platform
+CI remains the integration blocker. No automatic PR or package release.
+
+### Contratos y evidencia
+
+`PdfImages.ExtractAsync` selects one zero-based page and exact decoded PDF name.
+An explicit list of Form names traverses resources, not drawing operators. No
+recursive search or batch extraction is used. Each successful call consumes one
+image count slot. Effective page Resources comes from #96; absent Form Resources
+inherits the enclosing dictionary, present empty Resources masks it, invalid
+Resources errors, and a repeated Form object in the path is rejected. Resource
+owner, dictionary, image and all Form identities are retained where indirect.
+
+Encoded payload and decoded packed samples remain separate, with full declared
+metadata (including ordered Filter/DecodeParms, ColorSpace, Decode and masks).
+PNG conversion, palette/color processing, Decode mapping and mask composition are
+not applied. Standalone DCT is explicit JPEG passthrough: it does not claim JPEG
+integrity, header dimensions or decoded pixels. Pixel bounds check declared PDF
+width × height using u64 arithmetic, as in the existing core image limits. No
+image sample-geometry or whole-document validity claim is made. Unsupported
+bounded filters, including chained DCT, fail explicitly rather than skip the image.
+
+The stream decoder and recovery diagnostics are the same path as #95, including
+indirect predictors and the strict empty-Filter guard. Recovery is opt-in. Input,
+Form names, nested options and parser settings are snapshotted before scheduling;
+returned bytes/JSON values are owned. Cancellation affects queued work only. The
+100 MiB input cap and post-parse budgets are not a whole-parser time/memory sandbox.
+
+58 focused .NET cases pass: 19 named-image cases, 10 raw streams, 20 provenance,
+6 parity contract, 1 ABI and 2 existing batch-bound cases. The new batch regression
+also confirms two valid PNG outputs while named selection returns only requested
+samples with MaxImages=1. All 230 native tests, denied-warning Clippy, Rust/.NET
+format checks and whitespace checks pass. A compiled copy in
+`/tmp/named-images-mutant` replaces the caller's pixel limit with long.MaxValue;
+`ImageCountPixelAndByteLimitsAreEnforcedBeforeDecode` fails at its expected Throws
+assertion (no exception). The original passes; reviewed source/runtime was not
+mutated. A second assertion checks the pixel guard before a corrupt Flate decoder.
+
+### Hallazgos
+
+1. Preserve budget categories across shared helpers: the initial ancestor helper
+   returned only text, and the metadata helper used stream-oriented error codes.
+   Mapping both generically would mislabel inspection limits as invalid data or
+   stream decoding errors. Resolved with internal `ResourceLookupError::DepthLimit`
+   (`native/src/resource_provenance.rs:35`) and `inspection_error`
+   (`native/src/named_images.rs:37`), while retaining the existing public provenance
+   messages and actual decoder classifications. Real-FFI ancestor-limit and
+   metadata-limit tests verify LimitExceeded, with no invented stream error for
+   metadata inspection. Existing provenance regression passes.
+
+No unresolved finding. A dangling reference that core resolves to PDF null is
+rejected as NotImage/NotForm; the wrapper does not invent a parser failure for it.
+Manual review covered selectors and shadowing, shared-helper consumers, checked
+integer bounds, per-chain cycle limits, metadata budgets before recursive JSON,
+output reset, raw pointer/length preconditions, panic containment, same-thread
+native error retrieval, CString transfer/free and pinned-input finally cleanup.
+The test-only JPEG marker payload deliberately demonstrates passthrough, not an
+unperformed JPEG integrity check. Unrelated resources are not decoded or validated.
+
+### Calidad de Tests (Kripteia)
+
+Rust score 97, 230 tests/23 files; new native tests score 100. C# score 95,
+980 detected tests/124 files; new image class score 98 (12 methods/19 cases).
+The two claims that expression-bodied theories do not call production code are
+false positives: both await `Fails`, which calls `PdfImages.ExtractAsync` through
+real FFI and asserts the exact error category. A duplicated Compress fixture
+helper is intentional standard ZLibStream setup for independent PDF fixtures;
+it does not duplicate the production decoder or weaken the oracle. Prior worst
+scores remain in unchanged panic/disposal tests and their existing review backlog.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Rust reports 291 unsafe usages across the native tree; the new FFI's ownership
+and boundary invariants were manually traced and boundary-tested. C# reports no
+security issues but partial/error syntax in 33 files, including the new API/tests;
+compilation/manual review supplement that coverage limitation. Both mandatory
+analyses completed successfully despite read-only telemetry warnings. No new
+secret, taint-flow or dangerous-function finding was reported for this increment.
+
+### Métricas
+
+Seven changed implementation/test/contract files reviewed plus core dependencies
+and existing FFI/bootstrap helpers. One contract-mapping finding corrected before
+final verification; zero unresolved. Review passes were read-only; the correction
+was an authorized implementation step. Pending: all 14 platform CI jobs on the
+implementation revision. Evidence: `/tmp/named-images-{native-tests,dotnet-tests,
+clippy,mutation}.log`, `/tmp/named-images-kripteia-{rust,csharp}.log` and disposable
+mutation directory. Package publication is separate.
+
 # Completed increment — raw streams and bounded decoding (#95), 2026-10-14
 
 | Requirement / source | State / evidence | Blocker / next action |
