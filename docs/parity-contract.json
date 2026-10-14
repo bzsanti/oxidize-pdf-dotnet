@@ -1,6 +1,6 @@
 {
   "core": "5.4.2",
-  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance. Remaining Rust API pending audit; no total parity claim.",
+  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams. Remaining Rust API pending audit; no total parity claim.",
   "callables": {
     "PdfSignatureSlots.CreateAsync": [
       "pdf",
@@ -72,6 +72,35 @@
       "pageNumber",
       "options",
       "cancellationToken"
+    ],
+    "PdfStreams.ReadAsync": [
+      "pdf",
+      "objectId",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfStreams.ReadPageAsync": [
+      "pdf",
+      "pageIndex",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfStreams.DecodeAsync": [
+      "pdf",
+      "objectId",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfStreams.DecodePageContentAsync": [
+      "pdf",
+      "pageIndex",
+      "contentsIndex",
+      "options",
+      "parserOptions",
+      "ct"
     ]
   },
   "properties": {
@@ -171,6 +200,32 @@
       "FontNames",
       "HasXObjects",
       "ResourceKeys"
+    ],
+    "PdfRawStream": [
+      "Data",
+      "ObjectId",
+      "ContentsIndex",
+      "Filter",
+      "DecodeParameters"
+    ],
+    "PdfDecodedStream": [
+      "Data",
+      "ObjectId",
+      "ContentsIndex",
+      "Diagnostics",
+      "DecodedWithoutRecovery"
+    ],
+    "PdfStreamValue": [
+      "Type",
+      "Value"
+    ],
+    "PdfStreamRecoveryDiagnostic": [
+      "FilterIndex",
+      "Kind",
+      "Error"
+    ],
+    "PdfStreamException": [
+      "Kind"
     ]
   },
   "defaults": {
@@ -212,6 +267,16 @@
       "MaxAncestorDepth": 256,
       "MaxEntries": 100000,
       "MaxNameBytes": 1048576
+    },
+    "PdfStreamOptions": {
+      "MaxEncodedBytes": 16777216,
+      "MaxDecodedBytes": 16777216,
+      "AllowRecovery": false,
+      "MaxStreams": 1024,
+      "MaxReferenceDepth": 32,
+      "MaxMetadataDepth": 16,
+      "MaxMetadataNodes": 4096,
+      "MaxMetadataBytes": 65536
     }
   },
   "behavior_tests": [
@@ -236,6 +301,15 @@
     "PageResourceProvenanceTests.InvalidResourceDeclarationsFailInsteadOfFallingBack",
     "PageResourceProvenanceTests.RequiredMalformedAncestryIsRejected",
     "PageResourceProvenanceTests.TraversalEntryAndNameBudgetsHaveExactBoundaries",
-    "PageResourceProvenanceTests.ValidationAndSnapshotOwnershipReachTheRealFfi"
+    "PageResourceProvenanceTests.ValidationAndSnapshotOwnershipReachTheRealFfi",
+    "RawStreamTests.RawChainPreservesBytesOrderParametersAndIdentity",
+    "RawStreamTests.UnfilteredEmptyAndAbsentContentsAreDistinct",
+    "RawStreamTests.RecoveryIsOptInAndKeepsFilterPosition",
+    "RawStreamTests.CorruptionPredictorsAndUnsupportedFiltersRemainErrors",
+    "RawStreamTests.DecodedBudgetsRejectExpansionWithoutTruncating",
+    "RawStreamTests.InspectionBudgetsHaveExactAggregateBoundaries",
+    "RawStreamTests.InvalidSelectorsAndIndirectMetadataFailExplicitly",
+    "RawStreamTests.InputsAreOwnedAndLegacyDecodedApiIsPreserved",
+    "RawStreamTests.IndirectPredictorParametersAreAppliedByTheDocument"
   ]
 }

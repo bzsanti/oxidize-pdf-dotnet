@@ -1,34 +1,21 @@
 # Session handoff — 2026-10-14
 
-Completed parity increment #96: `PdfExtractor.GetPageResourceProvenanceAsync`.
-Implementation `72c880f` is validated for integration into develop, without an
-automatic PR as required by #81. Existing flattened resource APIs remain intact.
-The result identifies direct/inherited/absent ownership, page/ancestor/dictionary
-references, sorted category/resource names and declared resource references.
-Traversal/entry/name budgets fail without partial output; referenced resource
-contents are not loaded. Core parsing precedes the bounded provenance walk.
+Active increment #95 on `feat/rust-parity-raw-streams`: PdfStreams object/page
+inspection plus bounded strict/explicit-recovery decoding. Local validation and
+quality/security review complete; platform CI must pass before develop integration.
+No automatic PR (#81), release or worktree.
 
-Validation: 226 native tests, Clippy, Rust/.NET formatting, 35 focused .NET cases
-(20 provenance + 8 geometry + 6 contract + 1 ABI). A compiled disposable mutation
-ignoring MaxEntries was rejected by the exact-budget real-FFI test.
-Both Kripteia scans and manual quality/security review completed with no unresolved
-finding in this increment; automated C# syntax coverage limitations are recorded.
-All 14 platform CI jobs passed on the implementation revision:
-https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38555998665
-Final documentation-only closure skips redundant CI; source/test/configuration
-identity with the validated revision is checked before integration.
+Acceptance/evidence and resolved findings: docs/FEATURE_PARITY.md. 25 focused .NET
+cases, 228 native tests, formatting/Clippy pass. A compiled disposable mutation
+ignoring decoded budgets fails both strict/recovery cases as intended. Both
+Kripteia analyses completed; C# syntax coverage limitations manually supplemented.
+Core 5.4.2 strict `/Filter []` data-loss behavior is rejected explicitly; raw access
+and explicit recovery remain available. Encoded budgets stop accumulation early.
 
-Tracking: [FEATURE_PARITY.md](docs/FEATURE_PARITY.md). #105 was completed earlier.
-Next: #95 (bounded raw streams), then #97 (named images). This revises the earlier
-order based on source evidence: core image extraction processes page batches and
-its image-preparation helper is private. Reuse the public document-aware bounded
-decoder from #95 and `resource_provenance::find_resources` from #96 for #97.
-Do not treat core inherited_resources as origin: it can hold resolved direct refs.
+Next delivery steps: push feature, await all 14 platform CI jobs, document exact
+validated SHA, fast-forward develop, close #95 and check its #81 box. Then #97
+(named images) can reuse document-aware bounded decoding and #96 resource lookup.
+Completed previously: #105 and #96. Core 5.4.2 / managed 0.19.0 / native 0.14.0;
+test-only PKCS 10.0.13. Preserve original cleanup history and no-worktree choice.
 
-Core 5.4.2 / managed 0.19.0 / native FFI 0.14.0. Test-only PKCS is 10.0.13.
-No new release or worktree. Original checkout cleanup remains preserved in
-8d83a2a/de37d12; the active integration branch is develop after delivery.
-
-Evidence retained: /tmp/resource-provenance-native-tests.log,
-/tmp/resource-provenance-kripteia-{rust,csharp}.log,
-/tmp/resource-provenance-mutant/ and /tmp/resource-provenance-ci-result.json.
+Evidence: /tmp/raw-streams-*.log and /tmp/raw-streams-mutant/.

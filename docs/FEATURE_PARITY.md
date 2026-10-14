@@ -1,3 +1,100 @@
+# Active increment — raw streams and bounded decoding (#95), 2026-10-14
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| READ-017 raw bytes, ordered Filter/DecodeParms and identity | Demonstrated | Object/page reads preserve payload, typed declared metadata and identity |
+| Explicit bounded decoding/recovery | Demonstrated | Strict/recovery behavior, indirect predictors, all diagnostics, exact stage limits |
+| Complete inputs/ownership, unchanged legacy API | Demonstrated | Snapshot/cancellation/legacy tests and native pointer/length checks |
+| Behavior, failure and boundary evidence | Demonstrated | 25 focused .NET cases, 228 native tests; compiled budget mutant rejected |
+| Parity gate, quality/security, all platform CI before integration | Local checks/review complete; platform CI pending | Push feature branch; require all 14 CI jobs before integration |
+
+Scope: expose core 5.4.2 stream semantics; zero-based page/content selectors in
+`PdfStreams` follow `PdfTextExtraction`. Raw bytes are the parser's encoded payload,
+not a physical file slice. Inspection budgets apply after core parsing; decoding
+bounds every filter stage according to core, not total parser allocation/time.
+References in declared metadata remain references. Recovery is opt-in and never
+converts errors or budget exhaustion into successful truncated output. #97 remains
+separate and will consume this document-aware decoding foundation.
+
+## Quality review — raw streams increment
+
+### Resumen ejecutivo
+
+Scope: `native/src/streams.rs`, module registration and shared ParserSettings;
+`PdfStreams.cs`, real-FFI tests and parity contract, plus core 5.4.2 stream/objects/
+filter/recovery code and existing native error/free/bootstrap helpers. No new
+runtime dependency. Existing extraction entry points are unchanged. Source is the
+current feature-branch implementation; platform acceptance remains pending.
+
+### Contratos y evidencia
+
+Owned encoded payloads and declared ordered metadata are separate from decoded
+results. Reference metadata is intentionally unresolved; document-aware decoding
+resolves DecodeParms (tested with a PNG predictor that changes output). Strict
+errors do not become recovery; opt-in recovery reports both Unverified and
+Incomplete with the exact filter index and source error. Invalid Flate, predictor
+failures, unsupported bounded filters and non-Flate budget errors preserve core
+classification. No operation returns partial success after a budget failure.
+
+Limits apply per filter stage for decoding and across returned streams for encoded
+payload/metadata. Node/name/depth/reference/count boundaries are exercised through
+real FFI, including stopping at an exhausted payload budget before resolving a
+later invalid reference. Core parsing and its caches precede these budgets: this
+is not a whole-parser memory/time sandbox. Input is capped at 100 MiB. Cancellation
+only prevents queued native calls. Results own their byte arrays and JSON values.
+
+Validation: 25 focused cases (10 stream cases, 8 text recovery, 6 contract, 1 ABI),
+228 native tests, Clippy with denied warnings, Rust/.NET format and whitespace
+checks. In `/tmp/raw-streams-mutant`, forcing MaxDecodedBytes to 16 MiB in the
+request producer makes BOTH strict/recovery exact-limit cases fail because no
+exception was thrown; original sources pass. The mutation compiled and loaded
+the real native library, and did not modify the reviewed runtime or product tree.
+
+### Hallazgos
+
+1. Aggregate encoded-byte checks originally happened after collecting every
+   resolved stream. Repeated references could accumulate copies before rejection.
+   Corrected in `streams.rs::as_stream/select` by consuming the budget before
+   retaining each stream; the early-stop test distinguishes this behavior.
+2. Core 5.4.2 `filters.rs::decode_stream_with_limit` returns empty bytes for a
+   nonempty payload with `/Filter []`. The new strict path rejects that case with
+   DecodeError instead of publishing silent data loss. Raw inspection remains
+   available; explicit core recovery preserves the bytes. Tested and documented.
+   Upstream correction belongs to a future core upgrade; this increment fails
+   explicitly and does not require patching the pinned core or changing legacy APIs.
+
+Both findings are resolved within this increment; no unresolved local finding.
+Manual review traced NUL/pointer/length preconditions, output reset, panic guard,
+owned CString transfer/free, same-thread error retrieval, managed snapshots,
+reference cycles, bounded metadata traversal before recursive JSON conversion,
+checked budget subtraction and error classification. No external I/O is added.
+
+### Calidad de Tests (Kripteia)
+
+Rust score 97, 228 tests/22 files; new native tests score 100. C# score 95,
+968 detected tests/123 files; new class score 100 (9 methods/10 expanded cases).
+Existing lowest-score panic/disposal tests belong to the prior review backlog;
+they are unchanged and do not determine this API's acceptance. Independent PDF
+fixtures and the compiled negative control supplement the heuristic scores.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Rust reports 290 unsafe usages across the native tree; the new FFI was manually
+traced above. C# reports no security issues, with partial/error syntax coverage
+in 31 files, including the new API/tests; compilation and manual inspection cover
+those limitations. Both test-quality and security analyses completed; read-only
+telemetry warnings do not stop either analysis. No new secret, taint-flow or
+dangerous-function finding was reported for this increment.
+
+### Métricas
+
+Seven changed implementation/test/contract files reviewed plus existing helpers
+and core dependencies. Two findings corrected; zero unresolved. Review passes
+were read-only; corrections were a separate authorized implementation step.
+Pending acceptance verification: all platform CI jobs on the implementation SHA.
+Evidence: `/tmp/raw-streams-{native-tests,dotnet-tests,clippy,mutation}.log`,
+`/tmp/raw-streams-kripteia-{rust,csharp}.log` and disposable mutation directory.
+
 # Completed increment — resource provenance (#96), 2026-10-14
 
 Implementation: `72c880f`.
