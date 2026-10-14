@@ -1,4 +1,4 @@
-# Active increment — raw streams and bounded decoding (#95), 2026-10-14
+# Completed increment — raw streams and bounded decoding (#95), 2026-10-14
 
 | Requirement / source | State / evidence | Blocker / next action |
 | --- | --- | --- |
@@ -6,7 +6,7 @@
 | Explicit bounded decoding/recovery | Demonstrated | Strict/recovery behavior, indirect predictors, all diagnostics, exact stage limits |
 | Complete inputs/ownership, unchanged legacy API | Demonstrated | Snapshot/cancellation/legacy tests and native pointer/length checks |
 | Behavior, failure and boundary evidence | Demonstrated | 25 focused .NET cases, 228 native tests; compiled budget mutant rejected |
-| Parity gate, quality/security, all platform CI before integration | Local checks/review complete; platform CI pending | Push feature branch; require all 14 CI jobs before integration |
+| Parity gate, quality/security, all platform CI before integration | Demonstrated: local review and all 14 CI jobs pass on `0e38e76` | None |
 
 Scope: expose core 5.4.2 stream semantics; zero-based page/content selectors in
 `PdfStreams` follow `PdfTextExtraction`. Raw bytes are the parser's encoded payload,
@@ -24,7 +24,7 @@ Scope: `native/src/streams.rs`, module registration and shared ParserSettings;
 `PdfStreams.cs`, real-FFI tests and parity contract, plus core 5.4.2 stream/objects/
 filter/recovery code and existing native error/free/bootstrap helpers. No new
 runtime dependency. Existing extraction entry points are unchanged. Source is the
-current feature-branch implementation; platform acceptance remains pending.
+implementation `0e38e7610144ce35cb7e172343a5a70068eb77af`; platform acceptance is complete.
 
 ### Contratos y evidencia
 
@@ -54,11 +54,11 @@ the real native library, and did not modify the reviewed runtime or product tree
 
 1. Aggregate encoded-byte checks originally happened after collecting every
    resolved stream. Repeated references could accumulate copies before rejection.
-   Corrected in `streams.rs::as_stream/select` by consuming the budget before
+   Corrected in `native/src/streams.rs:83` (`as_stream`, called by `select`) by consuming the budget before
    retaining each stream; the early-stop test distinguishes this behavior.
 2. Core 5.4.2 `filters.rs::decode_stream_with_limit` returns empty bytes for a
    nonempty payload with `/Filter []`. The new strict path rejects that case with
-   DecodeError instead of publishing silent data loss. Raw inspection remains
+   DecodeError (`native/src/streams.rs:245`) instead of publishing silent data loss. Raw inspection remains
    available; explicit core recovery preserves the bytes. Tested and documented.
    Upstream correction belongs to a future core upgrade; this increment fails
    explicitly and does not require patching the pinned core or changing legacy APIs.
@@ -88,10 +88,13 @@ dangerous-function finding was reported for this increment.
 
 ### Métricas
 
-Seven changed implementation/test/contract files reviewed plus existing helpers
+Six changed implementation/test/contract files reviewed plus existing helpers
 and core dependencies. Two findings corrected; zero unresolved. Review passes
 were read-only; corrections were a separate authorized implementation step.
-Pending acceptance verification: all platform CI jobs on the implementation SHA.
+All 14 platform CI jobs passed on the implementation SHA before integration:
+https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38613769172
+The closure commit changes documentation only and verifies product/test/contract/
+workflow identity with that SHA; it skips redundant CI. No package publication.
 Evidence: `/tmp/raw-streams-{native-tests,dotnet-tests,clippy,mutation}.log`,
 `/tmp/raw-streams-kripteia-{rust,csharp}.log` and disposable mutation directory.
 
