@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `PdfExtractor.GetPageGeometryAsync`: one-based existing-page inspection of
+  inherited MediaBox/CropBox and raw clockwise rotation, retaining the existing
+  dimension tuple API and its rotated MediaBox semantics (#105).
+
 ## [0.19.0] - 2026-10-11
 
 - Update the exact Rust core dependency to the published 5.4.2.

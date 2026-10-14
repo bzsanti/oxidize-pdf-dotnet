@@ -1,3 +1,75 @@
+# Active increment — page geometry (#105), 2026-10-14
+
+Sequence: existing-page geometry (#105), then resource provenance (#96) before
+named images (#97) and bounded stream access (#95). Geometry is independent;
+resource identity/lookup should be shared by the later reader capabilities.
+Other issues remain open under #81; no total parity claim.
+
+| Requirement | Evidence / state | Blocker / closure evidence |
+| --- | --- | --- |
+| Typed geometry, preserve tuple API | Implemented: `GetPageGeometryAsync` / `oxidize_get_page_geometry` | Local tests pass; platform CI pending |
+| Indexing and ownership | Demonstrated: one-based indexes, configured size cap, owned snapshot | Invalid indexes/input, cancellation and snapshot tests pass |
+| Real FFI behavior | Demonstrated: 8 geometry cases through real FFI | Four rotations, nearest inheritance/page override, absent crop/rotation, bounds and ownership |
+| Contract, quality/security, platform CI | Contract gate and local review pass | Platform CI required before integration |
+
+Scope follows Rust 5.4.2 `ParsedPage`: MediaBox and CropBox are the typed boxes
+supported by the parser. BleedBox/TrimBox/ArtBox are not parsed geometry fields.
+No normalization of raw rotation beyond the core's behavior is introduced.
+
+### Quality review — geometry increment
+
+Scope: `native/src/parser.rs`, managed `NativeMethods.cs`, `PdfExtractor.cs`,
+`Models/PageGeometry.cs`, `PageGeometryTests.cs`, parity contract and CI trigger.
+Reviewed consumers: existing pinned JSON helper, thread-local error retrieval,
+`oxidize_free_string`, Rust `ParsedPage` and inheritance resolution. Existing
+APIs remain unchanged. No architecture expansion or dependency update.
+
+Contracts and evidence: independently authored two-leaf/three-level page trees
+verify all four rotations, original nonzero box origins, nearest inherited boxes
+and rotation, explicit zero overriding inherited rotation, absent CropBox and
+zero default, and tuple equivalence. Failure cases cover null/empty/malformed
+input, negative/zero/missing/very large page numbers, exact file-size boundary,
+pre-cancellation and owned input snapshot. Native tests additionally exercise
+null pointers, isize length overflow, page narrowing and output clearing.
+15 focused managed tests (8 geometry, 6 parity gate, 1 ABI) pass; 225 native tests
+pass; Clippy with denied warnings passes. Local .NET compilation initially
+rejected synchronous xUnit assertions on Task-returning methods; corrected to
+awaited ThrowsAsync and the focused suite passed.
+
+Findings: no unresolved finding in the changed contract. The shared helper frees
+JSON in finally even if deserialization fails; native output is reset before
+validation, ownership transfers only on success, and ffi_guard contains panics.
+Finite-coordinate validation prevents JSON null replacing non-finite numbers.
+Input bytes are cloned before scheduling and checked against the extractor cap.
+Native callers must still supply a genuinely readable allocation, as documented.
+Cancellation does not interrupt native execution. Parser inheritance/cycle behavior
+and lenient defaults remain those of pinned core 5.4.2; no stronger validation or
+page-box support is claimed. These are read-only operations with no signing,
+preservation or redaction decision, so no mutation test is required for this scope.
+
+Kripteia test quality: Rust score 97, 225 detected tests/20 files; C# score 95,
+951 detected tests/121 files. Geometry C# tests scored 100. The Rust geometry
+boundary test scored 90 with a false "happy path only" report: it actually
+asserts NullPointer, InvalidArgument and PdfParseError plus null outputs. Its
+multiple assertions cover distinct ABI boundary failures; assertion failures show
+the call and actual return code. Existing worst scores (65 Rust panic guard,
+80 C# corpus cases) predate this increment and do not invalidate these assertions.
+
+Kripteia security: both scans completed. Rust lists 288 unsafe usages across the
+FFI, including the new entry point; its pointer/length/ownership path was manually
+reviewed. C# reports no security issues but degraded syntax analysis in 27 files,
+including PageGeometryTests; all new tests were manually inspected and compiled.
+Telemetry SQLite was read-only, which did not prevent analysis (exit 0).
+No secrets or taint-flow finding was emitted for the changed code. Reports cover
+the implementation before the test-only ThrowsAsync correction; that correction
+was manually reviewed and validated by the compiler/test rerun.
+
+Metrics: 8 changed implementation/test/contract/CI files reviewed; 0 unresolved
+findings; 0 product files changed during the read-only review. Platform validation
+remains pending. Full logs are retained in `/tmp/geometry-kripteia-rust.log`,
+`/tmp/geometry-kripteia-csharp.log`, `/tmp/geometry-native-tests.log`.
+
+
 # Current parity target — Rust 5.4.2
 
 The bridge target is **all functional capabilities of Rust**, including options,

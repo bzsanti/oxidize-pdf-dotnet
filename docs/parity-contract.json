@@ -1,6 +1,6 @@
 {
   "core": "5.4.2",
-  "scope": "Audited signature slots and complete text extraction/recovery settings. Remaining Rust API pending audit; no total parity claim.",
+  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry. Remaining Rust API pending audit; no total parity claim.",
   "callables": {
     "PdfSignatureSlots.CreateAsync": [
       "pdf",
@@ -61,6 +61,11 @@
     ],
     "PdfDocument.SetBuildIdentification": [
       "policy"
+    ],
+    "PdfExtractor.GetPageGeometryAsync": [
+      "pdfBytes",
+      "pageNumber",
+      "cancellationToken"
     ]
   },
   "properties": {
@@ -122,6 +127,20 @@
       "StructureTag",
       "Color",
       "SpaceDecisions"
+    ],
+    "Models.PageGeometry": [
+      "PageNumber",
+      "Rotation",
+      "MediaBox",
+      "CropBox",
+      "Width",
+      "Height"
+    ],
+    "Models.PageGeometryBox": [
+      "Left",
+      "Bottom",
+      "Right",
+      "Top"
     ]
   },
   "defaults": {
@@ -169,6 +188,11 @@
     "TextRecoveryTests.NormalizationZeroBudgetAndFragmentMetadataAreExposed",
     "TextRecoveryTests.BuildIdentificationControlsSerializedMetadata",
     "TextRecoveryTests.EveryCarriageReturnPolicyReachesTheNewExtractor",
-    "SignatureSlotTests.DigitalSignatureValueCompletesSlotAndPreventsRemoval"
+    "SignatureSlotTests.DigitalSignatureValueCompletesSlotAndPreventsRemoval",
+    "PageGeometryTests.RotationAndUnrotatedBoxesPreserveLegacyDimensions",
+    "PageGeometryTests.InheritedGeometryUsesNearestAncestorAndPageOverrides",
+    "PageGeometryTests.MissingCropAndRotationRemainDistinctFromExplicitValues",
+    "PageGeometryTests.InvalidInputIndexesLimitsAndCancellationAreRejected",
+    "PageGeometryTests.QueuedInspectionOwnsAnInputSnapshot"
   ]
 }

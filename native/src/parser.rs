@@ -941,6 +941,81 @@ pub unsafe extern "C" fn oxidize_get_page_dimensions(
     })
 }
 
+/// Inspect parsed page geometry, with a one-based page number.
+///
+/// # Safety
+/// `pdf_bytes` must reference `pdf_len` readable bytes, no larger than isize::MAX.
+/// `out_json` must be writable and must not alias the input bytes.
+/// Free successful output using `oxidize_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_get_page_geometry(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    page_number: usize,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if out_json.is_null() {
+            set_last_error("Null geometry output pointer");
+            return ErrorCode::NullPointer as c_int;
+        }
+        *out_json = ptr::null_mut();
+        if pdf_bytes.is_null() {
+            set_last_error("Null PDF input pointer");
+            return ErrorCode::NullPointer as c_int;
+        }
+        if pdf_len == 0
+            || pdf_len > isize::MAX as usize
+            || page_number == 0
+            || u32::try_from(page_number - 1).is_err()
+        {
+            set_last_error("Invalid PDF length or one-based page number");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        let result = (|| -> Result<CString, String> {
+            let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
+            let document = PdfDocument::new(open_lenient(bytes)?);
+            let page = document
+                .get_page((page_number - 1) as u32)
+                .map_err(|e| format!("Failed to get page {page_number}: {e}"))?;
+            let box_json = |b: [f64; 4]| {
+                serde_json::json!({
+                    "left": b[0], "bottom": b[1], "right": b[2], "top": b[3]
+                })
+            };
+            // JSON cannot represent non-finite geometry; never silently emit null coordinates.
+            if !page
+                .media_box
+                .iter()
+                .chain(page.crop_box.iter().flatten())
+                .all(|v| v.is_finite())
+                || !page.width().is_finite()
+                || !page.height().is_finite()
+            {
+                return Err("Non-finite page geometry".into());
+            }
+            let value = serde_json::json!({
+                "page_number": page_number, "rotation": page.rotation,
+                "media_box": box_json(page.media_box),
+                "crop_box": page.crop_box.map(box_json),
+                "width": page.width(), "height": page.height()
+            });
+            CString::new(value.to_string()).map_err(|e| e.to_string())
+        })();
+        match result {
+            Ok(json) => {
+                *out_json = json.into_raw();
+                ErrorCode::Success as c_int
+            }
+            Err(e) => {
+                set_last_error(e);
+                ErrorCode::PdfParseError as c_int
+            }
+        }
+    })
+}
+
 /// Extract document metadata (Info dictionary + version + page count) from a PDF.
 ///
 /// # Safety
@@ -4638,5 +4713,45 @@ mod ffi_layout_tests {
             60
         );
         assert_eq!(offset_of!(ExtractionOptionsFFI, max_extracted_bytes), 64);
+    }
+}
+
+#[cfg(test)]
+mod geometry_boundary_tests {
+    use super::*;
+
+    #[test]
+    fn geometry_rejects_invalid_pointers_lengths_and_indexes_and_clears_output() {
+        let bytes = b"not a PDF";
+        let mut output = ptr::dangling_mut::<c_char>();
+        unsafe {
+            assert_eq!(
+                oxidize_get_page_geometry(bytes.as_ptr(), bytes.len(), 1, ptr::null_mut()),
+                ErrorCode::NullPointer as c_int
+            );
+            assert_eq!(
+                oxidize_get_page_geometry(ptr::null(), 1, 1, &mut output),
+                ErrorCode::NullPointer as c_int
+            );
+            assert!(output.is_null());
+            for (len, page) in [
+                (0, 1),
+                (usize::MAX, 1),
+                (bytes.len(), 0),
+                (bytes.len(), usize::MAX),
+            ] {
+                output = ptr::dangling_mut::<c_char>();
+                assert_eq!(
+                    oxidize_get_page_geometry(bytes.as_ptr(), len, page, &mut output),
+                    ErrorCode::InvalidArgument as c_int
+                );
+                assert!(output.is_null());
+            }
+            assert_eq!(
+                oxidize_get_page_geometry(bytes.as_ptr(), bytes.len(), 1, &mut output),
+                ErrorCode::PdfParseError as c_int
+            );
+            assert!(output.is_null());
+        }
     }
 }

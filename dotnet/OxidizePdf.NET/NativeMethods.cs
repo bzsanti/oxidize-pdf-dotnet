@@ -1615,6 +1615,10 @@ internal static class NativeMethods
         nuint pdfLen,
         out IntPtr outVersion);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_page_geometry(
+        IntPtr pdfBytes, nuint pdfLen, nuint pageNumber, out IntPtr outJson);
+
     /// <summary>Get the dimensions of a specific page from a parsed PDF (1-based)</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_get_page_dimensions(
