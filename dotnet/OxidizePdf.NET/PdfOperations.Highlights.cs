@@ -41,8 +41,15 @@ public static partial class PdfOperations
                         throw new ArgumentException("Highlight RGB components must be in [0, 1]", nameof(mutations));
                     if (add.Opacity is double opacity && (!double.IsFinite(opacity) || opacity < 0 || opacity > 1))
                         throw new ArgumentException("Highlight opacity must be in [0, 1]", nameof(mutations));
-                    return (object)new { operation = "add", page_index = add.PageIndex, quadrilaterals = add.Quadrilaterals,
-                        color = add.Color, opacity = add.Opacity, contents = add.Contents };
+                    return (object)new
+                    {
+                        operation = "add",
+                        page_index = add.PageIndex,
+                        quadrilaterals = add.Quadrilaterals,
+                        color = add.Color,
+                        opacity = add.Opacity,
+                        contents = add.Contents
+                    };
                 case PdfHighlightMutation.Remove remove when remove.Id.ObjectNumber > 0:
                     return new { operation = "remove", object_number = remove.Id.ObjectNumber, generation_number = remove.Id.GenerationNumber };
                 default:

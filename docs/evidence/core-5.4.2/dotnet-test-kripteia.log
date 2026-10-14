@@ -1,0 +1,34 @@
+## Calidad de Tests (Kripteia)
+
+=== Kripteia Test Quality Report ===
+Overall Score: 97 | Tests: 7 | Files: 1
+
+--- Files ---
+Path                                                          Tests  Score
+--------------------------------------------------------------------------
+.../dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs        7     97
+
+--- Worst Offenders ---
+  Upstream460Tests.ExtractImages_EnforcesImageCountAndDecodedPixelBounds (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs:67) - Score: 90
+    - Test 'Upstream460Tests.ExtractImages_EnforcesImageCountAndDecodedPixelBounds' has low assert-to-setup ratio (12%): 2 asserts vs 15 setup lines
+  Upstream460Tests.ExtractionOptions_InvalidCarriageReturnPolicy_IsRejected (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs:122) - Score: 90
+    - Test 'Upstream460Tests.ExtractionOptions_InvalidCarriageReturnPolicy_IsRejected' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  Upstream460Tests.MarkedContent_WithActualText_EmitsReplacementProperty (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs:9) - Score: 100
+  Upstream460Tests.TextNoteEditor_AddsListsUpdatesAndRemovesIncrementally (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs:31) - Score: 100
+  Upstream460Tests.ExtractImages_WithInvalidBound_RejectsBeforeNativeCall (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs:59) - Score: 100
+
+--- Details ---
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs:
+  Upstream460Tests.ExtractImages_EnforcesImageCountAndDecodedPixelBounds (line 67) - Score: 90
+    - Test 'Upstream460Tests.ExtractImages_EnforcesImageCountAndDecodedPixelBounds' has low assert-to-setup ratio (12%): 2 asserts vs 15 setup lines
+  Upstream460Tests.ExtractionOptions_InvalidCarriageReturnPolicy_IsRejected (line 122) - Score: 90
+    - Test 'Upstream460Tests.ExtractionOptions_InvalidCarriageReturnPolicy_IsRejected' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+
+## Analisis de Seguridad (Kripteia Security)
+
+=== Kripteia Security Analysis ===
+
+No security issues found.
+--- Degraded Analysis (1 file(s), lower confidence) ---
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs — partial/error syntax tree

@@ -1,3 +1,34 @@
+# Current parity target — Rust 5.4.2
+
+The bridge target is **all functional capabilities of Rust**, including options,
+results and errors. A matching core version does not establish full API parity.
+Tracking: [#81](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/81), coordinated
+by [core #710](https://github.com/bzsanti/oxidizePdf/issues/710).
+
+| Capability | Current status |
+| --- | --- |
+| Existing-document preservation, lossless page mutations, CMS signing, incremental editors, security redaction, revision comparison | Bindings exist; complete option/result audit pending |
+| Recovery with full diagnostics, extraction/parser settings, NBSP normalization, effective PDF version, build identification | Integrated via #83; released in 0.19.0 |
+| Signature slots and handwriting completion | Integrated via #82; 14 platform CI checks passed |
+| Batch, recovery/streaming and experimental SPI | Exposure and equivalence audit pending |
+| Generation, graphics, parsing, forms, layout and remaining public API | Partial exposure; full functional audit pending |
+| Tesseract recognition and optional production features | Full exposure pending |
+
+The audited subset is recorded in `docs/parity-contract.json`. CI reflects every
+listed callable, option/result property and default, requires behavioral tests,
+and rejects an unreviewed core-pin change. An isolated test host also checks that
+native startup works before any PDF-generation API is called.
+
+No current overall coverage percentage has been established. The historical
+matrix below includes obsolete versions and must not be used to claim current
+completeness. Package publication is separate from the parity implementation.
+
+The core currently leaves space-decision arrays empty; the bridge exposes the
+option and result schema without fabricating diagnostics. Legacy parser recovery
+flags do not permit incomplete Flate data; recovery is a separate explicit API.
+
+## Audit and issue reconciliation
+
 # Feature Parity — oxidize-pdf-dotnet vs oxidize-pdf core
 
 ## Issue reconciliation — current remote develop, 2026-10-13
@@ -7,7 +38,7 @@ remote `develop` was inspected at [`adb94995899bdc57f1d622431a9c6510dd055edd`](h
 It already implements five of the eight NEW-* entries: NBSP, signature slots,
 build identification, effective PDF version and text recovery/parser settings.
 Those entries are **not current remote implementation gaps**. Standalone raw
-stream recovery remains covered below. The local checkout was not overwritten.
+stream recovery remains covered below. This historical audit predates the checkout reconciliation on 2026-10-14; the checkout now includes those implementations.
 
 Twenty specific remaining issues were created after checking all existing issues:
 

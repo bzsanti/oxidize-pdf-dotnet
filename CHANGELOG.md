@@ -7,33 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Upstream 5.4.2 update (2026-10-13)
+## [0.19.0] - 2026-10-11
 
-- Upgrade the official Rust dependency from 5.1.5 to 5.4.2 without source patches.
-- Audit current Rust/.NET parity and distinguish implemented APIs from new gaps.
-- Verify the four previous bookmark/metadata failures are fixed (20 related tests pass).
-- Compatibility blocker: the existing carriage-return regression receives U+FFFD
-  for undefined WinAnsi codes. Test expectations remain unchanged; see
-  `docs/UPSTREAM_5_MIGRATION.md` for final validation evidence.
+- Update the exact Rust core dependency to the published 5.4.2.
+- Add typed signature-slot creation, reading, removal, drawing and completion.
+- Expose complete text-extraction and parse options, bounded recovery diagnostics,
+  effective PDF version, original text colors and build identification controls.
+- Initialize native-library resolution for static extraction APIs as well as documents.
+- Enforce extraction contracts, defaults and core-version consistency in CI.
 
-### Earlier 5.1.5 integration (historical local notes; published in 0.18.0)
+Targets .NET 8/9/10, with native libraries for eight supported runtime identifiers.
+Implementation PRs #80, #82 and #83 passed all 14 CI checks each.
+Full functional parity remains tracked in #81.
 
-- Pin the official `oxidize-pdf` 5.1.5 package without source patches.
-- Add optional link-annotation text and unreliable-figure extraction, positioned
-  fragments with rendering modes, and bounded bookmark reading.
-- Add incremental Highlight, FreeText, Ink, and geometric annotation APIs.
-- Add explicit-policy structural plans/reports, page mutation batches and reorder.
-- Add external-CMS signing preparation/completion and visible appearances.
-- Add bounded semantic comparison with revision and object attribution.
-- Add existing tagged-PDF inspection, planning and incremental mutation.
-- Add incremental invisible OCR layers from caller-provided recognition results.
-- Add distinct irreversible text removal and visual-mask APIs with risk reports.
-- Known upstream regressions: nested bookmark sibling links (#633) and metadata
-  discard in reconstructive extraction/split (#634); migration is not release-ready.
-- Package/FFI release version assignment remains pending; no release is published
-  by this integration. Existing exports and extraction struct layout are retained.
+Known upstream limitation: core 5.4.2 does not enforce DocMDP on incremental
+text-note and highlight mutations (#712 in oxidizePdf). Its merged upstream fix
+is not part of this package's published core dependency. FreeText, Ink and
+geometric editing use the existing permission checks.
+
+
+## [0.18.0] - 2026-09-27
 
 ### Added
+- Link-annotation and unreliable-figure text options, positioned text fragments
+  with rendering modes, and bounded bookmark reading.
+- Incremental Highlight, FreeText, Ink and geometric annotation editing.
+- Explicit preservation policies, plans and reports for structural operations.
+- External-CMS incremental signing and visible text/image appearances.
+- Bounded semantic comparison and physical revision attribution.
+- Existing tagged-PDF inspection, validation, planning and incremental editing.
+- Incremental invisible OCR layers from caller-provided recognition data.
+- Distinct irreversible text removal and visual masking with explicit risk reports.
+
+### Changed
+- Official upstream core 4.6.0 → **5.1.5**, without local source patches.
+- Native FFI crate 0.13.0 → **0.14.0**; existing exports and extraction ABI retained.
+
+### Known limitations
+- Upstream [#633](https://github.com/bzsanti/oxidizePdf/issues/633): creating mixed
+  nested/sibling bookmarks may produce invalid outline links.
+- Upstream [#634](https://github.com/bzsanti/oxidizePdf/issues/634): reconstructive
+  extract/split can retain metadata while reporting it discarded. Do not rely
+  on these operations to remove sensitive metadata.
+- Released with these explicitly accepted limitations; regression tests remain
+  enabled. A later release will incorporate the official upstream fixes.
+
+## [0.17.0] - 2026-08-22
+
+### Added
+- Flat-path column reordering and bounded text extraction with truncation reporting.
 - Reading-order text extraction and configurable carriage-return handling.
 - `/ActualText` marked-content authoring for accessible replacement text.
 - Conic and free-form Gouraud mesh shading APIs.
@@ -43,8 +65,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Type 3 glyph metadata.
 
 ### Changed
-- Upgraded the native core from `oxidize-pdf` 4.0.0 to **4.6.0** and bumped
-  the FFI ABI crate from 0.12.0 to **0.13.0**.
+- Upgraded the native core from `oxidize-pdf` 3.0.4 to **4.6.0** and bumped
+  the FFI ABI crate from 0.11.1 to **0.13.0**.
+- Existing image extraction now applies safe default resource limits; callers
+  can select explicit limits with `ImageExtractionOptions`.
 
 ## [0.16.1] - 2026-06-29
 

@@ -1,3 +1,41 @@
+# Checkout reconciliation — 2026-10-14
+
+User authorized committing, pushing and cleaning/updating the stale branch.
+The original pending tree is preserved in commit `8d83a2a`. The branch is now
+`chore/reconcile-upstream-5.4.2`, integrating `origin/develop` at `adb9499`.
+Published managed version: 0.19.0; native FFI: 0.14.0; official core: 5.4.2.
+
+| Requirement | Evidence / state | Blocker / next action |
+| --- | --- | --- |
+| Preserve pending work | Snapshot commit `8d83a2a`; local workflow, benchmark results and audit retained | None |
+| Reconcile current implementation | Source/test/build files match current develop, including CR fixture and parity APIs | None: `git diff origin/develop --exit-code -- dotnet native .github` passes |
+| Current documentation | Published release history retained; audit and handoff updated | None |
+| Commit and push clean branch | Resolved merge is committed on the renamed branch | Delivery check: remote SHA equals HEAD and worktree is clean |
+
+Code conflicts were older formatting, serialization or lint implementations;
+current develop wins after comparison, preserving color/space diagnostics and
+all released APIs. No runtime behavior is added by this reconciliation.
+Exact source/test/build equality with develop was verified. Prior validation remains applicable:
+`docs/evidence/parity-recovery/recovery-native-tests.log` (224 passed),
+`recovery-full-tests.log` (1001 library + 15 KernelMemory passed), plus the
+committed Kripteia Rust/C# analyses and review in `docs/PARITY-RECOVERY-REVIEW.md`.
+The native debug runtime was rebuilt locally with `cargo build --offline` and
+copied to the ignored Linux x64 runtime asset. No new release is part of this task. Remaining parity work stays in #81/#86–#105;
+the published DocMDP limitation remains documented in CHANGELOG/release notes.
+
+Fresh reconciliation validation: `dotnet test dotnet/OxidizePdf.sln --no-restore
+--verbosity minimal` passed **1011/1011 SDK tests and 15/15 KernelMemory tests**
+on net10.0; managed libraries built for net8/net9/net10. The initial sandbox
+attempt failed because MSBuild sockets were denied; the authorized rerun passed.
+`git diff --cached --check origin/develop` passed. Historical release-note Markdown
+hard breaks were preserved. Local develop was fast-forwarded to origin/develop.
+The obsolete remote upstream-4.0.0 tip is an ancestor of develop and can be removed
+as part of the authorized branch cleanup without losing commits.
+
+The records below describe historical checkout states, not current blockers.
+
+---
+
 # Session closed — 2026-10-13
 
 ## Outcome and repository state

@@ -20,7 +20,9 @@ public class RedactionTests
     }
     private static PdfRedactionEntity Target(string content = "SECRET") => new()
     {
-        Id = "target", Type = "customSensitive", Content = content,
+        Id = "target",
+        Type = "customSensitive",
+        Content = content,
         Bounds = new() { X = 45, Y = 695, Width = 100, Height = 20 }
     };
 

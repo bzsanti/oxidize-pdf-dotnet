@@ -1,0 +1,9 @@
+  OxidizePdf.NET -> /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/bin/Debug/net10.0/OxidizePdf.NET.dll
+  OxidizePdf.NET.Tests -> /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/bin/Debug/net10.0/OxidizePdf.NET.Tests.dll
+Test run for /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/bin/Debug/net10.0/OxidizePdf.NET.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    18, Skipped:     0, Total:    18, Duration: 498 ms - OxidizePdf.NET.Tests.dll (net10.0)

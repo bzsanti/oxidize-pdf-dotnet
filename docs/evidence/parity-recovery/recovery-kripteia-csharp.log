@@ -1,0 +1,1267 @@
+## Calidad de Tests (Kripteia)
+
+=== Kripteia Test Quality Report ===
+Overall Score: 95 | Tests: 944 | Files: 120
+
+--- Files ---
+Path                                                          Tests  Score
+--------------------------------------------------------------------------
+...t/OxidizePdf.NET.KernelMemory.Tests/DecodeAsyncTests.cs        2     90
+...idizePdf.NET.KernelMemory.Tests/DecodeEdgeCasesTests.cs        2    100
+...nelMemory.Tests/OxidizeChunkPartitioningHandlerTests.cs        3     93
+...NET.KernelMemory.Tests/PartitionPreservationE2ETests.cs        1     80
+...dizePdf.NET.KernelMemory.Tests/SupportsMimeTypeTests.cs        1    100
+...xidizePdf.NET.KernelMemory.Tests/WithOxidizePdfTests.cs        1    100
+...OxidizePdf.NET.Tests/Ai/DocumentChunkerLanguageTests.cs        7     99
+.../dotnet/OxidizePdf.NET.Tests/Ai/DocumentChunkerTests.cs       17     94
+...dizePdf.NET.Tests/Ai/MarkdownOptionsIntegrationTests.cs       10     96
+.../dotnet/OxidizePdf.NET.Tests/Ai/MarkdownOptionsTests.cs        3     93
+.../OxidizePdf.NET.Tests/Ai/TokenEfficientExporterTests.cs        5    100
+...net/dotnet/OxidizePdf.NET.Tests/BookmarkReadingTests.cs        5     98
+...net/OxidizePdf.NET.Tests/ChunkOptionsValidationTests.cs        9     97
+....4.2/dotnet/dotnet/OxidizePdf.NET.Tests/CidFontTests.cs        3     93
+...et/dotnet/OxidizePdf.NET.Tests/CorpusRegressionTests.cs        7     80
+...xidizePdf.NET.Tests/CustomFontMetricsRegressionTests.cs        4     93
+.../dotnet/OxidizePdf.NET.Tests/DocumentChunkModelTests.cs        6     92
+...4.2/dotnet/dotnet/OxidizePdf.NET.Tests/EndToEndTests.cs        7     90
+...e-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/EnumTests.cs       15     90
+...OxidizePdf.NET.Tests/ExistingDocumentOperationsTests.cs       10    100
+...t/dotnet/OxidizePdf.NET.Tests/FfiAbiConformanceTests.cs        1    100
+...t/dotnet/OxidizePdf.NET.Tests/FfiErrorIsolationTests.cs        1     90
+...net/dotnet/OxidizePdf.NET.Tests/FreeTextEditingTests.cs        5     98
+...et/dotnet/OxidizePdf.NET.Tests/GeometricEditingTests.cs        5     98
+...OxidizePdf.NET.Tests/Graphics/CalGrayColorSpaceTests.cs        8     94
+.../OxidizePdf.NET.Tests/Graphics/CalRgbColorSpaceTests.cs        8     97
+...t/OxidizePdf.NET.Tests/Graphics/CalibratedColorTests.cs        4    100
+...dotnet/OxidizePdf.NET.Tests/Graphics/IccProfileTests.cs       11     95
+...net/OxidizePdf.NET.Tests/Graphics/LabColorSpaceTests.cs        7     95
+...t/dotnet/OxidizePdf.NET.Tests/Graphics/LabColorTests.cs        2     95
+...df.NET.Tests/Graphics/PdfPageCalGrayIntegrationTests.cs        6     98
+...Pdf.NET.Tests/Graphics/PdfPageCalRgbIntegrationTests.cs        6     98
+...ET.Tests/Graphics/PdfPageClipEllipseIntegrationTests.cs        3     93
+...ics/PdfPageDrawImageWithTransparencyIntegrationTests.cs        4     95
+...NET.Tests/Graphics/PdfPageDrawTextAtIntegrationTests.cs        4     95
+...ET.Tests/Graphics/PdfPageFormXObjectIntegrationTests.cs        5     94
+...ET.Tests/Graphics/PdfPageIccEmbeddedIntegrationTests.cs        4     95
+....NET.Tests/Graphics/PdfPageIccInlineIntegrationTests.cs        4     98
+...izePdf.NET.Tests/Graphics/PdfPageLabIntegrationTests.cs        6     97
+...ests/Graphics/PdfPageNamedColorSpaceIntegrationTests.cs        4     95
+...f.NET.Tests/Graphics/PdfPageSoftMaskIntegrationTests.cs        6     93
+....Tests/Graphics/PdfPageTilingPatternIntegrationTests.cs        5     94
+...ts/Graphics/PdfPageTransparencyGroupIntegrationTests.cs        5     88
+...et/dotnet/OxidizePdf.NET.Tests/HighlightEditingTests.cs        4    100
+.../dotnet/OxidizePdf.NET.Tests/IncrementalSigningTests.cs        8     99
+...2/dotnet/dotnet/OxidizePdf.NET.Tests/InkEditingTests.cs        4     98
+...izePdf.NET.Tests/Interop/ColorSpaceNativeLayoutTests.cs        1     90
+...NET.Tests/Interop/ExtractionOptionsNativeLayoutTests.cs        2     90
+...tnet/dotnet/OxidizePdf.NET.Tests/NativeBinariesTests.cs        2     85
+...4.2/dotnet/dotnet/OxidizePdf.NET.Tests/OcrLayerTests.cs        5     98
+...tnet/OxidizePdf.NET.Tests/PackageIconValidationTests.cs        2     90
+...net/dotnet/OxidizePdf.NET.Tests/PackageMetadataTests.cs        1     90
+...tnet/dotnet/OxidizePdf.NET.Tests/ParityContractTests.cs        2     90
+...net/dotnet/OxidizePdf.NET.Tests/PdfColumnLayoutTests.cs        3     90
+.../dotnet/OxidizePdf.NET.Tests/PdfDocumentBuilderTests.cs       15     90
+...tnet/OxidizePdf.NET.Tests/PdfDocumentFormsWriteTests.cs       13     98
+...idizePdf.NET.Tests/PdfDocumentNamedDestinationsTests.cs        4     98
+...tnet/OxidizePdf.NET.Tests/PdfDocumentOpenActionTests.cs        4     98
+.../dotnet/OxidizePdf.NET.Tests/PdfDocumentOutlineTests.cs        7     91
+...tnet/OxidizePdf.NET.Tests/PdfDocumentPageLabelsTests.cs        5     98
+...net/OxidizePdf.NET.Tests/PdfDocumentSaveOptionsTests.cs        5     96
+.../dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentTests.cs       31     94
+...idizePdf.NET.Tests/PdfDocumentViewerPreferencesTests.cs        6     93
+...et/OxidizePdf.NET.Tests/PdfExtractorAnnotationsTests.cs        7     96
+...dizePdf.NET.Tests/PdfExtractorBoundedExtractionTests.cs        6     97
+...t/OxidizePdf.NET.Tests/PdfExtractorCancellationTests.cs       22     99
+...xidizePdf.NET.Tests/PdfExtractorContentAnalysisTests.cs       14     92
+.../OxidizePdf.NET.Tests/PdfExtractorErrorHandlingTests.cs        6     95
+...dizePdf.NET.Tests/PdfExtractorExtractionOptionsTests.cs       13     94
+...t/dotnet/OxidizePdf.NET.Tests/PdfExtractorFormsTests.cs       12     95
+...net/OxidizePdf.NET.Tests/PdfExtractorFunctionalTests.cs        7     89
+...otnet/OxidizePdf.NET.Tests/PdfExtractorMetadataTests.cs        7     96
+...dotnet/OxidizePdf.NET.Tests/PdfExtractorPageApiTests.cs       17     90
+.../OxidizePdf.NET.Tests/PdfExtractorPageResourcesTests.cs       14     99
+.../dotnet/OxidizePdf.NET.Tests/PdfExtractorParserTests.cs       17     99
+...otnet/OxidizePdf.NET.Tests/PdfExtractorPipelineTests.cs       13     93
+...otnet/OxidizePdf.NET.Tests/PdfExtractorResourceTests.cs        4     88
+...net/OxidizePdf.NET.Tests/PdfExtractorSignaturesTests.cs       15     94
+...OxidizePdf.NET.Tests/PdfExtractorSizeValidationTests.cs        8     89
+...idizePdf.NET.Tests/PdfExtractorStructuredExportTests.cs        7     99
+...otnet/dotnet/OxidizePdf.NET.Tests/PdfFlowLayoutTests.cs       17     92
+...net/dotnet/OxidizePdf.NET.Tests/PdfHeaderFooterTests.cs        6     97
+...4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfImageTests.cs       10     97
+....4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfListTests.cs        7     96
+...tnet/OxidizePdf.NET.Tests/PdfOperationsFillFormTests.cs        7     96
+...otnet/dotnet/OxidizePdf.NET.Tests/PdfOperationsTests.cs       64     95
+...t/dotnet/OxidizePdf.NET.Tests/PdfPageAnnotationTests.cs       27     96
+...tnet/dotnet/OxidizePdf.NET.Tests/PdfPageConsumeTests.cs        3     85
+...et/OxidizePdf.NET.Tests/PdfPageCoordinateSystemTests.cs        4     95
+.../dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageEditTests.cs        6     97
+...t/OxidizePdf.NET.Tests/PdfPageGraphicsTransformTests.cs        6     98
+...tnet/dotnet/OxidizePdf.NET.Tests/PdfPageShadingTests.cs       10     94
+....4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageTests.cs       43     97
+.../dotnet/dotnet/OxidizePdf.NET.Tests/PdfRichTextTests.cs       10     92
+...t/dotnet/OxidizePdf.NET.Tests/PdfSemanticEntityTests.cs        5    100
+...4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfTableTests.cs        5     92
+...et/dotnet/OxidizePdf.NET.Tests/PdfTaggedContentTests.cs        6     98
+.../dotnet/dotnet/OxidizePdf.NET.Tests/PdfTextFlowTests.cs       10     95
+.../dotnet/OxidizePdf.NET.Tests/PdfTextMeasurementTests.cs        5     96
+...dizePdf.NET.Tests/Pipeline/ChunkOptionsObsoleteTests.cs        3     97
+...OxidizePdf.NET.Tests/Pipeline/ExtractionProfileTests.cs        1     90
+...OxidizePdf.NET.Tests/Pipeline/HybridChunkConfigTests.cs        8     92
+...otnet/OxidizePdf.NET.Tests/Pipeline/MergePolicyTests.cs        1     90
+...t/OxidizePdf.NET.Tests/Pipeline/PartitionConfigTests.cs       13     96
+...Pdf.NET.Tests/Pipeline/PdfExtractorHybridChunksTests.cs       12     88
+....NET.Tests/Pipeline/PdfExtractorPartitionConfigTests.cs       11     91
+...idizePdf.NET.Tests/Pipeline/PdfExtractorProfileTests.cs        9     89
+...zePdf.NET.Tests/Pipeline/PdfExtractorRagProfileTests.cs        7     89
+...f.NET.Tests/Pipeline/PdfExtractorSemanticChunksTests.cs       10     94
+...izePdf.NET.Tests/Pipeline/RagChunksDisjointnessTests.cs        8     89
+...dizePdf.NET.Tests/Pipeline/ReadingOrderStrategyTests.cs       17     99
+...idizePdf.NET.Tests/Pipeline/SemanticChunkConfigTests.cs        8     94
+....2/dotnet/dotnet/OxidizePdf.NET.Tests/RedactionTests.cs        4    100
+.../dotnet/OxidizePdf.NET.Tests/SemanticComparisonTests.cs        6     98
+...otnet/dotnet/OxidizePdf.NET.Tests/SignatureSlotTests.cs        3    100
+...otnet/dotnet/OxidizePdf.NET.Tests/TaggedEditingTests.cs        7    100
+...dotnet/dotnet/OxidizePdf.NET.Tests/TextRecoveryTests.cs        4    100
+...tnet/dotnet/OxidizePdf.NET.Tests/TextValidationTests.cs        4    100
+.../dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs        7     97
+.../dotnet/dotnet/OxidizePdf.NET.Tests/Upstream514Tests.cs        5     98
+
+--- Worst Offenders ---
+  PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentBuilderTests.cs:150) - Score: 65
+    - Test 'PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow' has identical neighborhood to 'PdfFlowLayoutTests.Dispose_Twice_DoesNotThrow'
+    - Test 'PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow' executes production code without asserting on its behaviour
+  PdfFlowLayoutTests.Dispose_Twice_DoesNotThrow (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfFlowLayoutTests.cs:170) - Score: 65
+    - Test 'PdfFlowLayoutTests.Dispose_Twice_DoesNotThrow' has identical neighborhood to 'PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow'
+    - Test 'PdfFlowLayoutTests.Dispose_Twice_DoesNotThrow' executes production code without asserting on its behaviour
+  PdfPageTests.DoubleDispose_DoesNotThrow (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageTests.cs:164) - Score: 65
+    - Test 'PdfPageTests.DoubleDispose_DoesNotThrow' has identical neighborhood to 'PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow'
+    - Test 'PdfPageTests.DoubleDispose_DoesNotThrow' executes production code without asserting on its behaviour
+  CalGrayColorSpaceTests.Validate_AcceptsValidWhitePoint (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/CalGrayColorSpaceTests.cs:35) - Score: 75
+    - Test 'CalGrayColorSpaceTests.Validate_AcceptsValidWhitePoint' executes production code without asserting on its behaviour
+  CalRgbColorSpaceTests.Validate_AcceptsValidSRgb (/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/CalRgbColorSpaceTests.cs:38) - Score: 75
+    - Test 'CalRgbColorSpaceTests.Validate_AcceptsValidSRgb' executes production code without asserting on its behaviour
+
+--- Details ---
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.KernelMemory.Tests/DecodeAsyncTests.cs:
+  DecodeAsyncTests.DecodeAsync_maps_each_rag_chunk_to_one_section (line 12) - Score: 90
+    - Setup helper 'FixturePath' is duplicated in 1 other file(s)
+  DecodeAsyncTests.DecodeAsync_overloads_produce_identical_output (line 35) - Score: 90
+    - Test 'DecodeAsyncTests.DecodeAsync_overloads_produce_identical_output' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.KernelMemory.Tests/OxidizeChunkPartitioningHandlerTests.cs:
+  OxidizeChunkPartitioningHandlerTests.InvokeAsync_throws_InvalidOperationException_when_ExtractedContent_has_bytes_but_no_sections (line 54) - Score: 90
+    - Test 'OxidizeChunkPartitioningHandlerTests.InvokeAsync_throws_InvalidOperationException_when_ExtractedContent_has_bytes_but_no_sections' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  OxidizeChunkPartitioningHandlerTests.InvokeAsync_throws_NotSupportedException_for_non_PDF_uploaded_file (line 73) - Score: 90
+    - Test 'OxidizeChunkPartitioningHandlerTests.InvokeAsync_throws_NotSupportedException_for_non_PDF_uploaded_file' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.KernelMemory.Tests/PartitionPreservationE2ETests.cs:
+  PartitionPreservationE2ETests.Import_stores_one_partition_per_oxidize_chunk (line 15) - Score: 80
+    - Setup helper 'FixturePath' is duplicated in 1 other file(s)
+    - Test 'PartitionPreservationE2ETests.Import_stores_one_partition_per_oxidize_chunk' has low assert-to-setup ratio (8%): 3 asserts vs 36 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Ai/DocumentChunkerLanguageTests.cs:
+  DocumentChunkerLanguageTests.DocumentLanguage_returns_null_when_no_chunk_has_language (line 77) - Score: 90
+    - Test 'DocumentChunkerLanguageTests.DocumentLanguage_returns_null_when_no_chunk_has_language' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Ai/DocumentChunkerTests.cs:
+  DocumentChunkerTests.Default_ctor_matches_rust_defaults (line 13) - Score: 90
+    - Test 'DocumentChunkerTests.Default_ctor_matches_rust_defaults' does not call any production code
+  DocumentChunkerTests.Ctor_accepts_custom_chunk_size_and_overlap (line 21) - Score: 90
+    - Test 'DocumentChunkerTests.Ctor_accepts_custom_chunk_size_and_overlap' does not call any production code
+  DocumentChunkerTests.Ctor_rejects_overlap_equal_to_chunk_size (line 29) - Score: 90
+    - Test 'DocumentChunkerTests.Ctor_rejects_overlap_equal_to_chunk_size' does not call any production code
+  DocumentChunkerTests.Ctor_rejects_overlap_greater_than_chunk_size (line 35) - Score: 90
+    - Test 'DocumentChunkerTests.Ctor_rejects_overlap_greater_than_chunk_size' does not call any production code
+  DocumentChunkerTests.Ctor_rejects_zero_chunk_size (line 41) - Score: 80
+    - Test 'DocumentChunkerTests.Ctor_rejects_zero_chunk_size' has identical neighborhood to 'EnumTests.StandardFont_Helvetica_IsZero'
+    - Test 'DocumentChunkerTests.Ctor_rejects_zero_chunk_size' does not call any production code
+  DocumentChunkerTests.Ctor_rejects_negative_chunk_size (line 47) - Score: 90
+    - Test 'DocumentChunkerTests.Ctor_rejects_negative_chunk_size' does not call any production code
+  DocumentChunkerTests.Ctor_rejects_negative_overlap (line 53) - Score: 90
+    - Test 'DocumentChunkerTests.Ctor_rejects_negative_overlap' does not call any production code
+  DocumentChunkerTests.ChunkText_empty_returns_empty_list (line 146) - Score: 90
+    - Test 'DocumentChunkerTests.ChunkText_empty_returns_empty_list' has identical neighborhood to 'DocumentChunkerTests.ChunkText_null_throws_ArgumentNullException'
+  DocumentChunkerTests.ChunkText_null_throws_ArgumentNullException (line 155) - Score: 90
+    - Test 'DocumentChunkerTests.ChunkText_null_throws_ArgumentNullException' has identical neighborhood to 'DocumentChunkerTests.ChunkText_empty_returns_empty_list'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Ai/MarkdownOptionsIntegrationTests.cs:
+  MarkdownOptionsIntegrationTests.ToMarkdownAsync_four_flag_combinations_produce_four_distinct_outputs (line 72) - Score: 90
+    - Test 'MarkdownOptionsIntegrationTests.ToMarkdownAsync_four_flag_combinations_produce_four_distinct_outputs' has low assert-to-setup ratio (5%): 1 asserts vs 20 setup lines
+  MarkdownOptionsIntegrationTests.ToMarkdownAsync_with_options_differs_from_no_arg_call_when_metadata_disabled (line 99) - Score: 90
+    - Test 'MarkdownOptionsIntegrationTests.ToMarkdownAsync_with_options_differs_from_no_arg_call_when_metadata_disabled' has low assert-to-setup ratio (7%): 1 asserts vs 13 setup lines
+  MarkdownOptionsIntegrationTests.ToMarkdownAsync_with_options_null_bytes_throws_ArgumentNullException (line 127) - Score: 90
+    - Test 'MarkdownOptionsIntegrationTests.ToMarkdownAsync_with_options_null_bytes_throws_ArgumentNullException' has identical neighborhood to 'PdfExtractorStructuredExportTests.ToMarkdownAsync_NullBytes_ThrowsArgumentNullException'
+  MarkdownOptionsIntegrationTests.ToMarkdownAsync_with_options_respects_cancellation (line 145) - Score: 90
+    - Test 'MarkdownOptionsIntegrationTests.ToMarkdownAsync_with_options_respects_cancellation' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Ai/MarkdownOptionsTests.cs:
+  MarkdownOptionsTests.Defaults_match_rust_MarkdownOptions_default (line 8) - Score: 80
+    - Test 'MarkdownOptionsTests.Defaults_match_rust_MarkdownOptions_default' has identical neighborhood to 'PdfExtractorFormsTests.FormFieldOption_HasExpectedDefaults'
+    - Test 'MarkdownOptionsTests.Defaults_match_rust_MarkdownOptions_default' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/BookmarkReadingTests.cs:
+  BookmarkReadingTests.ReadBookmarks_DeepSiblingListsRoundTripWithoutDuplicateLinks (line 39) - Score: 90
+    - Test 'BookmarkReadingTests.ReadBookmarks_DeepSiblingListsRoundTripWithoutDuplicateLinks' has low assert-to-setup ratio (11%): 2 asserts vs 16 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/ChunkOptionsValidationTests.cs:
+  ChunkOptionsValidationTests.ExtractChunksAsync_WithValidOptions_Succeeds (line 115) - Score: 90
+    - Test 'ChunkOptionsValidationTests.ExtractChunksAsync_WithValidOptions_Succeeds' has low assert-to-setup ratio (6%): 1 asserts vs 16 setup lines
+  ChunkOptionsValidationTests.ExtractChunksAsync_WithVariousValidOptions_Succeeds (line 136) - Score: 80
+    - Test 'ChunkOptionsValidationTests.ExtractChunksAsync_WithVariousValidOptions_Succeeds' has identical neighborhood to 'PdfExtractorFunctionalTests.ExtractChunksAsync_WithDefaultOptions_UsesDefaults'
+    - Test 'ChunkOptionsValidationTests.ExtractChunksAsync_WithVariousValidOptions_Succeeds' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/CidFontTests.cs:
+  CidFontTests.AddCidKeyedFont_ShowCidArray_EmbedsType0CidFontWithToUnicode (line 22) - Score: 80
+    - Setup helper 'LoadSampleFont' is duplicated in 1 other file(s)
+    - Test 'CidFontTests.AddCidKeyedFont_ShowCidArray_EmbedsType0CidFontWithToUnicode' has low assert-to-setup ratio (15%): 4 asserts vs 22 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/CorpusRegressionTests.cs:
+  CorpusRegressionTests.T0_Regression_AllPdfsParseWithoutCrash (line 32) - Score: 80
+    - Helper 'RunTierTest' starts a resource and is invoked by 7 tests
+    - Test 'CorpusRegressionTests.T0_Regression_AllPdfsParseWithoutCrash' does not call any production code
+  CorpusRegressionTests.T1_Spec_AllPdfsParseWithoutCrash (line 38) - Score: 80
+    - Helper 'RunTierTest' starts a resource and is invoked by 7 tests
+    - Test 'CorpusRegressionTests.T1_Spec_AllPdfsParseWithoutCrash' does not call any production code
+  CorpusRegressionTests.T2_Realworld_AllPdfsParseWithoutCrash (line 44) - Score: 80
+    - Helper 'RunTierTest' starts a resource and is invoked by 7 tests
+    - Test 'CorpusRegressionTests.T2_Realworld_AllPdfsParseWithoutCrash' does not call any production code
+  CorpusRegressionTests.T3_Stress_AllPdfsParseWithoutCrash (line 50) - Score: 80
+    - Helper 'RunTierTest' starts a resource and is invoked by 7 tests
+    - Test 'CorpusRegressionTests.T3_Stress_AllPdfsParseWithoutCrash' does not call any production code
+  CorpusRegressionTests.T4_AiTarget_AllPdfsParseWithoutCrash (line 56) - Score: 80
+    - Helper 'RunTierTest' starts a resource and is invoked by 7 tests
+    - Test 'CorpusRegressionTests.T4_AiTarget_AllPdfsParseWithoutCrash' does not call any production code
+  CorpusRegressionTests.T5_Quality_AllPdfsParseWithoutCrash (line 62) - Score: 80
+    - Helper 'RunTierTest' starts a resource and is invoked by 7 tests
+    - Test 'CorpusRegressionTests.T5_Quality_AllPdfsParseWithoutCrash' does not call any production code
+  CorpusRegressionTests.T6_Adversarial_AllPdfsParseWithoutCrash (line 68) - Score: 80
+    - Helper 'RunTierTest' starts a resource and is invoked by 7 tests
+    - Test 'CorpusRegressionTests.T6_Adversarial_AllPdfsParseWithoutCrash' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/CustomFontMetricsRegressionTests.cs:
+  CustomFontMetricsRegressionTests.NewPageFactories_ProduceCorrectGeometry (line 47) - Score: 90
+    - Setup helper 'LoadSampleFont' is duplicated in 1 other file(s)
+  CustomFontMetricsRegressionTests.NewPage_DrawCustomFont_RoundTripsText (line 97) - Score: 90
+    - Test 'CustomFontMetricsRegressionTests.NewPage_DrawCustomFont_RoundTripsText' has low assert-to-setup ratio (12%): 2 asserts vs 15 setup lines
+  CustomFontMetricsRegressionTests.NewPage_EmittedPdf_EmbedsCustomFontWithRealWidths (line 136) - Score: 90
+    - Test 'CustomFontMetricsRegressionTests.NewPage_EmittedPdf_EmbedsCustomFontWithRealWidths' has low assert-to-setup ratio (10%): 3 asserts vs 28 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/DocumentChunkModelTests.cs:
+  DocumentChunkModelTests.DocumentChunk_BoundingBox_IsNotNull_ByDefault (line 44) - Score: 80
+    - Test 'DocumentChunkModelTests.DocumentChunk_BoundingBox_IsNotNull_ByDefault' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+    - Test 'DocumentChunkModelTests.DocumentChunk_BoundingBox_IsNotNull_ByDefault' does not call any production code
+  DocumentChunkModelTests.BoundingBox_DefaultValues_AreZero (line 54) - Score: 90
+    - Test 'DocumentChunkModelTests.BoundingBox_DefaultValues_AreZero' does not call any production code
+  DocumentChunkModelTests.DocumentChunk_DoesNotHave_DuplicateBoundingBoxProperties (line 67) - Score: 90
+    - Test 'DocumentChunkModelTests.DocumentChunk_DoesNotHave_DuplicateBoundingBoxProperties' has low assert-to-setup ratio (15%): 4 asserts vs 23 setup lines
+  DocumentChunkModelTests.BoundingBox_CanBeCreatedWithValues (line 121) - Score: 90
+    - Test 'DocumentChunkModelTests.BoundingBox_CanBeCreatedWithValues' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/EndToEndTests.cs:
+  EndToEndTests.FullDocument_WithTableAndList_ProducesValidPdf (line 9) - Score: 90
+    - Test 'EndToEndTests.FullDocument_WithTableAndList_ProducesValidPdf' has low assert-to-setup ratio (16%): 5 asserts vs 26 setup lines
+  EndToEndTests.AdvancedGraphics_WithBlendAndClip_ProducesValidPdf (line 46) - Score: 90
+    - Test 'EndToEndTests.AdvancedGraphics_WithBlendAndClip_ProducesValidPdf' has low assert-to-setup ratio (4%): 1 asserts vs 25 setup lines
+  EndToEndTests.StyledText_WithRiseAndScaling_ProducesValidPdf (line 77) - Score: 90
+    - Test 'EndToEndTests.StyledText_WithRiseAndScaling_ProducesValidPdf' has low assert-to-setup ratio (5%): 1 asserts vs 20 setup lines
+  EndToEndTests.SaveToFile_ThenReadBack_ValidPageCount (line 103) - Score: 90
+    - Test 'EndToEndTests.SaveToFile_ThenReadBack_ValidPageCount' has low assert-to-setup ratio (6%): 1 asserts vs 17 setup lines
+  EndToEndTests.ReorderAndReverse_Roundtrip_ProducesValidPdf (line 131) - Score: 90
+    - Test 'EndToEndTests.ReorderAndReverse_Roundtrip_ProducesValidPdf' has low assert-to-setup ratio (13%): 2 asserts vs 13 setup lines
+  EndToEndTests.OverlayPdf_TwoDocuments_ProducesValidPdf (line 154) - Score: 90
+    - Test 'EndToEndTests.OverlayPdf_TwoDocuments_ProducesValidPdf' has low assert-to-setup ratio (6%): 1 asserts vs 16 setup lines
+  EndToEndTests.RotatedPage_ProducesValidPdf (line 176) - Score: 90
+    - Test 'EndToEndTests.RotatedPage_ProducesValidPdf' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/EnumTests.cs:
+  EnumTests.StandardFont_Helvetica_IsZero (line 15) - Score: 80
+    - Test 'EnumTests.StandardFont_Helvetica_IsZero' has identical neighborhood to 'DocumentChunkerTests.Ctor_rejects_zero_chunk_size'
+    - Test 'EnumTests.StandardFont_Helvetica_IsZero' does not call any production code
+  EnumTests.StandardFont_ZapfDingbats_Is13 (line 21) - Score: 90
+    - Test 'EnumTests.StandardFont_ZapfDingbats_Is13' does not call any production code
+  EnumTests.PdfPermissions_None_IsZero (line 37) - Score: 90
+    - Test 'EnumTests.PdfPermissions_None_IsZero' does not call any production code
+  EnumTests.PdfPermissions_All_Is0xFF (line 43) - Score: 90
+    - Test 'EnumTests.PdfPermissions_All_Is0xFF' does not call any production code
+  EnumTests.PdfPermissions_Print_Is0x01 (line 49) - Score: 90
+    - Test 'EnumTests.PdfPermissions_Print_Is0x01' does not call any production code
+  EnumTests.PdfPermissions_FlagsCombine_Correctly (line 55) - Score: 90
+    - Test 'EnumTests.PdfPermissions_FlagsCombine_Correctly' does not call any production code
+  EnumTests.PdfPermissions_IndividualBits_AreDistinct (line 76) - Score: 80
+    - Test 'EnumTests.PdfPermissions_IndividualBits_AreDistinct' has low assert-to-setup ratio (6%): 1 asserts vs 17 setup lines
+    - Test 'EnumTests.PdfPermissions_IndividualBits_AreDistinct' does not call any production code
+  EnumTests.TextAlign_Left_IsZero (line 108) - Score: 80
+    - Test 'EnumTests.TextAlign_Left_IsZero' has identical neighborhood to 'DocumentChunkerTests.Ctor_rejects_zero_chunk_size'
+    - Test 'EnumTests.TextAlign_Left_IsZero' does not call any production code
+  EnumTests.TextAlign_Right_IsOne (line 114) - Score: 80
+    - Test 'EnumTests.TextAlign_Right_IsOne' has identical neighborhood to 'PdfOperationsTests.PdfPageRange_Single_NegativeIndex_ThrowsArgumentOutOfRangeException'
+    - Test 'EnumTests.TextAlign_Right_IsOne' does not call any production code
+  EnumTests.TextAlign_Center_IsTwo (line 120) - Score: 90
+    - Test 'EnumTests.TextAlign_Center_IsTwo' does not call any production code
+  EnumTests.TextAlign_Justified_IsThree (line 126) - Score: 90
+    - Test 'EnumTests.TextAlign_Justified_IsThree' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/FfiErrorIsolationTests.cs:
+  FfiErrorIsolationTests.Concurrent_failing_calls_each_read_their_own_thread_local_error (line 19) - Score: 90
+    - Test 'FfiErrorIsolationTests.Concurrent_failing_calls_each_read_their_own_thread_local_error' has low assert-to-setup ratio (3%): 1 asserts vs 38 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/FreeTextEditingTests.cs:
+  FreeTextEditingTests.AddUpdateRemove_PreservePrefixAndIdentity (line 14) - Score: 90
+    - Setup helper 'BlankPdf' is duplicated in 2 other file(s)
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/GeometricEditingTests.cs:
+  GeometricEditingTests.AllGeometries_RoundTripAndPreserveIdentity (line 24) - Score: 90
+    - Setup helper 'BlankPdf' is duplicated in 2 other file(s)
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/CalGrayColorSpaceTests.cs:
+  CalGrayColorSpaceTests.DefaultConstructor_SetsReasonableDefaults (line 8) - Score: 90
+    - Test 'CalGrayColorSpaceTests.DefaultConstructor_SetsReasonableDefaults' does not call any production code
+  CalGrayColorSpaceTests.D50_Factory_MatchesD50Illuminant (line 17) - Score: 90
+    - Test 'CalGrayColorSpaceTests.D50_Factory_MatchesD50Illuminant' has identical neighborhood to 'LabColorSpaceTests.D50_Factory_HasD50WhitePoint'
+  CalGrayColorSpaceTests.Validate_AcceptsValidWhitePoint (line 35) - Score: 75
+    - Test 'CalGrayColorSpaceTests.Validate_AcceptsValidWhitePoint' executes production code without asserting on its behaviour
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/CalRgbColorSpaceTests.cs:
+  CalRgbColorSpaceTests.Validate_AcceptsValidSRgb (line 38) - Score: 75
+    - Test 'CalRgbColorSpaceTests.Validate_AcceptsValidSRgb' executes production code without asserting on its behaviour
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/IccProfileTests.cs:
+  IccProfileTests.New_StoresNameDataAndColorSpace (line 10) - Score: 90
+    - Test 'IccProfileTests.New_StoresNameDataAndColorSpace' does not call any production code
+  IccProfileTests.New_NullName_Throws (line 19) - Score: 90
+    - Test 'IccProfileTests.New_NullName_Throws' does not call any production code
+  IccProfileTests.New_NullData_Throws (line 25) - Score: 90
+    - Test 'IccProfileTests.New_NullData_Throws' does not call any production code
+  IccProfileTests.Validate_ValidProfile_DoesNotThrow (line 39) - Score: 75
+    - Test 'IccProfileTests.Validate_ValidProfile_DoesNotThrow' executes production code without asserting on its behaviour
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/LabColorSpaceTests.cs:
+  LabColorSpaceTests.D50_Factory_HasD50WhitePoint (line 8) - Score: 90
+    - Test 'LabColorSpaceTests.D50_Factory_HasD50WhitePoint' has identical neighborhood to 'CalGrayColorSpaceTests.D50_Factory_MatchesD50Illuminant'
+  LabColorSpaceTests.Validate_AcceptsValidD50 (line 33) - Score: 75
+    - Test 'LabColorSpaceTests.Validate_AcceptsValidD50' executes production code without asserting on its behaviour
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/LabColorTests.cs:
+  LabColorTests.New_NullColorSpace_Throws (line 19) - Score: 90
+    - Test 'LabColorTests.New_NullColorSpace_Throws' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageCalGrayIntegrationTests.cs:
+  PdfPageCalGrayIntegrationTests.CalGray_FilledRect_ContentStreamContainsCalGrayColorSpaceName (line 42) - Score: 90
+    - Test 'PdfPageCalGrayIntegrationTests.CalGray_FilledRect_ContentStreamContainsCalGrayColorSpaceName' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageCalRgbIntegrationTests.cs:
+  PdfPageCalRgbIntegrationTests.CalRgb_FilledRect_ContentStreamContainsCalRGBColorSpaceName (line 43) - Score: 90
+    - Test 'PdfPageCalRgbIntegrationTests.CalRgb_FilledRect_ContentStreamContainsCalRGBColorSpaceName' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageClipEllipseIntegrationTests.cs:
+  PdfPageClipEllipseIntegrationTests.ClipEllipse_EmitsPathAndClipOperatorsInContentStream (line 14) - Score: 90
+    - Setup helper 'CountOccurrences' is duplicated in 1 other file(s)
+  PdfPageClipEllipseIntegrationTests.ClipEllipse_RightmostExtentCurveUsesKappaControlPoints (line 35) - Score: 90
+    - Test 'PdfPageClipEllipseIntegrationTests.ClipEllipse_RightmostExtentCurveUsesKappaControlPoints' has low assert-to-setup ratio (8%): 1 asserts vs 12 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageDrawImageWithTransparencyIntegrationTests.cs:
+  PdfPageDrawImageWithTransparencyIntegrationTests.DrawImageWithTransparency_WithMask_EmitsPlacementMatrixDoAndSMask (line 57) - Score: 90
+    - Setup helper 'MaskForm' is duplicated in 1 other file(s)
+  PdfPageDrawImageWithTransparencyIntegrationTests.DrawImageWithTransparency_MaskFormNotRegistered_SaveThrows (line 102) - Score: 90
+    - Test 'PdfPageDrawImageWithTransparencyIntegrationTests.DrawImageWithTransparency_MaskFormNotRegistered_SaveThrows' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageDrawTextAtIntegrationTests.cs:
+  PdfPageDrawTextAtIntegrationTests.DrawTextAt_PositionCoordinatesAppearInTdOperator (line 33) - Score: 90
+    - Test 'PdfPageDrawTextAtIntegrationTests.DrawTextAt_PositionCoordinatesAppearInTdOperator' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfPageDrawTextAtIntegrationTests.DrawTextAt_EscapesParenthesesInLiteralString (line 47) - Score: 90
+    - Test 'PdfPageDrawTextAtIntegrationTests.DrawTextAt_EscapesParenthesesInLiteralString' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageFormXObjectIntegrationTests.cs:
+  PdfPageFormXObjectIntegrationTests.FormXObject_Invoked_ContentStreamContainsDoOperator (line 39) - Score: 90
+    - Test 'PdfPageFormXObjectIntegrationTests.FormXObject_Invoked_ContentStreamContainsDoOperator' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfPageFormXObjectIntegrationTests.FormXObject_HasRequiredBBox (line 53) - Score: 90
+    - Test 'PdfPageFormXObjectIntegrationTests.FormXObject_HasRequiredBBox' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfPageFormXObjectIntegrationTests.FormXObject_ReusedAcrossTwoInvocations_BothDoOperatorsEmitted (line 68) - Score: 90
+    - Test 'PdfPageFormXObjectIntegrationTests.FormXObject_ReusedAcrossTwoInvocations_BothDoOperatorsEmitted' has low assert-to-setup ratio (14%): 2 asserts vs 12 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageIccEmbeddedIntegrationTests.cs:
+  PdfPageIccEmbeddedIntegrationTests.IccEmbedded_FilledRect_PdfContainsICCBasedResource (line 35) - Score: 90
+    - Test 'PdfPageIccEmbeddedIntegrationTests.IccEmbedded_FilledRect_PdfContainsICCBasedResource' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  PdfPageIccEmbeddedIntegrationTests.IccEmbedded_ContentStream_ContainsCsAndScOperators (line 51) - Score: 90
+    - Test 'PdfPageIccEmbeddedIntegrationTests.IccEmbedded_ContentStream_ContainsCsAndScOperators' has low assert-to-setup ratio (11%): 3 asserts vs 25 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageIccInlineIntegrationTests.cs:
+  PdfPageIccInlineIntegrationTests.IccInline_FilledRect_PdfContainsICCBasedResource (line 33) - Score: 90
+    - Test 'PdfPageIccInlineIntegrationTests.IccInline_FilledRect_PdfContainsICCBasedResource' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageLabIntegrationTests.cs:
+  PdfPageLabIntegrationTests.SetFillColorLab_InvalidColorSpace_Throws (line 33) - Score: 90
+    - Test 'PdfPageLabIntegrationTests.SetFillColorLab_InvalidColorSpace_Throws' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfPageLabIntegrationTests.Lab_FilledRect_ContentStreamContainsLabColorSpaceName (line 44) - Score: 90
+    - Test 'PdfPageLabIntegrationTests.Lab_FilledRect_ContentStreamContainsLabColorSpaceName' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageNamedColorSpaceIntegrationTests.cs:
+  PdfPageNamedColorSpaceIntegrationTests.TwoCalRgbSpacesOnOnePage_BothAppearInResourceDict (line 14) - Score: 90
+    - Test 'PdfPageNamedColorSpaceIntegrationTests.TwoCalRgbSpacesOnOnePage_BothAppearInResourceDict' has low assert-to-setup ratio (11%): 2 asserts vs 17 setup lines
+  OxidizePythonIssue57RegressionTests.ShapeFillColor_ThenTextColor_BothOperatorsAppearDistinctInContentStream (line 110) - Score: 90
+    - Test 'OxidizePythonIssue57RegressionTests.ShapeFillColor_ThenTextColor_BothOperatorsAppearDistinctInContentStream' has low assert-to-setup ratio (19%): 4 asserts vs 17 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageSoftMaskIntegrationTests.cs:
+  PdfPageSoftMaskIntegrationTests.SoftMask_Luminosity_EmitsSMaskDictWithIndirectGroupAndGsOperator (line 26) - Score: 90
+    - Setup helper 'MaskForm' is duplicated in 1 other file(s)
+  PdfPageSoftMaskIntegrationTests.SoftMask_UnregisteredGroup_SaveThrows (line 78) - Score: 90
+    - Test 'PdfPageSoftMaskIntegrationTests.SoftMask_UnregisteredGroup_SaveThrows' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfPageSoftMaskIntegrationTests.PdfSoftMask_NullGroupReference_Throws (line 92) - Score: 90
+    - Test 'PdfPageSoftMaskIntegrationTests.PdfSoftMask_NullGroupReference_Throws' has identical neighborhood to 'PdfPageSoftMaskIntegrationTests.PdfSoftMask_EmptyGroupReference_Throws'
+  PdfPageSoftMaskIntegrationTests.PdfSoftMask_EmptyGroupReference_Throws (line 99) - Score: 90
+    - Test 'PdfPageSoftMaskIntegrationTests.PdfSoftMask_EmptyGroupReference_Throws' has identical neighborhood to 'PdfPageSoftMaskIntegrationTests.PdfSoftMask_NullGroupReference_Throws'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageTilingPatternIntegrationTests.cs:
+  PdfPageTilingPatternIntegrationTests.TilingPattern_FillVariant_ContentStreamContainsScnOperator (line 45) - Score: 90
+    - Test 'PdfPageTilingPatternIntegrationTests.TilingPattern_FillVariant_ContentStreamContainsScnOperator' has low assert-to-setup ratio (14%): 2 asserts vs 12 setup lines
+  PdfPageTilingPatternIntegrationTests.TilingPattern_StrokeVariant_ContentStreamContainsSCNOperator (line 64) - Score: 90
+    - Test 'PdfPageTilingPatternIntegrationTests.TilingPattern_StrokeVariant_ContentStreamContainsSCNOperator' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  PdfPageTilingPatternIntegrationTests.TilingPattern_TileContent_EmittedAsSeparatePatternStream (line 81) - Score: 90
+    - Test 'PdfPageTilingPatternIntegrationTests.TilingPattern_TileContent_EmittedAsSeparatePatternStream' has low assert-to-setup ratio (19%): 3 asserts vs 13 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Graphics/PdfPageTransparencyGroupIntegrationTests.cs:
+  PdfPageTransparencyGroupIntegrationTests.FormXObject_WithoutGroup_DoesNotEmitTransparencyGroup (line 63) - Score: 80
+    - Setup helper 'FormContent' is duplicated in 1 other file(s)
+    - Test 'PdfPageTransparencyGroupIntegrationTests.FormXObject_WithoutGroup_DoesNotEmitTransparencyGroup' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfPageTransparencyGroupIntegrationTests.PdfTransparencyGroup_NullColorSpace_Throws (line 79) - Score: 80
+    - Test 'PdfPageTransparencyGroupIntegrationTests.PdfTransparencyGroup_NullColorSpace_Throws' has identical neighborhood to 'PdfPageTransparencyGroupIntegrationTests.PdfTransparencyGroup_EmptyColorSpace_Throws'
+    - Test 'PdfPageTransparencyGroupIntegrationTests.PdfTransparencyGroup_NullColorSpace_Throws' does not call any production code
+  PdfPageTransparencyGroupIntegrationTests.PdfTransparencyGroup_EmptyColorSpace_Throws (line 86) - Score: 80
+    - Test 'PdfPageTransparencyGroupIntegrationTests.PdfTransparencyGroup_EmptyColorSpace_Throws' has identical neighborhood to 'PdfPageTransparencyGroupIntegrationTests.PdfTransparencyGroup_NullColorSpace_Throws'
+    - Test 'PdfPageTransparencyGroupIntegrationTests.PdfTransparencyGroup_EmptyColorSpace_Throws' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/IncrementalSigningTests.cs:
+  IncrementalSigningTests.ExistingEmptyFieldCanBeSignedOnlyOnce (line 88) - Score: 90
+    - Test 'IncrementalSigningTests.ExistingEmptyFieldCanBeSignedOnlyOnce' has low assert-to-setup ratio (9%): 2 asserts vs 21 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/InkEditingTests.cs:
+  InkEditingTests.Lifecycle_PreservesColorSpaceStrokesAndIdentity (line 14) - Score: 90
+    - Setup helper 'BlankPdf' is duplicated in 2 other file(s)
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Interop/ColorSpaceNativeLayoutTests.cs:
+  ColorSpaceNativeLayoutTests.M3_UsesScalarParametersOnly_NoStructLayoutRequired (line 14) - Score: 90
+    - Test 'ColorSpaceNativeLayoutTests.M3_UsesScalarParametersOnly_NoStructLayoutRequired' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Interop/ExtractionOptionsNativeLayoutTests.cs:
+  ExtractionOptionsNativeLayoutTests.ExtractionOptionsNative_TotalSizeIs72Bytes (line 17) - Score: 90
+    - Test 'ExtractionOptionsNativeLayoutTests.ExtractionOptionsNative_TotalSizeIs72Bytes' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  ExtractionOptionsNativeLayoutTests.ExtractionOptionsNative_FieldOffsetsMatchRust (line 27) - Score: 90
+    - Test 'ExtractionOptionsNativeLayoutTests.ExtractionOptionsNative_FieldOffsetsMatchRust' has low assert-to-setup ratio (6%): 1 asserts vs 15 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/NativeBinariesTests.cs:
+  NativeBinariesTests.NativeBinary_ExistsForCurrentPlatform (line 41) - Score: 80
+    - Setup helper 'GetCurrentPlatformInfo' is duplicated in 1 other file(s)
+    - Test 'NativeBinariesTests.NativeBinary_ExistsForCurrentPlatform' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  NativeBinariesTests.NativeBinary_HasNonZeroSize (line 56) - Score: 90
+    - Test 'NativeBinariesTests.NativeBinary_HasNonZeroSize' has low assert-to-setup ratio (15%): 2 asserts vs 11 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/OcrLayerTests.cs:
+  OcrLayerTests.UnicodeLayerIsInvisibleAndPreservesOriginalPdfAndText (line 27) - Score: 90
+    - Setup helper 'Pdf' is duplicated in 1 other file(s)
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PackageIconValidationTests.cs:
+  PackageIconValidationTests.PackageIcon_IsValidPng (line 17) - Score: 90
+    - Test 'PackageIconValidationTests.PackageIcon_IsValidPng' has low assert-to-setup ratio (15%): 2 asserts vs 11 setup lines
+  PackageIconValidationTests.PackageIcon_HasReasonableSize (line 34) - Score: 90
+    - Test 'PackageIconValidationTests.PackageIcon_HasReasonableSize' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PackageMetadataTests.cs:
+  PackageMetadataTests.PackageIcon_FileExists (line 8) - Score: 90
+    - Test 'PackageMetadataTests.PackageIcon_FileExists' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/ParityContractTests.cs:
+  ParityContractTests.AuditedOptionsResultsDefaultsAndBehaviorTestsRemainAvailable (line 56) - Score: 90
+    - Test 'ParityContractTests.AuditedOptionsResultsDefaultsAndBehaviorTestsRemainAvailable' does not call any production code
+  ParityContractTests.GateRejectsContractRegressions (line 60) - Score: 90
+    - Test 'ParityContractTests.GateRejectsContractRegressions' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfColumnLayoutTests.cs:
+  PdfColumnLayoutTests.RenderColumns_FlowsTextAcrossMultipleColumns (line 22) - Score: 80
+    - Setup helper 'CountOccurrences' is duplicated in 1 other file(s)
+    - Test 'PdfColumnLayoutTests.RenderColumns_FlowsTextAcrossMultipleColumns' has low assert-to-setup ratio (11%): 3 asserts vs 24 setup lines
+  PdfColumnLayoutTests.RenderColumns_CustomWidths_Renders (line 55) - Score: 90
+    - Test 'PdfColumnLayoutTests.RenderColumns_CustomWidths_Renders' has low assert-to-setup ratio (9%): 2 asserts vs 20 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentBuilderTests.cs:
+  PdfDocumentBuilderTests.CreateA4_IsNotNull (line 10) - Score: 90
+    - Test 'PdfDocumentBuilderTests.CreateA4_IsNotNull' has identical neighborhood to 'PdfFlowLayoutTests.CreateA4_IsNotNull'
+  PdfDocumentBuilderTests.CreateCustom_IsNotNull (line 18) - Score: 90
+    - Test 'PdfDocumentBuilderTests.CreateCustom_IsNotNull' has identical neighborhood to 'PdfFlowLayoutTests.CreateCustom_IsNotNull'
+  PdfDocumentBuilderTests.AddText_ReturnsThisForChaining (line 28) - Score: 90
+    - Test 'PdfDocumentBuilderTests.AddText_ReturnsThisForChaining' has identical neighborhood to 'PdfFlowLayoutTests.AddText_ReturnsThisForChaining'
+  PdfDocumentBuilderTests.AddSpacer_ReturnsThisForChaining (line 37) - Score: 90
+    - Test 'PdfDocumentBuilderTests.AddSpacer_ReturnsThisForChaining' has identical neighborhood to 'PdfFlowLayoutTests.AddSpacer_ReturnsThisForChaining'
+  PdfDocumentBuilderTests.Build_WithMultipleElements_ProducesValidPdf (line 61) - Score: 90
+    - Test 'PdfDocumentBuilderTests.Build_WithMultipleElements_ProducesValidPdf' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfDocumentBuilderTests.Build_WithTable_ProducesValidPdf (line 77) - Score: 90
+    - Test 'PdfDocumentBuilderTests.Build_WithTable_ProducesValidPdf' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfDocumentBuilderTests.Build_WithRichText_ProducesValidPdf (line 94) - Score: 90
+    - Test 'PdfDocumentBuilderTests.Build_WithRichText_ProducesValidPdf' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfDocumentBuilderTests.Build_CalledTwice_ThrowsInvalidOperationException (line 111) - Score: 90
+    - Test 'PdfDocumentBuilderTests.Build_CalledTwice_ThrowsInvalidOperationException' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfDocumentBuilderTests.AddText_AfterBuild_ThrowsInvalidOperationException (line 122) - Score: 90
+    - Test 'PdfDocumentBuilderTests.AddText_AfterBuild_ThrowsInvalidOperationException' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfDocumentBuilderTests.AddText_NullText_ThrowsArgumentNullException (line 134) - Score: 90
+    - Test 'PdfDocumentBuilderTests.AddText_NullText_ThrowsArgumentNullException' has identical neighborhood to 'PdfFlowLayoutTests.AddText_NullText_ThrowsArgumentNullException'
+  PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow (line 150) - Score: 65
+    - Test 'PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow' has identical neighborhood to 'PdfFlowLayoutTests.Dispose_Twice_DoesNotThrow'
+    - Test 'PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow' executes production code without asserting on its behaviour
+  PdfDocumentBuilderTests.AddTable_NullTable_ThrowsArgumentNullException (line 159) - Score: 90
+    - Test 'PdfDocumentBuilderTests.AddTable_NullTable_ThrowsArgumentNullException' has identical neighborhood to 'PdfFlowLayoutTests.AddTable_NullTable_ThrowsArgumentNullException'
+  PdfDocumentBuilderTests.AddRichText_NullRichText_ThrowsArgumentNullException (line 166) - Score: 90
+    - Test 'PdfDocumentBuilderTests.AddRichText_NullRichText_ThrowsArgumentNullException' has identical neighborhood to 'PdfFlowLayoutTests.AddRichText_NullRichText_ThrowsArgumentNullException'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentFormsWriteTests.cs:
+  PdfDocumentFormsWriteTests.FillField_UpdatesValue_ObservableViaReadBack (line 143) - Score: 90
+    - Test 'PdfDocumentFormsWriteTests.FillField_UpdatesValue_ObservableViaReadBack' has low assert-to-setup ratio (18%): 3 asserts vs 14 setup lines
+  PdfDocumentFormsWriteTests.AcroForm_IsPresent_WhenFieldCreated (line 180) - Score: 90
+    - Test 'PdfDocumentFormsWriteTests.AcroForm_IsPresent_WhenFieldCreated' has low assert-to-setup ratio (8%): 1 asserts vs 12 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentNamedDestinationsTests.cs:
+  PdfDocumentNamedDestinationsTests.AddNamedDestination_DuplicateName_LastWriteWins (line 23) - Score: 90
+    - Test 'PdfDocumentNamedDestinationsTests.AddNamedDestination_DuplicateName_LastWriteWins' has low assert-to-setup ratio (12%): 2 asserts vs 15 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentOpenActionTests.cs:
+  PdfDocumentOpenActionTests.SetOpenAction_CalledTwice_LastWriteWins (line 58) - Score: 90
+    - Test 'PdfDocumentOpenActionTests.SetOpenAction_CalledTwice_LastWriteWins' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentOutlineTests.cs:
+  PdfDocumentOutlineTests.SetOutline_SingleItem_ReturnsSameInstance (line 5) - Score: 90
+    - Test 'PdfDocumentOutlineTests.SetOutline_SingleItem_ReturnsSameInstance' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  PdfDocumentOutlineTests.SetOutline_NestedItems_ProducesValidPdf (line 21) - Score: 90
+    - Test 'PdfDocumentOutlineTests.SetOutline_NestedItems_ProducesValidPdf' has low assert-to-setup ratio (4%): 1 asserts vs 23 setup lines
+  PdfDocumentOutlineTests.SetOutline_WithFormattingOptions_ProducesValidPdf (line 50) - Score: 90
+    - Test 'PdfDocumentOutlineTests.SetOutline_WithFormattingOptions_ProducesValidPdf' has low assert-to-setup ratio (7%): 1 asserts vs 13 setup lines
+  PdfDocumentOutlineTests.SetOutline_EmptyOutline_ProducesValidPdf (line 69) - Score: 90
+    - Test 'PdfDocumentOutlineTests.SetOutline_EmptyOutline_ProducesValidPdf' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  PdfDocumentOutlineTests.PdfOutlineItem_NullTitle_ThrowsArgumentNullException (line 103) - Score: 80
+    - Test 'PdfDocumentOutlineTests.PdfOutlineItem_NullTitle_ThrowsArgumentNullException' has identical neighborhood to 'DocumentChunkerTests.Ctor_rejects_zero_chunk_size'
+    - Test 'PdfDocumentOutlineTests.PdfOutlineItem_NullTitle_ThrowsArgumentNullException' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentPageLabelsTests.cs:
+  PdfDocumentPageLabelsTests.SetPageLabels_UppercaseRoman_EmitsUppercaseStyle (line 45) - Score: 90
+    - Test 'PdfDocumentPageLabelsTests.SetPageLabels_UppercaseRoman_EmitsUppercaseStyle' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentSaveOptionsTests.cs:
+  PdfDocumentSaveOptionsTests.SaveToBytes_DefaultOptions_WritesPdf17 (line 35) - Score: 90
+    - Test 'PdfDocumentSaveOptionsTests.SaveToBytes_DefaultOptions_WritesPdf17' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfDocumentSaveOptionsTests.SaveToBytes_CustomVersion_WritesThatVersion (line 48) - Score: 90
+    - Test 'PdfDocumentSaveOptionsTests.SaveToBytes_CustomVersion_WritesThatVersion' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentTests.cs:
+  PdfDocumentTests.Constructor_CreatesInstance (line 8) - Score: 90
+    - Test 'PdfDocumentTests.Constructor_CreatesInstance' does not call any production code
+  PdfDocumentTests.PageCount_InitiallyZero (line 16) - Score: 80
+    - Test 'PdfDocumentTests.PageCount_InitiallyZero' has identical neighborhood to 'DocumentChunkerTests.Ctor_rejects_zero_chunk_size'
+    - Test 'PdfDocumentTests.PageCount_InitiallyZero' does not call any production code
+  PdfDocumentTests.SetMetadata_FluentChaining_Works (line 33) - Score: 90
+    - Test 'PdfDocumentTests.SetMetadata_FluentChaining_Works' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfDocumentTests.AddPage_MultiplePagesIncrementCount (line 57) - Score: 90
+    - Test 'PdfDocumentTests.AddPage_MultiplePagesIncrementCount' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfDocumentTests.Encrypt_ReturnsSameInstance (line 105) - Score: 80
+    - Test 'PdfDocumentTests.Encrypt_ReturnsSameInstance' has identical neighborhood to 'PdfDocumentTests.Encrypt_WithPermissions_ReturnsSameInstance'
+    - Test 'PdfDocumentTests.Encrypt_ReturnsSameInstance' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfDocumentTests.Encrypt_WithPermissions_ReturnsSameInstance (line 116) - Score: 80
+    - Test 'PdfDocumentTests.Encrypt_WithPermissions_ReturnsSameInstance' has identical neighborhood to 'PdfDocumentTests.Encrypt_ReturnsSameInstance'
+    - Test 'PdfDocumentTests.Encrypt_WithPermissions_ReturnsSameInstance' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfDocumentTests.EncryptAes128_ReturnsSameInstance (line 129) - Score: 90
+    - Test 'PdfDocumentTests.EncryptAes128_ReturnsSameInstance' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfDocumentTests.EncryptAes256_ReturnsSameInstance (line 140) - Score: 90
+    - Test 'PdfDocumentTests.EncryptAes256_ReturnsSameInstance' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfDocumentTests.EncryptAes128_WithPermissions_ProducesBytes (line 151) - Score: 90
+    - Test 'PdfDocumentTests.EncryptAes128_WithPermissions_ProducesBytes' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfDocumentTests.EncryptAes256_WithPermissions_ProducesBytes (line 163) - Score: 90
+    - Test 'PdfDocumentTests.EncryptAes256_WithPermissions_ProducesBytes' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfDocumentTests.DoubleDispose_DoesNotThrow (line 184) - Score: 75
+    - Test 'PdfDocumentTests.DoubleDispose_DoesNotThrow' executes production code without asserting on its behaviour
+  PdfDocumentTests.FullWorkflow_CreateDocumentWithContentAndSave (line 193) - Score: 90
+    - Test 'PdfDocumentTests.FullWorkflow_CreateDocumentWithContentAndSave' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfDocumentTests.AddFont_WithValidTtfBytes_Succeeds (line 212) - Score: 90
+    - Test 'PdfDocumentTests.AddFont_WithValidTtfBytes_Succeeds' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfDocumentTests.SetCustomFont_OnPage_CreatesValidPdf (line 268) - Score: 90
+    - Test 'PdfDocumentTests.SetCustomFont_OnPage_CreatesValidPdf' has low assert-to-setup ratio (7%): 1 asserts vs 14 setup lines
+  PdfDocumentTests.SaveToFile_CreatesFileOnDisk (line 325) - Score: 90
+    - Test 'PdfDocumentTests.SaveToFile_CreatesFileOnDisk' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfDocumentViewerPreferencesTests.cs:
+  PdfDocumentViewerPreferencesTests.SetViewerPreferences_PageLayoutTwoColumnLeft_Written (line 27) - Score: 90
+    - Test 'PdfDocumentViewerPreferencesTests.SetViewerPreferences_PageLayoutTwoColumnLeft_Written' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfDocumentViewerPreferencesTests.SetViewerPreferences_PageModeFullScreen_Written (line 40) - Score: 90
+    - Test 'PdfDocumentViewerPreferencesTests.SetViewerPreferences_PageModeFullScreen_Written' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfDocumentViewerPreferencesTests.SetViewerPreferences_DuplexFlipLongEdge_Written (line 53) - Score: 90
+    - Test 'PdfDocumentViewerPreferencesTests.SetViewerPreferences_DuplexFlipLongEdge_Written' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfDocumentViewerPreferencesTests.SetViewerPreferences_PrintScalingNone_Written (line 66) - Score: 90
+    - Test 'PdfDocumentViewerPreferencesTests.SetViewerPreferences_PrintScalingNone_Written' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorAnnotationsTests.cs:
+  PdfExtractorAnnotationsTests.PdfAnnotation_HasExpectedProperties (line 13) - Score: 90
+    - Test 'PdfExtractorAnnotationsTests.PdfAnnotation_HasExpectedProperties' does not call any production code
+  PdfExtractorAnnotationsTests.GetAnnotationsAsync_OnSamplePdf_ReturnsValidList (line 46) - Score: 90
+    - Test 'PdfExtractorAnnotationsTests.GetAnnotationsAsync_OnSamplePdf_ReturnsValidList' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorAnnotationsTests.GetAnnotationsAsync_WhenAnnotationsPresent_SubtypeIsNotEmpty (line 58) - Score: 90
+    - Test 'PdfExtractorAnnotationsTests.GetAnnotationsAsync_WhenAnnotationsPresent_SubtypeIsNotEmpty' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorBoundedExtractionTests.cs:
+  PdfExtractorBoundedExtractionTests.ExtractTextWithResultAsync_BudgetAboveTotal_NotTruncated (line 74) - Score: 90
+    - Test 'PdfExtractorBoundedExtractionTests.ExtractTextWithResultAsync_BudgetAboveTotal_NotTruncated' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  PdfExtractorBoundedExtractionTests.ExtractionOptions_NegativeMaxExtractedBytes_ThrowsOnValidate (line 90) - Score: 90
+    - Test 'PdfExtractorBoundedExtractionTests.ExtractionOptions_NegativeMaxExtractedBytes_ThrowsOnValidate' has identical neighborhood to 'HybridChunkConfigTests.Validate_rejects_negative_overlap'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorCancellationTests.cs:
+  PdfExtractorCancellationTests.ExtractTextAsync_WithAlreadyCancelledToken_ThrowsOperationCanceled (line 20) - Score: 90
+    - Test 'PdfExtractorCancellationTests.ExtractTextAsync_WithAlreadyCancelledToken_ThrowsOperationCanceled' has identical neighborhood to 'PdfExtractorCancellationTests.ExtractTextAsync_WithOptionsAndCancelledToken_ThrowsOperationCanceled'
+  PdfExtractorCancellationTests.ExtractTextAsync_WithValidToken_Succeeds (line 40) - Score: 90
+    - Test 'PdfExtractorCancellationTests.ExtractTextAsync_WithValidToken_Succeeds' has identical neighborhood to 'PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithNullOptions_UsesDefaults'
+  PdfExtractorCancellationTests.ExtractTextAsync_WithOptionsAndCancelledToken_ThrowsOperationCanceled (line 223) - Score: 90
+    - Test 'PdfExtractorCancellationTests.ExtractTextAsync_WithOptionsAndCancelledToken_ThrowsOperationCanceled' has identical neighborhood to 'PdfExtractorCancellationTests.ExtractTextAsync_WithAlreadyCancelledToken_ThrowsOperationCanceled'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorContentAnalysisTests.cs:
+  PdfExtractorContentAnalysisTests.ContentAnalysis_HasExpectedDefaults (line 22) - Score: 90
+    - Test 'PdfExtractorContentAnalysisTests.ContentAnalysis_HasExpectedDefaults' does not call any production code
+  PdfExtractorContentAnalysisTests.ContentAnalysis_IsScanned_TrueWhenEnumIsScanned (line 36) - Score: 80
+    - Test 'PdfExtractorContentAnalysisTests.ContentAnalysis_IsScanned_TrueWhenEnumIsScanned' has identical neighborhood to 'PdfExtractorContentAnalysisTests.ContentAnalysis_IsMixed_TrueWhenEnumIsMixed'
+    - Test 'PdfExtractorContentAnalysisTests.ContentAnalysis_IsScanned_TrueWhenEnumIsScanned' does not call any production code
+  PdfExtractorContentAnalysisTests.ContentAnalysis_IsText_TrueWhenEnumIsText (line 45) - Score: 80
+    - Test 'PdfExtractorContentAnalysisTests.ContentAnalysis_IsText_TrueWhenEnumIsText' has identical neighborhood to 'PdfExtractorContentAnalysisTests.ContentAnalysis_IsMixed_TrueWhenEnumIsMixed'
+    - Test 'PdfExtractorContentAnalysisTests.ContentAnalysis_IsText_TrueWhenEnumIsText' does not call any production code
+  PdfExtractorContentAnalysisTests.ContentAnalysis_IsMixed_TrueWhenEnumIsMixed (line 54) - Score: 80
+    - Test 'PdfExtractorContentAnalysisTests.ContentAnalysis_IsMixed_TrueWhenEnumIsMixed' has identical neighborhood to 'PdfExtractorContentAnalysisTests.ContentAnalysis_IsScanned_TrueWhenEnumIsScanned'
+    - Test 'PdfExtractorContentAnalysisTests.ContentAnalysis_IsMixed_TrueWhenEnumIsMixed' does not call any production code
+  PdfExtractorContentAnalysisTests.AnalyzePageContentAsync_TextPage_HasContentStream (line 106) - Score: 90
+    - Test 'PdfExtractorContentAnalysisTests.AnalyzePageContentAsync_TextPage_HasContentStream' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorContentAnalysisTests.AnalyzePageContentAsync_TextPage_IsNotScanned (line 117) - Score: 90
+    - Test 'PdfExtractorContentAnalysisTests.AnalyzePageContentAsync_TextPage_IsNotScanned' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorContentAnalysisTests.AnalyzePageContentAsync_TextPage_PageTypeNeverUnknown (line 128) - Score: 90
+    - Test 'PdfExtractorContentAnalysisTests.AnalyzePageContentAsync_TextPage_PageTypeNeverUnknown' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorContentAnalysisTests.AnalyzePageContentAsync_PageTypeIsKnownEnumValue (line 149) - Score: 90
+    - Test 'PdfExtractorContentAnalysisTests.AnalyzePageContentAsync_PageTypeIsKnownEnumValue' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorErrorHandlingTests.cs:
+  PdfExtractorErrorHandlingTests.ExtractTextAsync_WithEmptyBytes_ThrowsArgumentException (line 61) - Score: 90
+    - Test 'PdfExtractorErrorHandlingTests.ExtractTextAsync_WithEmptyBytes_ThrowsArgumentException' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorErrorHandlingTests.ExtractTextAsync_WithNullBytes_ThrowsArgumentNullException (line 73) - Score: 90
+    - Test 'PdfExtractorErrorHandlingTests.ExtractTextAsync_WithNullBytes_ThrowsArgumentNullException' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorErrorHandlingTests.ExtractChunksAsync_WithNullBytes_ThrowsArgumentNullException (line 84) - Score: 90
+    - Test 'PdfExtractorErrorHandlingTests.ExtractChunksAsync_WithNullBytes_ThrowsArgumentNullException' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorExtractionOptionsTests.cs:
+  PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithOptions_ReturnsNonEmptyText (line 11) - Score: 90
+    - Test 'PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithOptions_ReturnsNonEmptyText' has identical neighborhood to 'PdfExtractorCancellationTests.ExtractTextAsync_WithValidToken_Succeeds'
+  PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithDefaultOptions_MatchesNoOptionsOverload (line 24) - Score: 80
+    - Test 'PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithDefaultOptions_MatchesNoOptionsOverload' has identical neighborhood to 'PdfExtractorFunctionalTests.ExtractTextAsync_MultipleTimes_ProducesSameResult'
+    - Test 'PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithDefaultOptions_MatchesNoOptionsOverload' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithDetectColumns_ReturnsText (line 63) - Score: 90
+    - Test 'PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithDetectColumns_ReturnsText' has low assert-to-setup ratio (15%): 2 asserts vs 11 setup lines
+  PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithNullOptions_UsesDefaults (line 80) - Score: 90
+    - Test 'PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithNullOptions_UsesDefaults' has identical neighborhood to 'PdfExtractorCancellationTests.ExtractTextAsync_WithValidToken_Succeeds'
+  PdfExtractorExtractionOptionsTests.ExtractionOptions_DefaultValues_MatchCoreDefaults (line 93) - Score: 90
+    - Test 'PdfExtractorExtractionOptionsTests.ExtractionOptions_DefaultValues_MatchCoreDefaults' does not call any production code
+  PdfExtractorExtractionOptionsTests.ExtractionOptions_Validate_ThrowsWhenTjSpaceThresholdIsNegative (line 110) - Score: 90
+    - Test 'PdfExtractorExtractionOptionsTests.ExtractionOptions_Validate_ThrowsWhenTjSpaceThresholdIsNegative' has identical neighborhood to 'PdfExtractorExtractionOptionsTests.ExtractionOptions_Validate_ThrowsWhenSpaceThresholdIsNegative'
+  PdfExtractorExtractionOptionsTests.ExtractionOptions_Validate_ThrowsWhenSpaceThresholdIsNegative (line 127) - Score: 90
+    - Test 'PdfExtractorExtractionOptionsTests.ExtractionOptions_Validate_ThrowsWhenSpaceThresholdIsNegative' has identical neighborhood to 'PdfExtractorExtractionOptionsTests.ExtractionOptions_Validate_ThrowsWhenTjSpaceThresholdIsNegative'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorFormsTests.cs:
+  PdfExtractorFormsTests.FormField_HasExpectedDefaults (line 18) - Score: 90
+    - Test 'PdfExtractorFormsTests.FormField_HasExpectedDefaults' does not call any production code
+  PdfExtractorFormsTests.FormFieldOption_HasExpectedDefaults (line 37) - Score: 80
+    - Test 'PdfExtractorFormsTests.FormFieldOption_HasExpectedDefaults' has identical neighborhood to 'MarkdownOptionsTests.Defaults_match_rust_MarkdownOptions_default'
+    - Test 'PdfExtractorFormsTests.FormFieldOption_HasExpectedDefaults' does not call any production code
+  PdfExtractorFormsTests.HasFormFieldsAsync_OnPdfWithoutForms_ReturnsFalse (line 64) - Score: 90
+    - Test 'PdfExtractorFormsTests.HasFormFieldsAsync_OnPdfWithoutForms_ReturnsFalse' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorFormsTests.GetFormFieldsAsync_OnPdfWithoutForms_ReturnsEmptyList (line 93) - Score: 90
+    - Test 'PdfExtractorFormsTests.GetFormFieldsAsync_OnPdfWithoutForms_ReturnsEmptyList' has identical neighborhood to 'PdfExtractorFormsTests.GetFormFieldsAsync_OnEmptyForms_FieldTypeContractHolds'
+  PdfExtractorFormsTests.GetFormFieldsAsync_OnEmptyForms_FieldTypeContractHolds (line 107) - Score: 90
+    - Test 'PdfExtractorFormsTests.GetFormFieldsAsync_OnEmptyForms_FieldTypeContractHolds' has identical neighborhood to 'PdfExtractorFormsTests.GetFormFieldsAsync_OnPdfWithoutForms_ReturnsEmptyList'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorFunctionalTests.cs:
+  PdfExtractorFunctionalTests.ExtractTextAsync_FromSamplePdf_ReturnsNonEmptyText (line 16) - Score: 80
+    - Test 'PdfExtractorFunctionalTests.ExtractTextAsync_FromSamplePdf_ReturnsNonEmptyText' has identical neighborhood to 'PdfExtractorCancellationTests.ExtractTextAsync_WithValidToken_Succeeds'
+    - Test 'PdfExtractorFunctionalTests.ExtractTextAsync_FromSamplePdf_ReturnsNonEmptyText' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfExtractorFunctionalTests.ExtractChunksAsync_WithDefaultOptions_UsesDefaults (line 58) - Score: 80
+    - Test 'PdfExtractorFunctionalTests.ExtractChunksAsync_WithDefaultOptions_UsesDefaults' has identical neighborhood to 'ChunkOptionsValidationTests.ExtractChunksAsync_WithVariousValidOptions_Succeeds'
+    - Test 'PdfExtractorFunctionalTests.ExtractChunksAsync_WithDefaultOptions_UsesDefaults' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfExtractorFunctionalTests.ExtractChunksAsync_ChunksAreInOrder (line 92) - Score: 90
+    - Test 'PdfExtractorFunctionalTests.ExtractChunksAsync_ChunksAreInOrder' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfExtractorFunctionalTests.ExtractTextAsync_MultipleTimes_ProducesSameResult (line 109) - Score: 80
+    - Test 'PdfExtractorFunctionalTests.ExtractTextAsync_MultipleTimes_ProducesSameResult' has identical neighborhood to 'PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithDefaultOptions_MatchesNoOptionsOverload'
+    - Test 'PdfExtractorFunctionalTests.ExtractTextAsync_MultipleTimes_ProducesSameResult' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  PdfExtractorFunctionalTests.Version_ReturnsNonEmptyString (line 124) - Score: 90
+    - Test 'PdfExtractorFunctionalTests.Version_ReturnsNonEmptyString' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorMetadataTests.cs:
+  PdfExtractorMetadataTests.ExtractMetadataAsync_Version_MatchesGetPdfVersion (line 27) - Score: 90
+    - Test 'PdfExtractorMetadataTests.ExtractMetadataAsync_Version_MatchesGetPdfVersion' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  PdfExtractorMetadataTests.ExtractMetadataAsync_PageCount_IsPopulated (line 42) - Score: 90
+    - Test 'PdfExtractorMetadataTests.ExtractMetadataAsync_PageCount_IsPopulated' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  PdfExtractorMetadataTests.ExtractMetadataAsync_VersionIsAlwaysPopulated (line 79) - Score: 90
+    - Test 'PdfExtractorMetadataTests.ExtractMetadataAsync_VersionIsAlwaysPopulated' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorPageApiTests.cs:
+  PdfExtractorPageApiTests.GetPageCountAsync_SamplePdf_ReturnsPositiveCount (line 18) - Score: 90
+    - Test 'PdfExtractorPageApiTests.GetPageCountAsync_SamplePdf_ReturnsPositiveCount' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfExtractorPageApiTests.GetPageCountAsync_WithNullBytes_ThrowsArgumentNullException (line 32) - Score: 80
+    - Test 'PdfExtractorPageApiTests.GetPageCountAsync_WithNullBytes_ThrowsArgumentNullException' has identical neighborhood to 'PdfExtractorPageApiTests.GetPageCountAsync_WithEmptyBytes_ThrowsArgumentException'
+    - Test 'PdfExtractorPageApiTests.GetPageCountAsync_WithNullBytes_ThrowsArgumentNullException' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorPageApiTests.GetPageCountAsync_WithEmptyBytes_ThrowsArgumentException (line 43) - Score: 80
+    - Test 'PdfExtractorPageApiTests.GetPageCountAsync_WithEmptyBytes_ThrowsArgumentException' has identical neighborhood to 'PdfExtractorPageApiTests.GetPageCountAsync_WithNullBytes_ThrowsArgumentNullException'
+    - Test 'PdfExtractorPageApiTests.GetPageCountAsync_WithEmptyBytes_ThrowsArgumentException' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorPageApiTests.GetPageCountAsync_WithCancellation_ThrowsOperationCanceled (line 54) - Score: 90
+    - Test 'PdfExtractorPageApiTests.GetPageCountAsync_WithCancellation_ThrowsOperationCanceled' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfExtractorPageApiTests.ExtractTextFromPageAsync_FirstPage_ReturnsText (line 72) - Score: 80
+    - Test 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_FirstPage_ReturnsText' has identical neighborhood to 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_FirstPage_ReturnsNonEmptyText'
+    - Test 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_FirstPage_ReturnsText' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfExtractorPageApiTests.ExtractTextFromPageAsync_PageZero_ThrowsArgumentOutOfRange (line 87) - Score: 90
+    - Test 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_PageZero_ThrowsArgumentOutOfRange' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorPageApiTests.ExtractTextFromPageAsync_NegativePage_ThrowsArgumentOutOfRange (line 99) - Score: 90
+    - Test 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_NegativePage_ThrowsArgumentOutOfRange' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorPageApiTests.ExtractTextFromPageAsync_WithNullBytes_ThrowsArgumentNullException (line 125) - Score: 90
+    - Test 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_WithNullBytes_ThrowsArgumentNullException' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorPageApiTests.ExtractTextFromPageAsync_WithCancellation_ThrowsOperationCanceled (line 136) - Score: 90
+    - Test 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_WithCancellation_ThrowsOperationCanceled' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfExtractorPageApiTests.ExtractChunksFromPageAsync_PageZero_ThrowsArgumentOutOfRange (line 190) - Score: 90
+    - Test 'PdfExtractorPageApiTests.ExtractChunksFromPageAsync_PageZero_ThrowsArgumentOutOfRange' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorPageApiTests.ExtractChunksFromPageAsync_WithNullBytes_ThrowsArgumentNullException (line 216) - Score: 90
+    - Test 'PdfExtractorPageApiTests.ExtractChunksFromPageAsync_WithNullBytes_ThrowsArgumentNullException' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorPageApiTests.ExtractChunksFromPageAsync_ChunksHaveSequentialIndexes (line 227) - Score: 90
+    - Test 'PdfExtractorPageApiTests.ExtractChunksFromPageAsync_ChunksHaveSequentialIndexes' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfExtractorPageApiTests.ExtractTextFromPageAsync_FirstPage_ReturnsNonEmptyText (line 248) - Score: 80
+    - Test 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_FirstPage_ReturnsNonEmptyText' has identical neighborhood to 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_FirstPage_ReturnsText'
+    - Test 'PdfExtractorPageApiTests.ExtractTextFromPageAsync_FirstPage_ReturnsNonEmptyText' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorPageResourcesTests.cs:
+  PdfExtractorPageResourcesTests.PageResources_HasExpectedProperties (line 13) - Score: 90
+    - Test 'PdfExtractorPageResourcesTests.PageResources_HasExpectedProperties' does not call any production code
+  PdfExtractorPageResourcesTests.GetPageResourcesAsync_Page1_HasFonts (line 66) - Score: 90
+    - Test 'PdfExtractorPageResourcesTests.GetPageResourcesAsync_Page1_HasFonts' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorParserTests.cs:
+  PdfExtractorParserTests.UnlockWithPassword_WithCorrectPassword_ReturnsTrue (line 49) - Score: 90
+    - Test 'PdfExtractorParserTests.UnlockWithPassword_WithCorrectPassword_ReturnsTrue' has identical neighborhood to 'PdfExtractorParserTests.UnlockWithPassword_WithOwnerPassword_ReturnsTrue'
+  PdfExtractorParserTests.UnlockWithPassword_WithOwnerPassword_ReturnsTrue (line 58) - Score: 90
+    - Test 'PdfExtractorParserTests.UnlockWithPassword_WithOwnerPassword_ReturnsTrue' has identical neighborhood to 'PdfExtractorParserTests.UnlockWithPassword_WithCorrectPassword_ReturnsTrue'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorPipelineTests.cs:
+  PdfExtractorPipelineTests.PartitionAsync_ElementsHavePageNumbers (line 46) - Score: 90
+    - Test 'PdfExtractorPipelineTests.PartitionAsync_ElementsHavePageNumbers' has identical neighborhood to 'PdfExtractorProfileTests.PartitionAsync_with_profile_emits_1_based_page_numbers'
+  PdfExtractorPipelineTests.PartitionAsync_ElementsHaveText (line 58) - Score: 90
+    - Test 'PdfExtractorPipelineTests.PartitionAsync_ElementsHaveText' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfExtractorPipelineTests.PartitionAsync_NullBytes_ThrowsArgumentNullException (line 70) - Score: 90
+    - Test 'PdfExtractorPipelineTests.PartitionAsync_NullBytes_ThrowsArgumentNullException' has identical neighborhood to 'PdfExtractorPartitionConfigTests.PartitionAsync_with_config_null_bytes_throws_ArgumentNullException'
+  PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveContent (line 92) - Score: 90
+    - Test 'PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveContent' has identical neighborhood to 'PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveElementTypes'
+  PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveSequentialIndices (line 123) - Score: 80
+    - Test 'PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveSequentialIndices' has identical neighborhood to 'PdfExtractorHybridChunksTests.RagChunksAsync_validates_HybridChunkConfig_zero_max_tokens'
+    - Test 'PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveSequentialIndices' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveElementTypes (line 149) - Score: 90
+    - Test 'PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveElementTypes' has identical neighborhood to 'PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveContent'
+  PdfExtractorPipelineTests.RagChunksAsync_NullBytes_ThrowsArgumentNullException (line 164) - Score: 90
+    - Test 'PdfExtractorPipelineTests.RagChunksAsync_NullBytes_ThrowsArgumentNullException' has identical neighborhood to 'PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_null_bytes_throws_ArgumentNullException'
+  PdfExtractorPipelineTests.RagChunksAsync_EmptyBytes_ThrowsArgumentException (line 172) - Score: 90
+    - Test 'PdfExtractorPipelineTests.RagChunksAsync_EmptyBytes_ThrowsArgumentException' has identical neighborhood to 'PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_empty_bytes_throws_ArgumentException'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorResourceTests.cs:
+  PdfExtractorResourceTests.PdfExtractor_DoesNotImplementIDisposable (line 28) - Score: 80
+    - Test 'PdfExtractorResourceTests.PdfExtractor_DoesNotImplementIDisposable' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+    - Test 'PdfExtractorResourceTests.PdfExtractor_DoesNotImplementIDisposable' does not call any production code
+  PdfExtractorResourceTests.PdfExtractor_CanBeReusedMultipleTimes (line 40) - Score: 90
+    - Test 'PdfExtractorResourceTests.PdfExtractor_CanBeReusedMultipleTimes' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfExtractorResourceTests.MultipleExtractors_WorkIndependently (line 56) - Score: 80
+    - Test 'PdfExtractorResourceTests.MultipleExtractors_WorkIndependently' has identical neighborhood to 'PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithDefaultOptions_MatchesNoOptionsOverload'
+    - Test 'PdfExtractorResourceTests.MultipleExtractors_WorkIndependently' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorSignaturesTests.cs:
+  PdfExtractorSignaturesTests.DigitalSignature_HasExpectedDefaults (line 13) - Score: 90
+    - Test 'PdfExtractorSignaturesTests.DigitalSignature_HasExpectedDefaults' does not call any production code
+  PdfExtractorSignaturesTests.SignatureVerificationResult_HasExpectedDefaults (line 31) - Score: 90
+    - Test 'PdfExtractorSignaturesTests.SignatureVerificationResult_HasExpectedDefaults' does not call any production code
+  PdfExtractorSignaturesTests.CertificateInfo_HasExpectedDefaults (line 52) - Score: 90
+    - Test 'PdfExtractorSignaturesTests.CertificateInfo_HasExpectedDefaults' does not call any production code
+  PdfExtractorSignaturesTests.HasDigitalSignaturesAsync_OnUnsignedPdf_ReturnsFalse (line 86) - Score: 90
+    - Test 'PdfExtractorSignaturesTests.HasDigitalSignaturesAsync_OnUnsignedPdf_ReturnsFalse' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorSignaturesTests.GetDigitalSignaturesAsync_WhenPresent_FilterIsNotEmpty (line 127) - Score: 90
+    - Test 'PdfExtractorSignaturesTests.GetDigitalSignaturesAsync_WhenPresent_FilterIsNotEmpty' has identical neighborhood to 'PdfExtractorSignaturesTests.GetDigitalSignaturesAsync_WhenPresent_ContentsSizeIsPositive'
+  PdfExtractorSignaturesTests.GetDigitalSignaturesAsync_WhenPresent_ContentsSizeIsPositive (line 141) - Score: 90
+    - Test 'PdfExtractorSignaturesTests.GetDigitalSignaturesAsync_WhenPresent_ContentsSizeIsPositive' has identical neighborhood to 'PdfExtractorSignaturesTests.GetDigitalSignaturesAsync_WhenPresent_FilterIsNotEmpty'
+  PdfExtractorSignaturesTests.HasDigitalSignaturesAsync_OnProductionPdfs_DoesNotThrow (line 187) - Score: 75
+    - Test 'PdfExtractorSignaturesTests.HasDigitalSignaturesAsync_OnProductionPdfs_DoesNotThrow' executes production code without asserting on its behaviour
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorSizeValidationTests.cs:
+  PdfExtractorSizeValidationTests.Constructor_WithCustomMaxSize_AcceptsValidSize (line 10) - Score: 80
+    - Test 'PdfExtractorSizeValidationTests.Constructor_WithCustomMaxSize_AcceptsValidSize' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+    - Test 'PdfExtractorSizeValidationTests.Constructor_WithCustomMaxSize_AcceptsValidSize' does not call any production code
+  PdfExtractorSizeValidationTests.Constructor_WithZeroMaxSize_ThrowsArgumentException (line 20) - Score: 90
+    - Test 'PdfExtractorSizeValidationTests.Constructor_WithZeroMaxSize_ThrowsArgumentException' does not call any production code
+  PdfExtractorSizeValidationTests.Constructor_WithNegativeMaxSize_ThrowsArgumentException (line 28) - Score: 90
+    - Test 'PdfExtractorSizeValidationTests.Constructor_WithNegativeMaxSize_ThrowsArgumentException' does not call any production code
+  PdfExtractorSizeValidationTests.Constructor_WithDefaultMaxSize_Uses100MB (line 36) - Score: 80
+    - Test 'PdfExtractorSizeValidationTests.Constructor_WithDefaultMaxSize_Uses100MB' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+    - Test 'PdfExtractorSizeValidationTests.Constructor_WithDefaultMaxSize_Uses100MB' does not call any production code
+  PdfExtractorSizeValidationTests.ExtractTextAsync_WithinSizeLimit_Succeeds (line 61) - Score: 90
+    - Test 'PdfExtractorSizeValidationTests.ExtractTextAsync_WithinSizeLimit_Succeeds' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfExtractorSizeValidationTests.ExtractTextAsync_ExactlyAtSizeLimit_Succeeds (line 89) - Score: 80
+    - Test 'PdfExtractorSizeValidationTests.ExtractTextAsync_ExactlyAtSizeLimit_Succeeds' has identical neighborhood to 'PdfExtractorExtractionOptionsTests.ExtractTextAsync_WithDefaultOptions_MatchesNoOptionsOverload'
+    - Test 'PdfExtractorSizeValidationTests.ExtractTextAsync_ExactlyAtSizeLimit_Succeeds' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorStructuredExportTests.cs:
+  PdfExtractorStructuredExportTests.ToMarkdownAsync_NullBytes_ThrowsArgumentNullException (line 51) - Score: 90
+    - Test 'PdfExtractorStructuredExportTests.ToMarkdownAsync_NullBytes_ThrowsArgumentNullException' has identical neighborhood to 'MarkdownOptionsIntegrationTests.ToMarkdownAsync_with_options_null_bytes_throws_ArgumentNullException'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfFlowLayoutTests.cs:
+  PdfFlowLayoutTests.CreateA4_IsNotNull (line 10) - Score: 90
+    - Test 'PdfFlowLayoutTests.CreateA4_IsNotNull' has identical neighborhood to 'PdfDocumentBuilderTests.CreateA4_IsNotNull'
+  PdfFlowLayoutTests.CreateCustom_IsNotNull (line 18) - Score: 90
+    - Test 'PdfFlowLayoutTests.CreateCustom_IsNotNull' has identical neighborhood to 'PdfDocumentBuilderTests.CreateCustom_IsNotNull'
+  PdfFlowLayoutTests.AddText_ReturnsThisForChaining (line 46) - Score: 90
+    - Test 'PdfFlowLayoutTests.AddText_ReturnsThisForChaining' has identical neighborhood to 'PdfDocumentBuilderTests.AddText_ReturnsThisForChaining'
+  PdfFlowLayoutTests.AddSpacer_ReturnsThisForChaining (line 55) - Score: 90
+    - Test 'PdfFlowLayoutTests.AddSpacer_ReturnsThisForChaining' has identical neighborhood to 'PdfDocumentBuilderTests.AddSpacer_ReturnsThisForChaining'
+  PdfFlowLayoutTests.BuildInto_WithMultipleElements_ProducesValidPdf (line 90) - Score: 90
+    - Test 'PdfFlowLayoutTests.BuildInto_WithMultipleElements_ProducesValidPdf' has low assert-to-setup ratio (15%): 2 asserts vs 11 setup lines
+  PdfFlowLayoutTests.BuildInto_WithTable_ProducesValidPdf (line 109) - Score: 90
+    - Test 'PdfFlowLayoutTests.BuildInto_WithTable_ProducesValidPdf' has low assert-to-setup ratio (7%): 1 asserts vs 13 setup lines
+  PdfFlowLayoutTests.BuildInto_WithRichText_ProducesValidPdf (line 128) - Score: 90
+    - Test 'PdfFlowLayoutTests.BuildInto_WithRichText_ProducesValidPdf' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfFlowLayoutTests.AddText_NullText_ThrowsArgumentNullException (line 147) - Score: 90
+    - Test 'PdfFlowLayoutTests.AddText_NullText_ThrowsArgumentNullException' has identical neighborhood to 'PdfDocumentBuilderTests.AddText_NullText_ThrowsArgumentNullException'
+  PdfFlowLayoutTests.Dispose_Twice_DoesNotThrow (line 170) - Score: 65
+    - Test 'PdfFlowLayoutTests.Dispose_Twice_DoesNotThrow' has identical neighborhood to 'PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow'
+    - Test 'PdfFlowLayoutTests.Dispose_Twice_DoesNotThrow' executes production code without asserting on its behaviour
+  PdfFlowLayoutTests.AddTable_NullTable_ThrowsArgumentNullException (line 179) - Score: 90
+    - Test 'PdfFlowLayoutTests.AddTable_NullTable_ThrowsArgumentNullException' has identical neighborhood to 'PdfDocumentBuilderTests.AddTable_NullTable_ThrowsArgumentNullException'
+  PdfFlowLayoutTests.AddRichText_NullRichText_ThrowsArgumentNullException (line 186) - Score: 90
+    - Test 'PdfFlowLayoutTests.AddRichText_NullRichText_ThrowsArgumentNullException' has identical neighborhood to 'PdfDocumentBuilderTests.AddRichText_NullRichText_ThrowsArgumentNullException'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfHeaderFooterTests.cs:
+  PdfHeaderFooterTests.SetHeader_AndSaveDocument_ProducesValidPdf (line 24) - Score: 90
+    - Test 'PdfHeaderFooterTests.SetHeader_AndSaveDocument_ProducesValidPdf' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfHeaderFooterTests.SetFooter_AndSaveDocument_ProducesValidPdf (line 38) - Score: 90
+    - Test 'PdfHeaderFooterTests.SetFooter_AndSaveDocument_ProducesValidPdf' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfImageTests.cs:
+  PdfImageTests.DoubleDispose_DoesNotThrow (line 41) - Score: 75
+    - Test 'PdfImageTests.DoubleDispose_DoesNotThrow' executes production code without asserting on its behaviour
+  PdfImageTests.DrawImage_OnPage_ProducesValidPdf (line 51) - Score: 90
+    - Test 'PdfImageTests.DrawImage_OnPage_ProducesValidPdf' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfListTests.cs:
+  PdfListTests.AddOrderedList_ProducesValidPdf (line 8) - Score: 90
+    - Test 'PdfListTests.AddOrderedList_ProducesValidPdf' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfListTests.AddUnorderedList_ProducesValidPdf (line 20) - Score: 90
+    - Test 'PdfListTests.AddUnorderedList_ProducesValidPdf' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfListTests.AddOrderedList_UpperRoman_ProducesValidPdf (line 32) - Score: 90
+    - Test 'PdfListTests.AddOrderedList_UpperRoman_ProducesValidPdf' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfOperationsFillFormTests.cs:
+  PdfOperationsFillFormTests.FillFormFields_MultipleFields_AllRecovered (line 56) - Score: 90
+    - Test 'PdfOperationsFillFormTests.FillFormFields_MultipleFields_AllRecovered' has low assert-to-setup ratio (18%): 3 asserts vs 14 setup lines
+  PdfOperationsFillFormTests.FillFormFields_EmptyFieldMap_ThrowsArgumentException (line 88) - Score: 90
+    - Test 'PdfOperationsFillFormTests.FillFormFields_EmptyFieldMap_ThrowsArgumentException' has identical neighborhood to 'PdfOperationsFillFormTests.FillFormFields_NullFieldMap_ThrowsArgumentNullException'
+  PdfOperationsFillFormTests.FillFormFields_NullFieldMap_ThrowsArgumentNullException (line 115) - Score: 90
+    - Test 'PdfOperationsFillFormTests.FillFormFields_NullFieldMap_ThrowsArgumentNullException' has identical neighborhood to 'PdfOperationsFillFormTests.FillFormFields_EmptyFieldMap_ThrowsArgumentException'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfOperationsTests.cs:
+  PdfOperationsTests.SplitAsync_WithNull_ThrowsArgumentNullException (line 10) - Score: 90
+    - Test 'PdfOperationsTests.SplitAsync_WithNull_ThrowsArgumentNullException' has identical neighborhood to 'PdfOperationsTests.SplitAsync_WithOptions_NullPdf_ThrowsArgumentNullException'
+  PdfOperationsTests.SplitAsync_WithEmptyBytes_ThrowsArgumentException (line 17) - Score: 90
+    - Test 'PdfOperationsTests.SplitAsync_WithEmptyBytes_ThrowsArgumentException' has identical neighborhood to 'PdfOperationsTests.SplitAsync_WithOptions_EmptyPdf_ThrowsArgumentException'
+  PdfOperationsTests.MergeAsync_WithNull_ThrowsArgumentNullException (line 26) - Score: 90
+    - Test 'PdfOperationsTests.MergeAsync_WithNull_ThrowsArgumentNullException' has identical neighborhood to 'PdfOperationsTests.MergeAsync_WithRanges_NullInputs_ThrowsArgumentNullException'
+  PdfOperationsTests.OverlayAsync_NullBase_ThrowsArgumentNullException (line 260) - Score: 90
+    - Test 'PdfOperationsTests.OverlayAsync_NullBase_ThrowsArgumentNullException' has identical neighborhood to 'PdfOperationsTests.OverlayAsync_NullOverlay_ThrowsArgumentNullException'
+  PdfOperationsTests.OverlayAsync_NullOverlay_ThrowsArgumentNullException (line 267) - Score: 90
+    - Test 'PdfOperationsTests.OverlayAsync_NullOverlay_ThrowsArgumentNullException' has identical neighborhood to 'PdfOperationsTests.OverlayAsync_NullBase_ThrowsArgumentNullException'
+  PdfOperationsTests.SwapPagesAsync_NegativePageA_ThrowsArgumentOutOfRangeException (line 276) - Score: 90
+    - Test 'PdfOperationsTests.SwapPagesAsync_NegativePageA_ThrowsArgumentOutOfRangeException' has identical neighborhood to 'PdfOperationsTests.SwapPagesAsync_NegativePageB_ThrowsArgumentOutOfRangeException'
+  PdfOperationsTests.SwapPagesAsync_NegativePageB_ThrowsArgumentOutOfRangeException (line 283) - Score: 90
+    - Test 'PdfOperationsTests.SwapPagesAsync_NegativePageB_ThrowsArgumentOutOfRangeException' has identical neighborhood to 'PdfOperationsTests.SwapPagesAsync_NegativePageA_ThrowsArgumentOutOfRangeException'
+  PdfOperationsTests.MovePageAsync_NegativeFromIndex_ThrowsArgumentOutOfRangeException (line 290) - Score: 90
+    - Test 'PdfOperationsTests.MovePageAsync_NegativeFromIndex_ThrowsArgumentOutOfRangeException' has identical neighborhood to 'PdfOperationsTests.MovePageAsync_NegativeToIndex_ThrowsArgumentOutOfRangeException'
+  PdfOperationsTests.MovePageAsync_NegativeToIndex_ThrowsArgumentOutOfRangeException (line 297) - Score: 90
+    - Test 'PdfOperationsTests.MovePageAsync_NegativeToIndex_ThrowsArgumentOutOfRangeException' has identical neighborhood to 'PdfOperationsTests.MovePageAsync_NegativeFromIndex_ThrowsArgumentOutOfRangeException'
+  PdfOperationsTests.SplitAsync_WithOptions_NullPdf_ThrowsArgumentNullException (line 313) - Score: 90
+    - Test 'PdfOperationsTests.SplitAsync_WithOptions_NullPdf_ThrowsArgumentNullException' has identical neighborhood to 'PdfOperationsTests.SplitAsync_WithNull_ThrowsArgumentNullException'
+  PdfOperationsTests.SplitAsync_WithOptions_EmptyPdf_ThrowsArgumentException (line 320) - Score: 90
+    - Test 'PdfOperationsTests.SplitAsync_WithOptions_EmptyPdf_ThrowsArgumentException' has identical neighborhood to 'PdfOperationsTests.SplitAsync_WithEmptyBytes_ThrowsArgumentException'
+  PdfOperationsTests.SplitAsync_SinglePagesMode_ReturnsSamePagesAsSplitAsync (line 334) - Score: 90
+    - Test 'PdfOperationsTests.SplitAsync_SinglePagesMode_ReturnsSamePagesAsSplitAsync' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfOperationsTests.SplitAsync_ChunkSizeMode_GroupsPagesIntoChunks (line 350) - Score: 80
+    - Test 'PdfOperationsTests.SplitAsync_ChunkSizeMode_GroupsPagesIntoChunks' has identical neighborhood to 'PdfOperationsTests.SplitAsync_SplitAtMode_SplitsAtGivenPage'
+    - Test 'PdfOperationsTests.SplitAsync_ChunkSizeMode_GroupsPagesIntoChunks' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfOperationsTests.SplitAsync_RangesMode_ReturnsOneChunkPerRange (line 367) - Score: 90
+    - Test 'PdfOperationsTests.SplitAsync_RangesMode_ReturnsOneChunkPerRange' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfOperationsTests.SplitAsync_SplitAtMode_SplitsAtGivenPage (line 384) - Score: 80
+    - Test 'PdfOperationsTests.SplitAsync_SplitAtMode_SplitsAtGivenPage' has identical neighborhood to 'PdfOperationsTests.SplitAsync_ChunkSizeMode_GroupsPagesIntoChunks'
+    - Test 'PdfOperationsTests.SplitAsync_SplitAtMode_SplitsAtGivenPage' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  PdfOperationsTests.MergeAsync_WithRanges_NullInputs_ThrowsArgumentNullException (line 404) - Score: 90
+    - Test 'PdfOperationsTests.MergeAsync_WithRanges_NullInputs_ThrowsArgumentNullException' has identical neighborhood to 'PdfOperationsTests.MergeAsync_WithNull_ThrowsArgumentNullException'
+  PdfOperationsTests.MergeAsync_AllPages_ProducesMergedPdf (line 418) - Score: 80
+    - Test 'PdfOperationsTests.MergeAsync_AllPages_ProducesMergedPdf' has identical neighborhood to 'PdfOperationsTests.MergeAsync_WithPageRangeAll_ProducesMergedPdf'
+    - Test 'PdfOperationsTests.MergeAsync_AllPages_ProducesMergedPdf' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  PdfOperationsTests.MergeAsync_WithPageRangeAll_ProducesMergedPdf (line 435) - Score: 80
+    - Test 'PdfOperationsTests.MergeAsync_WithPageRangeAll_ProducesMergedPdf' has identical neighborhood to 'PdfOperationsTests.MergeAsync_AllPages_ProducesMergedPdf'
+    - Test 'PdfOperationsTests.MergeAsync_WithPageRangeAll_ProducesMergedPdf' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  PdfOperationsTests.MergeAsync_WithSinglePageRange_ProducesMergedPdf (line 452) - Score: 90
+    - Test 'PdfOperationsTests.MergeAsync_WithSinglePageRange_ProducesMergedPdf' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  PdfOperationsTests.MergeAsync_WithRangePageRange_ProducesMergedPdf (line 469) - Score: 80
+    - Test 'PdfOperationsTests.MergeAsync_WithRangePageRange_ProducesMergedPdf' has identical neighborhood to 'PdfOperationsTests.MergeAsync_WithListPageRange_ProducesMergedPdf'
+    - Test 'PdfOperationsTests.MergeAsync_WithRangePageRange_ProducesMergedPdf' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfOperationsTests.MergeAsync_WithListPageRange_ProducesMergedPdf (line 485) - Score: 80
+    - Test 'PdfOperationsTests.MergeAsync_WithListPageRange_ProducesMergedPdf' has identical neighborhood to 'PdfOperationsTests.MergeAsync_WithRangePageRange_ProducesMergedPdf'
+    - Test 'PdfOperationsTests.MergeAsync_WithListPageRange_ProducesMergedPdf' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfOperationsTests.PdfPageRange_Single_NegativeIndex_ThrowsArgumentOutOfRangeException (line 588) - Score: 80
+    - Test 'PdfOperationsTests.PdfPageRange_Single_NegativeIndex_ThrowsArgumentOutOfRangeException' has identical neighborhood to 'EnumTests.TextAlign_Right_IsOne'
+    - Test 'PdfOperationsTests.PdfPageRange_Single_NegativeIndex_ThrowsArgumentOutOfRangeException' does not call any production code
+  PdfOperationsTests.PdfPageRange_Range_NegativeFrom_ThrowsArgumentOutOfRangeException (line 594) - Score: 90
+    - Test 'PdfOperationsTests.PdfPageRange_Range_NegativeFrom_ThrowsArgumentOutOfRangeException' does not call any production code
+  PdfOperationsTests.PdfPageRange_Range_FromGreaterThanTo_ThrowsArgumentException (line 600) - Score: 90
+    - Test 'PdfOperationsTests.PdfPageRange_Range_FromGreaterThanTo_ThrowsArgumentException' does not call any production code
+  PdfOperationsTests.PdfPageRange_List_Empty_ThrowsArgumentException (line 606) - Score: 90
+    - Test 'PdfOperationsTests.PdfPageRange_List_Empty_ThrowsArgumentException' does not call any production code
+  PdfOperationsTests.PdfPageRange_List_NegativeIndex_ThrowsArgumentOutOfRangeException (line 612) - Score: 90
+    - Test 'PdfOperationsTests.PdfPageRange_List_NegativeIndex_ThrowsArgumentOutOfRangeException' does not call any production code
+  PdfOperationsTests.PdfMergeInput_NullPdf_ThrowsArgumentNullException (line 618) - Score: 90
+    - Test 'PdfOperationsTests.PdfMergeInput_NullPdf_ThrowsArgumentNullException' does not call any production code
+  PdfOperationsTests.ExtractImages_EmptyPdf_ReturnsEmpty (line 646) - Score: 90
+    - Test 'PdfOperationsTests.ExtractImages_EmptyPdf_ReturnsEmpty' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageAnnotationTests.cs:
+  PdfPageAnnotationTests.AddMarkup_FluentChaining_AllThreeTypes (line 81) - Score: 90
+    - Test 'PdfPageAnnotationTests.AddMarkup_FluentChaining_AllThreeTypes' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfPageAnnotationTests.AddTextNote_AllIcons_ReturnPage (line 117) - Score: 75
+    - Test 'PdfPageAnnotationTests.AddTextNote_AllIcons_ReturnPage' executes production code without asserting on its behaviour
+  PdfPageAnnotationTests.AddStamp_AllStandard_ReturnPage (line 137) - Score: 75
+    - Test 'PdfPageAnnotationTests.AddStamp_AllStandard_ReturnPage' executes production code without asserting on its behaviour
+  PdfPageAnnotationTests.AddAnnotationRect_WithFill_ReturnsPage (line 188) - Score: 90
+    - Test 'PdfPageAnnotationTests.AddAnnotationRect_WithFill_ReturnsPage' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfPageAnnotationTests.AddAnnotationCircle_WithFill_ReturnsPage (line 206) - Score: 90
+    - Test 'PdfPageAnnotationTests.AddAnnotationCircle_WithFill_ReturnsPage' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfPageAnnotationTests.MultipleAnnotations_FluentChain_AllAdded (line 248) - Score: 75
+    - Test 'PdfPageAnnotationTests.MultipleAnnotations_FluentChain_AllAdded' executes production code without asserting on its behaviour
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageConsumeTests.cs:
+  PdfPageConsumeTests.AddPage_ThenModifyPage_ThrowsInvalidOperationException (line 11) - Score: 90
+    - Test 'PdfPageConsumeTests.AddPage_ThenModifyPage_ThrowsInvalidOperationException' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfPageConsumeTests.AddPage_SamePageTwice_ThrowsInvalidOperationException (line 22) - Score: 90
+    - Test 'PdfPageConsumeTests.AddPage_SamePageTwice_ThrowsInvalidOperationException' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfPageConsumeTests.Dispose_AfterAddPage_DoesNotThrow (line 33) - Score: 75
+    - Test 'PdfPageConsumeTests.Dispose_AfterAddPage_DoesNotThrow' executes production code without asserting on its behaviour
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageCoordinateSystemTests.cs:
+  PdfPageCoordinateSystemTests.BeginScreenSpace_EmitsExactYFlipMatrixForPageHeight (line 38) - Score: 90
+    - Test 'PdfPageCoordinateSystemTests.BeginScreenSpace_EmitsExactYFlipMatrixForPageHeight' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+  PdfPageCoordinateSystemTests.BeginScreenSpace_ScaleFactor_AppliesToBothAxesAndHeightOffset (line 58) - Score: 90
+    - Test 'PdfPageCoordinateSystemTests.BeginScreenSpace_ScaleFactor_AppliesToBothAxesAndHeightOffset' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageEditTests.cs:
+  PdfPageEditTests.FromParsedBytes_OverlayText_BothMarkersExtractable (line 59) - Score: 90
+    - Test 'PdfPageEditTests.FromParsedBytes_OverlayText_BothMarkersExtractable' has low assert-to-setup ratio (12%): 2 asserts vs 14 setup lines
+  PdfPageEditTests.FromParsedBytes_ContentStream_ContainsBothTextBlocks (line 79) - Score: 90
+    - Test 'PdfPageEditTests.FromParsedBytes_ContentStream_ContainsBothTextBlocks' has low assert-to-setup ratio (16%): 3 asserts vs 16 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageGraphicsTransformTests.cs:
+  PdfPageGraphicsTransformTests.TransformPipeline_SaveTranslateDrawRestore_ProducesValidPdf (line 45) - Score: 90
+    - Test 'PdfPageGraphicsTransformTests.TransformPipeline_SaveTranslateDrawRestore_ProducesValidPdf' has low assert-to-setup ratio (8%): 1 asserts vs 12 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageShadingTests.cs:
+  PdfPageShadingTests.AxialShading_EmitsType2DictAndShOperator (line 32) - Score: 90
+    - Test 'PdfPageShadingTests.AxialShading_EmitsType2DictAndShOperator' has low assert-to-setup ratio (18%): 3 asserts vs 14 setup lines
+  PdfPageShadingTests.RadialShading_EmitsType3DictAndShOperator (line 53) - Score: 90
+    - Test 'PdfPageShadingTests.RadialShading_EmitsType3DictAndShOperator' has low assert-to-setup ratio (12%): 2 asserts vs 14 setup lines
+  PdfPageShadingTests.ConicShading_EmitsType1DictAndShOperator (line 73) - Score: 90
+    - Test 'PdfPageShadingTests.ConicShading_EmitsType1DictAndShOperator' has low assert-to-setup ratio (15%): 2 asserts vs 11 setup lines
+  PdfPageShadingTests.GouraudMeshShading_EmitsType4DictAndShOperator (line 90) - Score: 90
+    - Test 'PdfPageShadingTests.GouraudMeshShading_EmitsType4DictAndShOperator' has low assert-to-setup ratio (14%): 2 asserts vs 12 setup lines
+  PdfPageShadingTests.Shading_IsReferencedFromPageResources (line 108) - Score: 90
+    - Test 'PdfPageShadingTests.Shading_IsReferencedFromPageResources' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfPageShadingTests.AxialShading_ExtendFlags_RoundTrip (line 124) - Score: 90
+    - Test 'PdfPageShadingTests.AxialShading_ExtendFlags_RoundTrip' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfPageTests.cs:
+  PdfPageTests.Create_WithCustomDimensions_SetsWidthAndHeight (line 8) - Score: 90
+    - Test 'PdfPageTests.Create_WithCustomDimensions_SetsWidthAndHeight' does not call any production code
+  PdfPageTests.TextOperations_FluentChaining (line 72) - Score: 90
+    - Test 'PdfPageTests.TextOperations_FluentChaining' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfPageTests.GraphicsOperations_FluentChaining (line 87) - Score: 90
+    - Test 'PdfPageTests.GraphicsOperations_FluentChaining' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  PdfPageTests.PathOperations_FluentChaining (line 103) - Score: 90
+    - Test 'PdfPageTests.PathOperations_FluentChaining' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  PdfPageTests.DoubleDispose_DoesNotThrow (line 164) - Score: 65
+    - Test 'PdfPageTests.DoubleDispose_DoesNotThrow' has identical neighborhood to 'PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow'
+    - Test 'PdfPageTests.DoubleDispose_DoesNotThrow' executes production code without asserting on its behaviour
+  PdfPageTests.SaveAndRestoreGraphicsState_ReturnsSameInstance (line 263) - Score: 90
+    - Test 'PdfPageTests.SaveAndRestoreGraphicsState_ReturnsSameInstance' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfPageTests.ClipRect_ThenFill_ReturnsSameInstance (line 277) - Score: 90
+    - Test 'PdfPageTests.ClipRect_ThenFill_ReturnsSameInstance' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfPageTests.AdvancedGraphics_FluentChaining_ProducesValidPdf (line 318) - Score: 90
+    - Test 'PdfPageTests.AdvancedGraphics_FluentChaining_ProducesValidPdf' has low assert-to-setup ratio (4%): 1 asserts vs 27 setup lines
+  PdfPageTests.SetTextStrokeColor_ThenGeneratePdf_Succeeds (line 377) - Score: 90
+    - Test 'PdfPageTests.SetTextStrokeColor_ThenGeneratePdf_Succeeds' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfPageTests.ContentWidth_ZeroMargins_EqualsPageWidth (line 422) - Score: 90
+    - Test 'PdfPageTests.ContentWidth_ZeroMargins_EqualsPageWidth' has identical neighborhood to 'PdfPageTests.ContentHeight_ZeroMargins_EqualsPageHeight'
+  PdfPageTests.ContentHeight_ZeroMargins_EqualsPageHeight (line 431) - Score: 90
+    - Test 'PdfPageTests.ContentHeight_ZeroMargins_EqualsPageHeight' has identical neighborhood to 'PdfPageTests.ContentWidth_ZeroMargins_EqualsPageWidth'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfRichTextTests.cs:
+  PdfRichTextTests.TextSpan_Constructor_SetsProperties (line 10) - Score: 90
+    - Test 'PdfRichTextTests.TextSpan_Constructor_SetsProperties' does not call any production code
+  PdfRichTextTests.TextSpan_NullText_ThrowsArgumentNullException (line 22) - Score: 90
+    - Test 'PdfRichTextTests.TextSpan_NullText_ThrowsArgumentNullException' does not call any production code
+  PdfRichTextTests.RichText_Constructor_StoresSpans (line 31) - Score: 90
+    - Test 'PdfRichTextTests.RichText_Constructor_StoresSpans' does not call any production code
+  PdfRichTextTests.RichText_EmptySpans_ThrowsArgumentException (line 43) - Score: 90
+    - Test 'PdfRichTextTests.RichText_EmptySpans_ThrowsArgumentException' does not call any production code
+  PdfRichTextTests.RichText_NullSpans_ThrowsArgumentNullException (line 49) - Score: 90
+    - Test 'PdfRichTextTests.RichText_NullSpans_ThrowsArgumentNullException' does not call any production code
+  PdfRichTextTests.SimpleTable_Constructor_SetsProperties (line 57) - Score: 90
+    - Test 'PdfRichTextTests.SimpleTable_Constructor_SetsProperties' does not call any production code
+  PdfRichTextTests.SimpleTable_NullColumnWidths_ThrowsArgumentNullException (line 75) - Score: 90
+    - Test 'PdfRichTextTests.SimpleTable_NullColumnWidths_ThrowsArgumentNullException' does not call any production code
+  PdfRichTextTests.SimpleTable_NoHeaders_HeadersIsNull (line 87) - Score: 90
+    - Test 'PdfRichTextTests.SimpleTable_NoHeaders_HeadersIsNull' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfTableTests.cs:
+  PdfTableTests.CreateTable_WithHeaders_IsNotNull (line 8) - Score: 90
+    - Test 'PdfTableTests.CreateTable_WithHeaders_IsNotNull' does not call any production code
+  PdfTableTests.AddRow_ThenAddToPage_ProducesValidPdf (line 16) - Score: 90
+    - Test 'PdfTableTests.AddRow_ThenAddToPage_ProducesValidPdf' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfTableTests.CreateTable_NullHeaders_ThrowsArgumentNullException (line 33) - Score: 90
+    - Test 'PdfTableTests.CreateTable_NullHeaders_ThrowsArgumentNullException' does not call any production code
+  PdfTableTests.AddTable_ThenModify_ThrowsInvalidOperationException (line 45) - Score: 90
+    - Test 'PdfTableTests.AddTable_ThenModify_ThrowsInvalidOperationException' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfTaggedContentTests.cs:
+  PdfTaggedContentTests.SetStructureTree_ProducesTaggedPdf_WithStructTreeRootAndElements (line 47) - Score: 90
+    - Test 'PdfTaggedContentTests.SetStructureTree_ProducesTaggedPdf_WithStructTreeRootAndElements' has low assert-to-setup ratio (19%): 5 asserts vs 22 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfTextFlowTests.cs:
+  PdfTextFlowTests.TextFlow_WithLeftAlignment_CreatesValidPdf (line 18) - Score: 90
+    - Test 'PdfTextFlowTests.TextFlow_WithLeftAlignment_CreatesValidPdf' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfTextFlowTests.TextFlow_WithCenterAlignment_CreatesValidPdf (line 35) - Score: 90
+    - Test 'PdfTextFlowTests.TextFlow_WithCenterAlignment_CreatesValidPdf' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfTextFlowTests.TextFlow_WithRightAlignment_CreatesValidPdf (line 52) - Score: 90
+    - Test 'PdfTextFlowTests.TextFlow_WithRightAlignment_CreatesValidPdf' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfTextFlowTests.TextFlow_WithJustifiedAlignment_CreatesValidPdf (line 69) - Score: 90
+    - Test 'PdfTextFlowTests.TextFlow_WithJustifiedAlignment_CreatesValidPdf' has low assert-to-setup ratio (8%): 1 asserts vs 11 setup lines
+  PdfTextFlowTests.AddTextFlow_ReturnsPage_ForFluentChaining (line 103) - Score: 90
+    - Test 'PdfTextFlowTests.AddTextFlow_ReturnsPage_ForFluentChaining' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfTextMeasurementTests.cs:
+  PdfTextMeasurementTests.MeasureText_NullFontBytes_ThrowsArgumentNullException (line 38) - Score: 90
+    - Test 'PdfTextMeasurementTests.MeasureText_NullFontBytes_ThrowsArgumentNullException' has identical neighborhood to 'PdfTextMeasurementTests.MeasureText_EmptyFontBytes_ThrowsArgumentException'
+  PdfTextMeasurementTests.MeasureText_EmptyFontBytes_ThrowsArgumentException (line 46) - Score: 90
+    - Test 'PdfTextMeasurementTests.MeasureText_EmptyFontBytes_ThrowsArgumentException' has identical neighborhood to 'PdfTextMeasurementTests.MeasureText_NullFontBytes_ThrowsArgumentNullException'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/ChunkOptionsObsoleteTests.cs:
+  ChunkOptionsObsoleteTests.ChunkOptions_obsolete_is_not_an_error_yet (line 34) - Score: 90
+    - Test 'ChunkOptionsObsoleteTests.ChunkOptions_obsolete_is_not_an_error_yet' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/ExtractionProfileTests.cs:
+  ExtractionProfileTests.Discriminants_match_rust_enum_order (line 7) - Score: 90
+    - Test 'ExtractionProfileTests.Discriminants_match_rust_enum_order' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/HybridChunkConfigTests.cs:
+  HybridChunkConfigTests.Defaults_match_rust (line 8) - Score: 90
+    - Test 'HybridChunkConfigTests.Defaults_match_rust' does not call any production code
+  HybridChunkConfigTests.Validate_rejects_non_positive_max_tokens (line 34) - Score: 90
+    - Test 'HybridChunkConfigTests.Validate_rejects_non_positive_max_tokens' has identical neighborhood to 'SemanticChunkConfigTests.Validate_rejects_non_positive_max_tokens'
+  HybridChunkConfigTests.Validate_rejects_negative_overlap (line 41) - Score: 90
+    - Test 'HybridChunkConfigTests.Validate_rejects_negative_overlap' has identical neighborhood to 'PdfExtractorBoundedExtractionTests.ExtractionOptions_NegativeMaxExtractedBytes_ThrowsOnValidate'
+  HybridChunkConfigTests.Validate_rejects_overlap_ge_max (line 47) - Score: 90
+    - Test 'HybridChunkConfigTests.Validate_rejects_overlap_ge_max' has identical neighborhood to 'SemanticChunkConfigTests.Validate_rejects_overlap_ge_max'
+  HybridChunkConfigTests.Validate_accepts_zero_overlap_and_small_max (line 54) - Score: 75
+    - Test 'HybridChunkConfigTests.Validate_accepts_zero_overlap_and_small_max' executes production code without asserting on its behaviour
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/MergePolicyTests.cs:
+  MergePolicyTests.MergePolicy_discriminants_match_rust_enum_order (line 7) - Score: 90
+    - Test 'MergePolicyTests.MergePolicy_discriminants_match_rust_enum_order' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/PartitionConfigTests.cs:
+  PartitionConfigTests.Defaults_match_rust_PartitionConfig_default (line 8) - Score: 90
+    - Test 'PartitionConfigTests.Defaults_match_rust_PartitionConfig_default' does not call any production code
+  PartitionConfigTests.ReadingOrder_property_setter_rejects_null (line 45) - Score: 90
+    - Test 'PartitionConfigTests.ReadingOrder_property_setter_rejects_null' does not call any production code
+  PartitionConfigTests.Validate_accepts_boundary_values (line 74) - Score: 75
+    - Test 'PartitionConfigTests.Validate_accepts_boundary_values' executes production code without asserting on its behaviour
+  PartitionConfigTests.PreferRulingTables_defaults_to_true (line 144) - Score: 90
+    - Test 'PartitionConfigTests.PreferRulingTables_defaults_to_true' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/PdfExtractorHybridChunksTests.cs:
+  PdfExtractorHybridChunksTests.RagChunksAsync_with_both_null_configs_matches_no_arg_call (line 14) - Score: 80
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_with_both_null_configs_matches_no_arg_call' has identical neighborhood to 'PdfExtractorRagProfileTests.RagChunksAsync_accepts_every_declared_profile'
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_with_both_null_configs_matches_no_arg_call' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfExtractorHybridChunksTests.RagChunksAsync_with_only_hybrid_config_uses_partition_default (line 28) - Score: 90
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_with_only_hybrid_config_uses_partition_default' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  PdfExtractorHybridChunksTests.RagChunksAsync_with_only_partition_config_uses_hybrid_default (line 43) - Score: 90
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_with_only_partition_config_uses_hybrid_default' has low assert-to-setup ratio (9%): 1 asserts vs 10 setup lines
+  PdfExtractorHybridChunksTests.RagChunksAsync_with_both_configs_succeeds (line 58) - Score: 90
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_with_both_configs_succeeds' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfExtractorHybridChunksTests.RagChunksAsync_smaller_max_tokens_produces_at_least_as_many_chunks (line 72) - Score: 90
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_smaller_max_tokens_produces_at_least_as_many_chunks' has low assert-to-setup ratio (6%): 1 asserts vs 17 setup lines
+  PdfExtractorHybridChunksTests.RagChunksAsync_validates_HybridChunkConfig_overlap_ge_max (line 96) - Score: 90
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_validates_HybridChunkConfig_overlap_ge_max' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorHybridChunksTests.RagChunksAsync_validates_HybridChunkConfig_zero_max_tokens (line 107) - Score: 80
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_validates_HybridChunkConfig_zero_max_tokens' has identical neighborhood to 'PdfExtractorPipelineTests.RagChunksAsync_ChunksHaveSequentialIndices'
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_validates_HybridChunkConfig_zero_max_tokens' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorHybridChunksTests.RagChunksAsync_validates_PartitionConfig (line 118) - Score: 90
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_validates_PartitionConfig' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_null_bytes_throws_ArgumentNullException (line 129) - Score: 90
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_null_bytes_throws_ArgumentNullException' has identical neighborhood to 'PdfExtractorPipelineTests.RagChunksAsync_NullBytes_ThrowsArgumentNullException'
+  PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_empty_bytes_throws_ArgumentException (line 138) - Score: 90
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_empty_bytes_throws_ArgumentException' has identical neighborhood to 'PdfExtractorPipelineTests.RagChunksAsync_EmptyBytes_ThrowsArgumentException'
+  PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_respects_cancellation (line 147) - Score: 80
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_respects_cancellation' has identical neighborhood to 'PdfExtractorRagProfileTests.RagChunksAsync_with_profile_respects_cancellation'
+    - Test 'PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_respects_cancellation' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/PdfExtractorPartitionConfigTests.cs:
+  PdfExtractorPartitionConfigTests.PartitionAsync_with_default_config_matches_no_arg_call (line 15) - Score: 90
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_with_default_config_matches_no_arg_call' has low assert-to-setup ratio (17%): 2 asserts vs 10 setup lines
+  PdfExtractorPartitionConfigTests.PartitionAsync_with_XyCut_reading_order_succeeds (line 34) - Score: 90
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_with_XyCut_reading_order_succeeds' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfExtractorPartitionConfigTests.PartitionAsync_with_None_reading_order_succeeds (line 48) - Score: 90
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_with_None_reading_order_succeeds' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfExtractorPartitionConfigTests.PartitionAsync_null_config_throws_ArgumentNullException (line 78) - Score: 90
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_null_config_throws_ArgumentNullException' has identical neighborhood to 'PdfExtractorProfileTests.PartitionAsync_accepts_every_declared_profile'
+  PdfExtractorPartitionConfigTests.PartitionAsync_invalid_config_throws_ArgumentException (line 88) - Score: 90
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_invalid_config_throws_ArgumentException' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfExtractorPartitionConfigTests.PartitionAsync_invalid_header_zone_throws (line 101) - Score: 90
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_invalid_header_zone_throws' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorPartitionConfigTests.PartitionAsync_with_config_null_bytes_throws_ArgumentNullException (line 112) - Score: 90
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_with_config_null_bytes_throws_ArgumentNullException' has identical neighborhood to 'PdfExtractorPipelineTests.PartitionAsync_NullBytes_ThrowsArgumentNullException'
+  PdfExtractorPartitionConfigTests.PartitionAsync_with_config_empty_bytes_throws_ArgumentException (line 120) - Score: 90
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_with_config_empty_bytes_throws_ArgumentException' has identical neighborhood to 'PdfExtractorProfileTests.PartitionAsync_with_profile_empty_bytes_throws_ArgumentException'
+  PdfExtractorPartitionConfigTests.PartitionAsync_with_config_respects_cancellation (line 128) - Score: 80
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_with_config_respects_cancellation' has identical neighborhood to 'PdfExtractorProfileTests.PartitionAsync_with_profile_respects_cancellation'
+    - Test 'PdfExtractorPartitionConfigTests.PartitionAsync_with_config_respects_cancellation' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/PdfExtractorProfileTests.cs:
+  PdfExtractorProfileTests.PartitionAsync_with_Rag_profile_returns_elements (line 28) - Score: 80
+    - Test 'PdfExtractorProfileTests.PartitionAsync_with_Rag_profile_returns_elements' has identical neighborhood to 'PdfExtractorPartitionConfigTests.PartitionAsync_null_config_throws_ArgumentNullException'
+    - Test 'PdfExtractorProfileTests.PartitionAsync_with_Rag_profile_returns_elements' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorProfileTests.PartitionAsync_accepts_every_declared_profile (line 39) - Score: 80
+    - Test 'PdfExtractorProfileTests.PartitionAsync_accepts_every_declared_profile' has identical neighborhood to 'PdfExtractorPartitionConfigTests.PartitionAsync_null_config_throws_ArgumentNullException'
+    - Test 'PdfExtractorProfileTests.PartitionAsync_accepts_every_declared_profile' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfExtractorProfileTests.PartitionAsync_with_invalid_discriminant_throws_PdfExtractionException (line 59) - Score: 90
+    - Test 'PdfExtractorProfileTests.PartitionAsync_with_invalid_discriminant_throws_PdfExtractionException' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfExtractorProfileTests.PartitionAsync_with_profile_null_bytes_throws_ArgumentNullException (line 72) - Score: 90
+    - Test 'PdfExtractorProfileTests.PartitionAsync_with_profile_null_bytes_throws_ArgumentNullException' has identical neighborhood to 'PdfExtractorPartitionConfigTests.PartitionAsync_with_config_null_bytes_throws_ArgumentNullException'
+  PdfExtractorProfileTests.PartitionAsync_with_profile_empty_bytes_throws_ArgumentException (line 80) - Score: 90
+    - Test 'PdfExtractorProfileTests.PartitionAsync_with_profile_empty_bytes_throws_ArgumentException' has identical neighborhood to 'PdfExtractorPartitionConfigTests.PartitionAsync_with_config_empty_bytes_throws_ArgumentException'
+  PdfExtractorProfileTests.PartitionAsync_with_profile_respects_cancellation (line 88) - Score: 80
+    - Test 'PdfExtractorProfileTests.PartitionAsync_with_profile_respects_cancellation' has identical neighborhood to 'PdfExtractorPartitionConfigTests.PartitionAsync_with_config_respects_cancellation'
+    - Test 'PdfExtractorProfileTests.PartitionAsync_with_profile_respects_cancellation' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  PdfExtractorProfileTests.PartitionAsync_with_profile_emits_1_based_page_numbers (line 100) - Score: 90
+    - Test 'PdfExtractorProfileTests.PartitionAsync_with_profile_emits_1_based_page_numbers' has identical neighborhood to 'PdfExtractorPipelineTests.PartitionAsync_ElementsHavePageNumbers'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/PdfExtractorRagProfileTests.cs:
+  PdfExtractorRagProfileTests.RagChunksAsync_with_profile_emits_sequential_chunk_indexes (line 40) - Score: 80
+    - Test 'PdfExtractorRagProfileTests.RagChunksAsync_with_profile_emits_sequential_chunk_indexes' has identical neighborhood to 'PdfExtractorHybridChunksTests.RagChunksAsync_validates_HybridChunkConfig_zero_max_tokens'
+    - Test 'PdfExtractorRagProfileTests.RagChunksAsync_with_profile_emits_sequential_chunk_indexes' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  PdfExtractorRagProfileTests.RagChunksAsync_accepts_every_declared_profile (line 52) - Score: 80
+    - Test 'PdfExtractorRagProfileTests.RagChunksAsync_accepts_every_declared_profile' has identical neighborhood to 'PdfExtractorHybridChunksTests.RagChunksAsync_with_both_null_configs_matches_no_arg_call'
+    - Test 'PdfExtractorRagProfileTests.RagChunksAsync_accepts_every_declared_profile' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfExtractorRagProfileTests.RagChunksAsync_with_profile_null_bytes_throws_ArgumentNullException (line 83) - Score: 90
+    - Test 'PdfExtractorRagProfileTests.RagChunksAsync_with_profile_null_bytes_throws_ArgumentNullException' has identical neighborhood to 'PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_null_bytes_throws_ArgumentNullException'
+  PdfExtractorRagProfileTests.RagChunksAsync_with_profile_empty_bytes_throws_ArgumentException (line 92) - Score: 90
+    - Test 'PdfExtractorRagProfileTests.RagChunksAsync_with_profile_empty_bytes_throws_ArgumentException' has identical neighborhood to 'PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_empty_bytes_throws_ArgumentException'
+  PdfExtractorRagProfileTests.RagChunksAsync_with_profile_respects_cancellation (line 101) - Score: 80
+    - Test 'PdfExtractorRagProfileTests.RagChunksAsync_with_profile_respects_cancellation' has identical neighborhood to 'PdfExtractorHybridChunksTests.RagChunksAsync_with_configs_respects_cancellation'
+    - Test 'PdfExtractorRagProfileTests.RagChunksAsync_with_profile_respects_cancellation' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/PdfExtractorSemanticChunksTests.cs:
+  PdfExtractorSemanticChunksTests.SemanticChunksAsync_with_explicit_config_succeeds (line 35) - Score: 90
+    - Test 'PdfExtractorSemanticChunksTests.SemanticChunksAsync_with_explicit_config_succeeds' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  PdfExtractorSemanticChunksTests.SemanticChunksAsync_with_partition_config_succeeds (line 48) - Score: 90
+    - Test 'PdfExtractorSemanticChunksTests.SemanticChunksAsync_with_partition_config_succeeds' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfExtractorSemanticChunksTests.SemanticChunksAsync_smaller_max_tokens_produces_at_least_as_many_chunks (line 62) - Score: 90
+    - Test 'PdfExtractorSemanticChunksTests.SemanticChunksAsync_smaller_max_tokens_produces_at_least_as_many_chunks' has low assert-to-setup ratio (10%): 1 asserts vs 9 setup lines
+  PdfExtractorSemanticChunksTests.SemanticChunksAsync_validates_overlap_ge_max (line 78) - Score: 90
+    - Test 'PdfExtractorSemanticChunksTests.SemanticChunksAsync_validates_overlap_ge_max' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorSemanticChunksTests.SemanticChunksAsync_validates_zero_max_tokens (line 89) - Score: 90
+    - Test 'PdfExtractorSemanticChunksTests.SemanticChunksAsync_validates_zero_max_tokens' has low assert-to-setup ratio (17%): 1 asserts vs 5 setup lines
+  PdfExtractorSemanticChunksTests.SemanticChunksAsync_respects_cancellation (line 131) - Score: 90
+    - Test 'PdfExtractorSemanticChunksTests.SemanticChunksAsync_respects_cancellation' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/RagChunksDisjointnessTests.cs:
+  RagChunksDisjointnessTests.EachParagraphMarkerAppearsInExactlyOneChunk (line 114) - Score: 90
+    - Test 'RagChunksDisjointnessTests.EachParagraphMarkerAppearsInExactlyOneChunk' has low assert-to-setup ratio (12%): 1 asserts vs 7 setup lines
+  RagChunksDisjointnessTests.ChunkCountBoundedBySourceElements (line 125) - Score: 90
+    - Test 'RagChunksDisjointnessTests.ChunkCountBoundedBySourceElements' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  RagChunksDisjointnessTests.MultiSectionPdfChunksAreDisjoint (line 142) - Score: 90
+    - Test 'RagChunksDisjointnessTests.MultiSectionPdfChunksAreDisjoint' has identical neighborhood to 'RagChunksDisjointnessTests.ProfileEmitsDisjointChunks'
+  RagChunksDisjointnessTests.MultiSectionEachMarkerAppearsOnce (line 153) - Score: 80
+    - Test 'RagChunksDisjointnessTests.MultiSectionEachMarkerAppearsOnce' has identical neighborhood to 'RagChunksDisjointnessTests.ProfileMarkerUniqueness'
+    - Test 'RagChunksDisjointnessTests.MultiSectionEachMarkerAppearsOnce' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+  RagChunksDisjointnessTests.MultiSectionChunkCountBounded (line 165) - Score: 90
+    - Test 'RagChunksDisjointnessTests.MultiSectionChunkCountBounded' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+  RagChunksDisjointnessTests.ProfileEmitsDisjointChunks (line 187) - Score: 90
+    - Test 'RagChunksDisjointnessTests.ProfileEmitsDisjointChunks' has identical neighborhood to 'RagChunksDisjointnessTests.MultiSectionPdfChunksAreDisjoint'
+  RagChunksDisjointnessTests.ProfileMarkerUniqueness (line 199) - Score: 80
+    - Test 'RagChunksDisjointnessTests.ProfileMarkerUniqueness' has identical neighborhood to 'RagChunksDisjointnessTests.MultiSectionEachMarkerAppearsOnce'
+    - Test 'RagChunksDisjointnessTests.ProfileMarkerUniqueness' has low assert-to-setup ratio (11%): 1 asserts vs 8 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/ReadingOrderStrategyTests.cs:
+  ReadingOrderStrategyTests.Simple_and_None_are_singletons (line 8) - Score: 80
+    - Test 'ReadingOrderStrategyTests.Simple_and_None_are_singletons' has identical neighborhood to 'MarkdownOptionsTests.Defaults_match_rust_MarkdownOptions_default'
+    - Test 'ReadingOrderStrategyTests.Simple_and_None_are_singletons' does not call any production code
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Pipeline/SemanticChunkConfigTests.cs:
+  SemanticChunkConfigTests.Defaults_match_rust (line 8) - Score: 90
+    - Test 'SemanticChunkConfigTests.Defaults_match_rust' does not call any production code
+  SemanticChunkConfigTests.Ctor_with_max_tokens_keeps_other_defaults (line 17) - Score: 90
+    - Test 'SemanticChunkConfigTests.Ctor_with_max_tokens_keeps_other_defaults' does not call any production code
+  SemanticChunkConfigTests.Validate_rejects_non_positive_max_tokens (line 35) - Score: 90
+    - Test 'SemanticChunkConfigTests.Validate_rejects_non_positive_max_tokens' has identical neighborhood to 'HybridChunkConfigTests.Validate_rejects_non_positive_max_tokens'
+  SemanticChunkConfigTests.Validate_rejects_negative_overlap (line 42) - Score: 90
+    - Test 'SemanticChunkConfigTests.Validate_rejects_negative_overlap' has identical neighborhood to 'HybridChunkConfigTests.Validate_rejects_negative_overlap'
+  SemanticChunkConfigTests.Validate_rejects_overlap_ge_max (line 48) - Score: 90
+    - Test 'SemanticChunkConfigTests.Validate_rejects_overlap_ge_max' has identical neighborhood to 'HybridChunkConfigTests.Validate_rejects_overlap_ge_max'
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/SemanticComparisonTests.cs:
+  SemanticComparisonTests.IdenticalDocumentReportsEquivalentObjectsAndOneRevision (line 15) - Score: 90
+    - Setup helper 'Pdf' is duplicated in 1 other file(s)
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs:
+  Upstream460Tests.ExtractImages_EnforcesImageCountAndDecodedPixelBounds (line 67) - Score: 90
+    - Test 'Upstream460Tests.ExtractImages_EnforcesImageCountAndDecodedPixelBounds' has low assert-to-setup ratio (12%): 2 asserts vs 15 setup lines
+  Upstream460Tests.ExtractionOptions_InvalidCarriageReturnPolicy_IsRejected (line 122) - Score: 90
+    - Test 'Upstream460Tests.ExtractionOptions_InvalidCarriageReturnPolicy_IsRejected' has low assert-to-setup ratio (14%): 1 asserts vs 6 setup lines
+
+/tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream514Tests.cs:
+  Upstream514Tests.UnreliableFigureText_IsFilteredUnlessExplicitlyRequested (line 25) - Score: 90
+    - Test 'Upstream514Tests.UnreliableFigureText_IsFilteredUnlessExplicitlyRequested' has low assert-to-setup ratio (18%): 2 asserts vs 9 setup lines
+
+
+## Analisis de Seguridad (Kripteia Security)
+
+=== Kripteia Security Analysis ===
+
+No security issues found.
+--- Degraded Analysis (26 file(s), lower confidence) ---
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfTextExtractionModels.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfOcrLayer.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfExistingDocumentModels.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfTaggedOperations.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfHighlight.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfGeometricAnnotation.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/Models/ResolvedFontResource.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/Models/PageTextFragments.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/ExtractedImageInfo.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfFreeText.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfOutline.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfSigningModels.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfSemanticComparisonModels.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfTaggedModels.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfInk.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfOperations.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfRedaction.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfSigning.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET/PdfSignatureSlots.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/SignatureSlotTests.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfTextMeasurementTests.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/HighlightEditingTests.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/RedactionTests.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfOperationsTests.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/PdfExtractorPageApiTests.cs — partial/error syntax tree
+  /tmp/bindings-core-5.4.2/dotnet/dotnet/OxidizePdf.NET.Tests/Upstream460Tests.cs — partial/error syntax tree

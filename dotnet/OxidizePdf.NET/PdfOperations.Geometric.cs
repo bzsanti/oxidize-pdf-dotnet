@@ -36,8 +36,14 @@ public static partial class PdfOperations
                     return (object)new { operation = "add", page_index = add.PageIndex, geometry = add.Geometry, style = add.Style };
                 case PdfGeometricMutation.Update update when update.Id.ObjectNumber > 0:
                     ValidateGeometric(update.Geometry, update.Style);
-                    return new { operation = "update", object_number = update.Id.ObjectNumber, generation_number = update.Id.GenerationNumber,
-                        geometry = update.Geometry, style = update.Style };
+                    return new
+                    {
+                        operation = "update",
+                        object_number = update.Id.ObjectNumber,
+                        generation_number = update.Id.GenerationNumber,
+                        geometry = update.Geometry,
+                        style = update.Style
+                    };
                 case PdfGeometricMutation.Remove remove when remove.Id.ObjectNumber > 0:
                     return new { operation = "remove", object_number = remove.Id.ObjectNumber, generation_number = remove.Id.GenerationNumber };
                 default:

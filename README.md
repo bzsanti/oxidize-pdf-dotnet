@@ -1,5 +1,7 @@
 # OxidizePdf.NET
 
+> Rust core pinned to **5.4.2**. See [compatibility and validation](docs/UPSTREAM-5.4.2.md).
+
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0%2B-purple)](https://dotnet.microsoft.com/)
@@ -18,25 +20,21 @@
 - 🌍 **Cross-Platform** - Linux, Windows, macOS — x64 & ARM64, including musl/Alpine
 - 🛠️ **Full PDF toolkit** - Also creates and manipulates PDFs (text, graphics, merge, split, rotate, page extraction)
 
-## Upstream 5.4.2 integration (unreleased update)
+## New in 0.19.0 — upstream 5.4.2
 
-The development branch uses the official `oxidize-pdf = 5.4.2` package, with
-no local upstream patches. New APIs include positioned text/rendering modes,
-bookmark reading, incremental annotations, and preservation-policy operations.
+Typed signature slots, complete extraction options and bounded recovery diagnostics
+are now available. See the [release notes](RELEASE-NOTES-v0.19.0.md) for changes,
+validation and the remaining upstream DocMDP limitation affecting notes/highlights.
 
-- [Existing-document operations and preservation policies](docs/EXISTING_DOCUMENT_OPERATIONS.md)
-- [Incremental signing with an external CMS provider](docs/INCREMENTAL_SIGNING.md)
-- [Bounded semantic comparison and revision attribution](docs/SEMANTIC_COMPARISON.md)
-- [Tagged-PDF inspection, planning and editing](docs/TAGGED_PDF_EDITING.md)
-- [Incremental OCR layers from provider results](docs/INCREMENTAL_OCR.md)
-- [Irreversible text removal and visual masking](docs/REDACTION.md)
-- [Migration inventory and validation status](docs/UPSTREAM_5_MIGRATION.md)
+## Feature guides
 
-The 5.4.2 update fixes the four prior bookmark/metadata regressions. A compatibility
-failure affects carriage-return handling of undefined WinAnsi character codes;
-the regression remains enabled. See the [current Rust parity audit](docs/FEATURE_PARITY.md)
-and [validation status](docs/UPSTREAM_5_MIGRATION.md). The earlier 5.1.5 integration
-was published as 0.18.0; this dependency update has not been published.
+- [Existing-document operations](docs/EXISTING_DOCUMENT_OPERATIONS.md)
+- [Incremental signing](docs/INCREMENTAL_SIGNING.md)
+- [Semantic comparison](docs/SEMANTIC_COMPARISON.md)
+- [Tagged-PDF editing](docs/TAGGED_PDF_EDITING.md)
+- [Incremental OCR](docs/INCREMENTAL_OCR.md)
+- [Redaction](docs/REDACTION.md)
+- [Rust parity audit and tracked gaps](docs/FEATURE_PARITY.md)
 
 ## Installation
 

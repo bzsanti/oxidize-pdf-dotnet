@@ -25,6 +25,27 @@ public sealed class PdfDocument : IDisposable
 {
     private readonly DocumentSafeHandle _safeHandle;
 
+    /// <summary>Whether build-identification metadata is emitted when writing the document.</summary>
+    public BuildIdentification BuildIdentification
+    {
+        get
+        {
+            ThrowIfDisposed();
+            ThrowIfError(NativeMethods.oxidize_document_get_build_identification(_safeHandle, out byte policy), "Failed to read build identification");
+            return (BuildIdentification)policy;
+        }
+    }
+
+    /// <summary>Controls build-identification metadata; preserves application metadata.</summary>
+    public PdfDocument SetBuildIdentification(BuildIdentification policy)
+    {
+        if (!Enum.IsDefined(policy)) throw new ArgumentOutOfRangeException(nameof(policy));
+        ThrowIfDisposed();
+        ThrowIfError(NativeMethods.oxidize_document_set_build_identification(_safeHandle, (byte)policy), "Failed to set build identification");
+        return this;
+    }
+
+
     // Bridge: existing call sites read `_handle` as an IntPtr unchanged.
     private IntPtr _handle => _safeHandle.DangerousGetHandle();
 
