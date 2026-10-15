@@ -1,4 +1,4 @@
-# Active increment — CID Unicode and vertical metrics (#88), 2026-10-15
+# Completed increment — CID Unicode and vertical metrics (#88), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |
 | --- | --- | --- |
@@ -6,7 +6,7 @@
 | Character-code/CID/GID/Unicode separation | Demonstrated locally | Handwritten code 0x41 → CID 100 → GID 7 → fi; absent mappings remain null |
 | Vertical defaults, ranges, overrides and per-CID advance | Demonstrated locally | Compact full-CID range, default/override/reverse-range precedence and core advance agreement |
 | Bounded work, typed failures, ownership and compatibility | Demonstrated locally, including guard mutation | Limits, native boundaries, typed failures and queued snapshots; old font APIs pass regression |
-| Behavioral contract, review/security and platform CI | Local checks/review pass; CI pending | Validate implementation commit on platform matrix before develop |
+| Behavioral contract, review/security and platform CI | Demonstrated: local evidence and 14/14 CI jobs pass on `016a171` | None; package publication separate |
 
 Source: #88 and pinned core 5.4.2. The issue's CidVerticalWidths is declared pub
 inside private text::extraction_cmap and is not re-exported. Public resolved fonts
@@ -25,7 +25,11 @@ separate. Existing uncommitted session notes are preserved.
 Reviewed eight changed files over develop `53eac54`: additive managed API/models,
 native export/module, independent behavioral tests, parity contract and two docs.
 Existing extraction/font-creation and resolved-resource methods remain unchanged.
-Local acceptance is demonstrated; platform CI is the remaining integration blocker.
+Local acceptance and all 14 platform CI jobs pass on final implementation
+`016a17153a7cb68dd8a59d54601c5d3eb4945ab1`:
+https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38799415815
+Documentation-only closure preserves product/test/contract/workflow identity with
+that validated implementation.
 See [public contract and examples](FONT_INSPECTION.md).
 
 ### Contratos y evidencia
@@ -87,7 +91,7 @@ promise to bound all allocations made by the core.
    as_chunks::<3>().0.iter(), supported by the project's Rust 1.88 minimum.
    The preceding remainder validation remains unchanged, so iteration visits
    exactly the same triples. The first CI run 38776084208 is not acceptance
-   evidence; the corrected implementation requires a fresh platform run. All 245
+   evidence; the corrected implementation passes the final platform run above. All 245
    native tests and 32 CID .NET cases pass again against the rebuilt library, as
    does Clippy with all targets/features. The one-line iterator substitution does
    not change the guards or Unicode selection exercised by the isolated mutant;
@@ -123,7 +127,7 @@ not certify global memory/time limits or unreviewed core internals.
 - Archivos revisados: 8 changed files, plus core font/collection/parser consumers and existing font-resource APIs.
 - Hallazgos totales: 2, resolved within scope as described.
 - Archivos de producto modificados por la revisión: 1 (CI lint compatibility).
-- Verificaciones pendientes: platform CI on the implementation commit.
+- Verificaciones pendientes: none for #88 acceptance; package publication is separate.
 
 # Completed increment — incremental writer and Info policy (#87), 2026-10-15
 
