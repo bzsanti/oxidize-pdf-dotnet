@@ -308,6 +308,11 @@ internal static class NativeMethods
         out IntPtr outBytes,
         out nuint outLen);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_font_inspect(
+        [In] byte[] pdf, nuint length,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string request, out IntPtr output);
+
     /// <summary>Get the number of pages in the document</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_page_count(IntPtr handle, out nuint outCount);

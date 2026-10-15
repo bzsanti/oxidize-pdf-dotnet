@@ -1,3 +1,118 @@
+# Active increment — CID Unicode and vertical metrics (#88), 2026-10-15
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| Five Adobe collections, complete sequences and missing mappings | Demonstrated locally, including negative control | All five collections, unknown collection/CID, supplementary and multi-scalar results |
+| Character-code/CID/GID/Unicode separation | Demonstrated locally | Handwritten code 0x41 → CID 100 → GID 7 → fi; absent mappings remain null |
+| Vertical defaults, ranges, overrides and per-CID advance | Demonstrated locally | Compact full-CID range, default/override/reverse-range precedence and core advance agreement |
+| Bounded work, typed failures, ownership and compatibility | Demonstrated locally, including guard mutation | Limits, native boundaries, typed failures and queued snapshots; old font APIs pass regression |
+| Behavioral contract, review/security and platform CI | Local checks/review pass; CI pending | Validate implementation commit on platform matrix before develop |
+
+Source: #88 and pinned core 5.4.2. The issue's CidVerticalWidths is declared pub
+inside private text::extraction_cmap and is not re-exported. Public resolved fonts
+provide effective decoded advances but keep their tables private. Therefore the
+binding will inspect W2/DW2 through public parser objects, with compact ranges and
+explicit bounds; Unicode/character decoding stays in the public core decoder.
+The new PdfFonts API is additive; existing ResolvedFontResource and extraction
+APIs remain compatible. The finite scope is collection lookup and requested font
+inspection, not a font renderer or font-creation rewrite. Package publication is
+separate. Existing uncommitted session notes are preserved.
+
+## Quality review — CID font inspection (#88)
+
+### Resumen ejecutivo
+
+Reviewed eight changed files over develop `53eac54`: additive managed API/models,
+native export/module, independent behavioral tests, parity contract and two docs.
+Existing extraction/font-creation and resolved-resource methods remain unchanged.
+Local acceptance is demonstrated; platform CI is the remaining integration blocker.
+See [public contract and examples](FONT_INSPECTION.md).
+
+### Contratos y evidencia
+
+56 focused .NET cases pass (32 new), covering collection lookup and inspection,
+legacy font creation/resources, ABI exports and parity gates. Fixtures are authored
+independently of the PDF writer, with inherited resources, an explicit code→CID
+CMap, a CID→GID stream, ToUnicode and indirect W2/DW2 arrays. Literal expected
+values distinguish character bytes, CIDs, GIDs, Unicode and advances. Tests cover
+horizontal/vertical CJK fallback, ligatures, supplementary characters and variation
+selectors; registry/ordering authority and ToUnicode missing-map precedence; absent
+CID/GID/Unicode, valid GID zero; and simple fonts with no CID vertical table.
+
+Vertical assertions independently compare raw defaults/overrides/ranges and query
+results with the public core's decoded advances. A 0..65535 range remains one
+record. Explicit overrides win over later ranges; the last matching range wins
+otherwise. Default -1000 and custom DW2 -800, out-of-domain advance queries,
+truncated/descending/overflowing metrics, exact names/pages, malformed PDF,
+truncated codes, cancellation, query/entry/work/Unicode limits and mutable queued
+inputs are covered. Ownership is exercised through real FFI with no mocks.
+
+All 245 native tests pass, including three new boundary/semantic tests. They cover
+complete Unicode versus scalar-only values, unmapped CIDs, invalid JSON/unknown
+fields, out-of-range CIDs, collection limits, null pointers, impossible lengths,
+invalid UTF-8, cleared output pointers, duplicate range budget accounting, compact
+full-CID ranges and nonfinite metrics. Clippy with warnings denied and format
+checks pass. Evidence: /tmp/cid-inspection-*.log.
+
+An isolated compiled native copy substitutes scalar-only collection lookup and
+removes entry/work guards. Ten selected real-FFI cases produce six intended
+failures: four lost multi-scalar mappings and two missing limit exceptions. The
+single supplementary-scalar mapping and unrelated limits still pass. Production
+sources/runtime are unchanged; the complete baseline passes. Evidence:
+/tmp/cid-inspection-mutant-test.log and /tmp/cid-inspection-mutant.
+
+Manual review traced request serialization and snapshots, parser/resource resolution,
+collection authority, core glyph decoding, compact-table parsing, lookup precedence,
+JSON error envelopes and disposal. Each output buffer is freed once in finally,
+including typed failures. Native pointer/length checks precede slice construction;
+outputs are cleared before validation. Resource names are carried in escaped JSON,
+not interpolated into PDF syntax or paths. No file writes or native handles escape.
+Limits bound supplied queries, retained/processed vertical entries and vertical
+range-lookup work. Unicode response limits are explicitly post-decoding, not a
+promise to bound all allocations made by the core.
+
+### Hallazgos
+
+1. **Private core vertical model**: native/src/font_inspection.rs:114 — the issue's
+   cited CidVerticalWidths is public only inside a private module, and its fields
+   are private in ResolvedFontResource. A direct export cannot compile against
+   pinned 5.4.2. The bounded public-parser W2/DW2 adapter exposes compact pen advances
+   and is cross-checked against public decode_glyphs. Malformed tables fail explicitly
+   instead of representing a partially recovered table as complete. Replace this
+   adapter with a core table accessor when upstream makes one public.
+
+No confirmed defect remains in #88. CIDSystemInfo is declared metadata, not proof
+of effective collection fallback; actual Unicode is decided by the core. Full PDF
+parsing, embedded-font loading and internal CMap processing are not governed by
+the vertical-query work counter. This scope is explicit in options/docs; broader
+resource budgets remain in #100. No renderer or writing API changes are needed for
+these inspection guarantees. Earlier font-resource APIs retain their old contracts.
+
+### Calidad de Tests (Kripteia)
+
+Both mandatory scripts completed. Rust: score 97, 245 tests/28 files; new font
+module: three tests, score 100. C#: 95, 1027 methods/129 files; FontInspectionTests:
+12 methods, score 99. The budget theory's assert/setup ratio is flagged (90), but
+its two assertions check both rejection and typed error per budget; the compiled
+negative control proves that the entry/work guards are reached. Existing worst
+scores (65) are unchanged panic/disposal tests, outside #88.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Rust lists 294 unsafe usages (mostly existing FFI declarations), with no emitted
+secret/taint-flow findings. C# emits no security findings, with degraded parsing
+in 39 files including the new API/tests. Manual review covers their syntax,
+marshalling, snapshots, JSON and output ownership. Both tools warn that telemetry
+cannot write its read-only database but complete their analyses. Tool results do
+not certify global memory/time limits or unreviewed core internals.
+
+### Métricas
+
+- Archivos revisados: 8 changed files, plus core font/collection/parser consumers and existing font-resource APIs.
+- Hallazgos totales: 1, resolved within scope as described.
+- Archivos de producto modificados por la revisión: 0.
+- Verificaciones pendientes: platform CI on the implementation commit.
+
 # Completed increment — incremental writer and Info policy (#87), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |
@@ -1031,7 +1146,7 @@ the current request is to update and analyze, not implement every Rust API.
 | NEW-005 / medium | `parser/reader.rs`, `parser/document.rs`: `effective_version`; `parser/objects.rs`: `to_text_with_version` | `GetPdfVersionAsync` still calls `reader.version()` in `native/src/parser.rs`; no catalog-aware effective-version API |
 | NEW-006 / medium | `parser/document.rs`: `decode_stream_with_recovery`, `extract_text_with_recovery` | No explicit recovery context/reporting contract in `PdfExtractor` |
 | NEW-007 / medium | `writer/pdf_writer/mod.rs`: `IncrementalInfoPolicy` | Implemented in #87: explicit incremental base bytes, append/leading-page replacement, Preserve/Replace Info; see [contract](INCREMENTAL_WRITING.md) |
-| NEW-008 / low | `text/metrics.rs`, `fonts/resolved.rs`, `text/font.rs`: CID collections, Unicode sequences and vertical metrics | Extraction benefits internally; managed font-resource models do not expose the full new CID mapping/vertical-metrics surface |
+| NEW-008 / low | `fonts/resolved.rs`, `text/cid_to_unicode.rs`, private `text/extraction_cmap.rs` | Implemented in #88: five Adobe collections, complete glyph identities/Unicode and compact vertical tables; [contract](FONT_INSPECTION.md) |
 
 ### Improvements inherited through existing calls
 
