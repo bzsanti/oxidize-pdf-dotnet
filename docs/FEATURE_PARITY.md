@@ -1,3 +1,112 @@
+# Active increment — tagged preflight and preparation (#86), 2026-10-15
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| Core 5.4.2 preflight and opt-in preparation | Demonstrated locally | Three additive methods; ordinary editing regression retained |
+| Full preparation inventory separate from mutation plan | Demonstrated locally | Exact classic/stream-xref inventories, retired generation 3 and independent mutation inventory |
+| Prefix, ownership, permissions, ambiguity and final validation | Demonstrated locally, including negative control | Real-FFI handwritten fixtures, policy/validation rejection and input snapshots |
+| Typed options/results/errors and existing API compatibility | Demonstrated locally | Argument validation, typed native errors, legacy signatures/schema/exception retained |
+| Contract gate, quality/security and platform CI | Local checks/review complete; CI pending | Complete platform CI before integration; no package publication |
+
+Source: refreshed #86, first pending high-priority entry in #81, and pinned core
+`writer/incremental_tagged_pdf.rs`. See [usage and precise contracts](TAGGED_PDF_EDITING.md#preflight-and-explicit-preparation).
+Preflight performs recovery internally but returns only findings. Prepared methods
+require explicit opt-in and preserve the core's strict final validation; ordinary
+editing intentionally remains diagnostic. Recovery runs before language setup.
+No automatic PR, dependency/version change, file output or package publication.
+The existing uncommitted session handoff is preserved.
+
+## Quality review — tagged preparation increment
+
+### Resumen ejecutivo
+
+Reviewed changes over develop `0b8905e`: additive preflight/prepared managed APIs,
+options/results/errors, existing tagged FFI dispatch, behavioral tests and parity
+contract. The core recovery/editor is used directly; no reconstruction or custom
+repair algorithm is added. Local behavior and review are complete, including a compiled negative control;
+platform acceptance awaits CI.
+
+### Contratos y evidencia
+
+30 focused .NET cases pass (14 new), including classic and stream xrefs, sparse
+missing derived indexes, missing author metadata, exact object inventories,
+original generations of retired entries, repeated preparation, prefix preservation,
+original content/private values, Unicode descriptions, language conflicts,
+ambiguous MCID ownership, forbidden structural keys, blank descriptions,
+encryption and all three DocMDP permission values. Input arrays/mutations/limits
+are mutated after return to verify queued snapshots. Existing ordinary editor
+semantics remain covered, including returning diagnostic invalid reports.
+
+All 239 native tests pass, including three new tagged boundary cases. They reject
+unknown/conflicting preparation fields, malformed JSON, null pointers, impossible
+lengths and invalid UTF-8 with a cleared output. A language-only FFI test reparses
+the output independently of report serialization to assert exact es-ES language
+and preservation of an unrelated catalog value. Clippy with warnings denied and
+format checks pass. Evidence is in /tmp/tagged-preparation-*.log.
+
+A compiled disposable native copy omits with_recovered_indexes. Both inventory
+cases then fail because absent ParentTree object 7 was not recovered, and the
+already-indexed fixture fails Assert.Throws because invalid prepared bytes escape
+without the recovery builder's strict final-validation guard. These are functional
+failures through real FFI, not compilation/setup failures. Baseline tests pass;
+production sources/runtime were not modified. Artifacts: /tmp/tagged-preparation-mutant
+and /tmp/tagged-preparation-mutant-test.log.
+
+Manual review traced options through JSON, recovery/language builders, planning,
+strict apply, serialization and disposal. Preparation object identities are copied
+without reinterpretation; subsequent plans are separate. The input prefix is
+preserved by the core incremental writer. No native handles escape, pinned input
+and returned CString are released once, and the output is cleared before failures.
+Core policy rejects encryption/certification before preparation; incomplete final
+validation never reaches serialization. Request serialization and byte copying
+finish before Task.Run. Existing native error codes and managed exception types
+are retained for old actions, and new actions expose typed error categories.
+
+### Hallazgos
+
+1. **Queued mutable input**: dotnet/OxidizePdf.NET/PdfTaggedOperations.cs:76 — the
+   previous call captured caller PDF bytes directly. A snapshot now isolates queued
+   work, while serialized edits/limits also retain their values. The real-FFI
+   mutation-after-return test validates this boundary.
+2. **Legacy request schema**: dotnet/OxidizePdf.NET/PdfTaggedOperations.cs:72 — an
+   early implementation added preparation:null to ordinary calls, incompatible with
+   the earlier native deny_unknown_fields schema. The field is now omitted for
+   ordinary calls; old method signatures, payload shape and exception types remain.
+3. **Failure output reset and slice length**: native/src/tagged_existing.rs:272 —
+   the earlier FFI returned on null input before clearing writable output, and did
+   not guard impossible slice lengths. Reset now precedes checks and lengths are
+   bounded before from_raw_parts; direct FFI tests cover both failures.
+
+No remaining confirmed product defect within #86. Configurable validation limits
+do not govern the earlier core recovery traversal; core supplies its own safeguards.
+This is documented rather than represented as a total budget; broader streaming and
+resource controls belong to #100 and are not required for core contract parity.
+
+### Calidad de Tests (Kripteia)
+
+The skill script ran both analyses. Rust: score 97, 239 tests/26 files; changed
+native tagged module: 3 tests, score 97. C#: score 95, 1007 tests/127 files;
+TaggedPreparationTests: 10 methods, score 100. Existing worst offenders include
+ffi_guard_unit_swallows_panic and Dispose_Twice_DoesNotThrow tests (65); these
+remain outside this increment. Tool scores do not replace independent fixtures
+or assertions discriminating inventory, policy and validation behavior.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Rust lists 292 unsafe usages, primarily existing FFI declarations, with no emitted
+secret or taint-flow findings. C# reports no security issues and degraded syntax
+analysis in 36 files, including PdfTaggedOperations and TaggedPreparationTests.
+Affected pointer/lifetime/policy paths were therefore inspected manually. Telemetry
+could not write its sandboxed database, but both analyses completed; no scan is
+claimed as proof of safety.
+
+### Métricas
+
+- Changed files reviewed: 7 implementation/test/contract/documentation files, with core/editor and existing model consumers traced.
+- Confirmed findings: 3, corrected within this increment.
+- Product files modified by the final read-only review: 0.
+- Pending verification: platform CI before integration.
+
 # Completed increment — split options (#102), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |

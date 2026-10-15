@@ -1,6 +1,6 @@
 {
   "core": "5.4.2",
-  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Merge metadata source modes. Remaining Rust API pending audit; no total parity claim. Split options and suggested byte-result names.",
+  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Merge metadata source modes. Remaining Rust API pending audit; no total parity claim. Split options and suggested byte-result names. Tagged preflight and explicit preparation.",
   "callables": {
     "PdfSignatureSlots.CreateAsync": [
       "pdf",
@@ -119,6 +119,25 @@
     "PdfOperations.SplitNamedAsync": [
       "pdfBytes",
       "options",
+      "ct"
+    ],
+    "PdfTaggedOperations.PlanPreparedAsync": [
+      "pdf",
+      "mutations",
+      "preparation",
+      "limits",
+      "ct"
+    ],
+    "PdfTaggedOperations.EditPreparedAsync": [
+      "pdf",
+      "mutations",
+      "preparation",
+      "limits",
+      "ct"
+    ],
+    "PdfTaggedOperations.PreflightAsync": [
+      "pdf",
+      "limits",
       "ct"
     ]
   },
@@ -300,6 +319,51 @@
     ],
     "PdfSplitException": [
       "Error"
+    ],
+    "PdfTaggedPreparationOptions": [
+      "RecoverIndexes",
+      "DocumentLanguage"
+    ],
+    "PdfTaggedPreparationPlan": [
+      "PreparationObjects",
+      "MutationPlan"
+    ],
+    "PdfTaggedPreparedEditResult": [
+      "PreparationObjects",
+      "Edit"
+    ],
+    "PdfTaggedException": [
+      "Error"
+    ],
+    "PdfTaggedLimits": [
+      "MaxObjects",
+      "MaxDepth",
+      "MaxEntries",
+      "MaxDecodedContentBytes"
+    ],
+    "PdfTaggedEditResult": [
+      "PdfBytes",
+      "Plan",
+      "ValidationBefore",
+      "ValidationAfter"
+    ],
+    "PdfTaggedObjectId": [
+      "ObjectNumber",
+      "Generation"
+    ],
+    "PdfTaggedValidation": [
+      "Tagged",
+      "Valid",
+      "StructureTreeRoot",
+      "RoleMap",
+      "ClassNames",
+      "ClassMap",
+      "Artifacts",
+      "Elements",
+      "ParentTreeEntries",
+      "ParentTree",
+      "ContentMcids",
+      "Findings"
     ]
   },
   "defaults": {
@@ -386,6 +450,16 @@
       "PreserveMetadata": true,
       "Optimize": false,
       "OutputPattern": "page_{}.pdf"
+    },
+    "PdfTaggedPreparationOptions": {
+      "RecoverIndexes": false,
+      "DocumentLanguage": null
+    },
+    "PdfTaggedLimits": {
+      "MaxObjects": 100000,
+      "MaxDepth": 256,
+      "MaxEntries": 1000000,
+      "MaxDecodedContentBytes": 268435456
     }
   },
   "behavior_tests": [
@@ -448,6 +522,16 @@
     "SplitOptionsTests.ExistingModesRetainTheirNaming",
     "SplitOptionsTests.InvalidOrDuplicateNamesAreRejected",
     "SplitOptionsTests.FailuresAndSnapshotsCrossRealFfi",
-    "SplitOptionsTests.LegacyOptionsHonorMetadataAndMissingInfo"
+    "SplitOptionsTests.LegacyOptionsHonorMetadataAndMissingInfo",
+    "TaggedPreparationTests.PreflightRecoversDerivedIndexesButReportsMissingAuthorMetadata",
+    "TaggedPreparationTests.CompletePreparationInventoryIsSeparateFromMutationPlan",
+    "TaggedPreparationTests.PreparedApplyRejectsIncompleteFinalDocumentIncludingNoopMutations",
+    "TaggedPreparationTests.PreparationStepsAreExplicitAndLanguageCannotOverwriteExistingValues",
+    "TaggedPreparationTests.AmbiguousOwnershipAndResourceLimitsAreRejected",
+    "TaggedPreparationTests.CertificationRejectsPreflightAndPreparation",
+    "TaggedPreparationTests.InputsAreSnapshottedAndFailuresDoNotPoisonLaterCalls",
+    "TaggedPreparationTests.RetiredInventoryPreservesOriginalGeneration",
+    "TaggedPreparationTests.EncryptionAndInvalidDescriptionEditsAreRejected",
+    "TaggedPreparationTests.RecoveryEnablesFinalValidationEvenWhenIndexesAlreadyExist"
   ]
 }
