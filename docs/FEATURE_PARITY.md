@@ -1,11 +1,11 @@
-# Active increment — split options (#102), 2026-10-15
+# Completed increment — split options (#102), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |
 | --- | --- | --- |
 | Core 5.4.2 defaults and metadata/optimize options | Demonstrated locally | Real-FFI Info assertions, including Unicode, absence and discard; optimization explicitly no-op |
 | Named byte results without caller filesystem authority | Demonstrated locally | Private RAII directory; portable pattern checks; two compiled negative controls |
 | Existing modes/APIs, owned bytes and typed failures | Demonstrated locally | All four modes, repeated ranges, snapshots, malformed input, page bounds and FFI output reset |
-| Contract gate, review/security and platform CI | Local checks/review complete; platform CI pending | CI must pass before integration; no package publication |
+| Contract gate, review/security and platform CI | Demonstrated: local checks/review and 14/14 CI jobs pass on `4191f2a` | None; package publication remains separate |
 
 Source: refreshed GitHub #102 and pinned core `operations/split.rs` (5.4.2).
 
@@ -60,8 +60,11 @@ claimed. No dependency/package version changes.
 
 Scope: #102 changes over develop `808aaef8`, including new split implementation,
 managed API/results/tests, shared generated-Info helper visibility and parity
-contract. No unrelated operations were redesigned. Local acceptance is supported
-by real FFI and compiled negative controls. Platform acceptance remains pending CI.
+contract. No unrelated operations were redesigned. Acceptance is supported by real FFI, compiled negative controls and all 14 platform
+CI jobs on `4191f2a81be0cf060a6e53a6549733a4b81a14d1`:
+https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38708577065
+Documentation-only closure preserves product/test/contract/workflow identity with
+that validated commit. No automatic PR or package publication.
 
 ### Contratos y evidencia
 
@@ -90,17 +93,17 @@ The Unicode repair's implementation is unchanged; #103 regression remains releva
 
 ### Hallazgos
 
-1. **Zero chunk core loop**: native/src/split_options.rs — core can loop forever
+1. **Zero chunk core loop**: native/src/split_options.rs:89 — core can loop forever
    for zero and overflow for enormous chunks. Resolved by managed/native bounds;
    native FFI tests reject zero and usize::MAX before core dispatch.
-2. **Temporary path ownership**: native/src/operations.rs — old split used shared
+2. **Temporary path ownership**: native/src/split_options.rs:111 — old split used shared
    timestamp paths and removed only successfully-read outputs. Replaced for this
    options operation by private RAII storage and unique ordinal paths, retaining
    duplicates without overwrite. Isolation mutation and partial-failure tests pass.
-3. **Portable device names**: native/src/split_options.rs — simple separator checks
+3. **Portable device names**: native/src/split_options.rs:44 — simple separator checks
    miss Windows reserved names, including superscript device digits and padded
    stems. Explicit rejection and real-FFI examples now cover these cases.
-4. **Enum contract representation**: docs/parity-contract.json — initial Mode
+4. **Enum contract representation**: docs/parity-contract.json:383 — initial Mode
    default used text instead of the gate's numeric representation. Corrected to 0;
    the initial 119-pass/1-fail run was a contract registration failure, not split
    behavior. The subsequent 120-case run passed before additional boundary cases.
@@ -114,7 +117,8 @@ claim their cleanup behavior has changed. Broader writer issues remain in #87.
 Both skill-script analyses executed. Rust: score 97, 236 tests/25 files; new
 split_options.rs: 4 tests, score 98. C#: score 95, 997 tests/126 files; new
 SplitOptionsTests: 6 methods, score 100. Existing worst offenders include
-ffi_guard_unit_swallows_panic and corpus/setup-heavy tests. The tool's suggestions
+ffi_guard_unit_swallows_panic (65), PdfDocumentBuilderTests.Dispose_Twice_DoesNotThrow
+(65) and PdfFlowLayoutTests.Dispose_Twice_DoesNotThrow (65). The tool's suggestions
 about hardcoded expectations do not invalidate independent behavioral oracles.
 
 ### Análisis de Seguridad (Kripteia Security)
@@ -131,7 +135,7 @@ read-only in the sandbox, but both analyses completed successfully.
 - Reviewed: 10 implementation/test/contract files plus this documentation.
 - Confirmed findings: 4, resolved within the authorized increment.
 - Product files modified by the final read-only review: 0.
-- Pending verification: platform CI before integration.
+- Pending verification: none within #102. Package publication is separate.
 
 # Completed increment — merge metadata modes (#103), 2026-10-14
 
