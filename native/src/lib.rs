@@ -30,6 +30,7 @@ pub mod operations;
 pub mod outline_read;
 pub mod page;
 pub mod parser;
+pub mod pdfa;
 pub mod pipeline_config;
 pub mod resource_provenance;
 pub mod security;

@@ -1,3 +1,148 @@
+# Active increment — PDF/A validation (#90), 2026-10-15
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| All eight core levels and collect-all-errors setting | Demonstrated locally, including compiled negative control | Core 5.4.2 stores but never reads collect-all; documented and tested as such |
+| Structured errors/warnings and operation failures | Demonstrated locally | Exhaustive variant mapping; distinguish parser failure from findings and unlock encrypted readers explicitly |
+| Valid/invalid fixtures per level; actual validator coverage | Demonstrated locally | Independently authored PDFs, compressed/uncompressed XMP and level-specific violations; no certification or conversion claim |
+| Ownership, boundary behavior and compatibility | Demonstrated locally | Snapshots, typed failures, native boundaries and real FFI; existing OCR regression passes |
+| Parity gate, quality/security review and platform CI | Local checks and review complete; platform CI pending | Validate final implementation on every configured platform before integration |
+
+## Quality review — PDF/A validation (#90)
+
+### Resumen ejecutivo
+
+Reviewed ten changed implementation/test/contract/documentation/probe files over
+develop `324235d`, excluding preexisting session notes. The new API wraps the
+pinned validator and an optional reader unlock; no dependency or existing API
+changes. [Public contract and limitations](PDFA_VALIDATION.md). Local acceptance
+passes; platform CI and integration remain pending. The separate #89 upstream
+blocker is documented below and is not represented as completed implementation.
+
+### Contratos y evidencia
+
+35 focused .NET cases pass: 21 new PDF/A cases, the parity/ABI gates and existing
+OCR-layer regression. Each of eight levels has matching and mismatched XMP tests,
+including compressed metadata. Distinctive findings retain font/action/location,
+version and identifier payloads. Rule differences cover transparency, ToUnicode
+and attachments. Conformance failures return reports; malformed PDF/page trees,
+locked readers and wrong passwords produce typed operation failures. Successful
+unlock retains EncryptionForbidden. Invalid settings, native JSON, cancellation,
+input snapshots and recovery after failures exercise the real FFI.
+
+All 248 native tests pass. Three new tests cover declared warnings/unemitted
+variants, Unicode/u64 payloads, operation error categories, null/UTF-8/impossible
+length boundaries and rejection before dereferencing over-budget input. Clippy
+with all targets/features and warnings denied passes; format checks are part of
+the final verification. Logs: `/tmp/pdfa-*.log`.
+
+An isolated compiled managed copy forces all requests to A1b while continuing to
+call the real native validator. Seven level cases fail their validity assertions;
+the A1b control passes. This is a behavioral failure, not a setup/compile failure.
+Production sources/runtime are unchanged. Evidence: `/tmp/pdfa-level-mutant` and
+`/tmp/pdfa-mutant-test.log`. The subsequent optional-password branch does not
+change the no-password requests used by this control; its evidence remains
+applicable and the final baseline passes all eight cases.
+
+Manual review traced all enum/payload mappings, parser/validator error paths,
+unlocking, snapshot timing, allocation ownership and limits. Output pointers are
+cleared before validation; byte limits precede slice construction; every native
+JSON response is freed in finally. No native handles, caller-controlled file
+writes or PDF action execution are introduced. Credentials are not logged or
+returned, but are ordinary request strings with no secure-erasure guarantee.
+The 100 MiB input cap is not a global parser/decompression/runtime budget; #100
+retains that separate capability. The OCR probe uses explicit trusted library
+selection, private temporary files, no shell, a Poppler timeout and one native
+free. Its expected geometric failure is not counted as a passing test.
+
+### Hallazgos
+
+1. **Collect setting is a core no-op**: native/src/pdfa.rs:134 and
+   dotnet/OxidizePdf.NET/PdfAValidation.cs:78 — forwarding false cannot cause early
+   termination in 5.4.2. Preserve the complete report and document this behavior;
+   both values are compared through FFI. A future core change requires renewed
+   evidence, not artificial report truncation.
+2. **Partial core coverage and silent optional references**:
+   dotnet/OxidizePdf.NET.Tests/PdfAValidationTests.cs:124 — the first test assumed
+   a dangling OpenAction would throw; the core resolves it to null and skips it.
+   A malformed required Pages reference demonstrates the actual parser failure.
+   Both behaviors are now asserted and the coverage guide records this gap.
+   Core warnings have no producer; their full variants are unit-tested at the
+   native mapping boundary rather than fabricated by the validator.
+3. **Locked readers cannot return a complete report**: native/src/pdfa.rs:127 —
+   the core initially notices encryption but then fails reading the locked
+   catalog. Add explicit Password support via public reader.unlock; null/wrong
+   credentials remain ParseError, successful unlocking still reports encryption.
+   Real encrypted FFI fixtures verify both paths. No document is decrypted to disk.
+4. **Existing OCR layer geometry fails acceptance**: tools/ocr_geometry_probe.py:90
+   — independent bounds are 160.02 pt for a 20 pt request. This blocks #89 and
+   belongs to upstream #708; it does not affect the read-only PDF/A wrapper.
+   Preserve #89 as open and require actual geometry/rendering evidence after the
+   core correction. The old layer usage guide now discloses the limitation.
+
+No unresolved binding defect remains within #90's explicit core-coverage scope.
+This conclusion does not certify the core's complete ISO conformance coverage.
+
+### Calidad de Tests (Kripteia)
+
+Rust: score 97, 248 tests/29 files; new pdfa module 3 tests, score 100. C#: score
+95, 1034 methods/130 files; new PDF/A file 7 methods, score 99. Lowest existing
+Rust item is ffi_guard_unit_swallows_panic (65); existing managed model-only tests
+are among lower scores. These unrelated observations are not #90 blockers.
+Python probe scan reports 0 tests/0 test files (score 100 therefore supplies no
+behavioral evidence); its actual subprocess/FFI run is the evidence above.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Rust reports 295 unsafe usages, predominantly FFI boundaries; no emitted secret
+or taint finding. C# reports no security issues, with 41 files degraded by its
+syntax parser, including PdfAValidationTests. Manual review covers this limitation.
+Python reports no security issues. All scans complete despite a read-only
+telemetry database warning; telemetry is not the analysis result. Scores and
+absence of findings do not substitute for the ownership/credential review.
+
+### Métricas
+
+- Files reviewed in this increment: 10, plus relevant pinned core producers.
+- Confirmed findings: 4, reconciled above; #89 remains separately blocked.
+- Product changes made by review itself: 0; reader-unlock correction belongs to
+  the authorized implementation and was revalidated.
+- Pending verification: final platform CI and integration evidence.
+
+## OCR #89 — upstream acceptance blocker
+
+Issue #89 remains open. Pinned core 5.4.2 has the unresolved defects in
+[upstream #708](https://github.com/bzsanti/oxidizePdf/issues/708), confirmed OPEN
+on 2026-10-15. The optional Tesseract provider emits zero-sized regions and
+dimensions, heuristic confidence and an ASCII-only default whitelist. Its
+availability method returns true without invoking the executable. Its image
+method does not implement preprocessing, regions or timeout options.
+
+The searchable layer also fails independent geometry acceptance even with
+valid caller-produced recognition. The committed probe calls our real
+`oxidize_ocr_layer` FFI, requires exact original-prefix preservation and exact
+text `El`, then measures the actual word using Poppler:
+
+```sh
+python3 tools/ocr_geometry_probe.py dotnet/OxidizePdf.NET/runtimes/linux-x64/native/liboxidize_pdf_ffi.so
+```
+
+Current result: requested width **20 pt**, actual width **160.02 pt**; exit 1
+at the geometric assertion. This is an expected failing acceptance probe, not
+a passing regression test. It requires an existing platform build and
+`pdftotext`; no recognition engine is needed for this isolated counterexample.
+It uses private temporary files and frees the native response once.
+
+Next action for #89: adopt a released core correction for #708, then implement
+the provider/converter binding, real recognition fixtures, optional RID packaging
+and CI. Geometry acceptance must include rotations and displaced CropBox, actual
+selectable bounds and unchanged visible rendering; metadata-only checks cannot
+close it. Provider/preprocessing/discovery behavior also requires validation.
+No OCR capability is marked complete or added to the passing parity inventory.
+Existing layer APIs are retained; their current tests prove text/prefix behavior,
+not alignment. Work proceeds to independent #90 without changing the core pin
+or maintaining a separate OCR engine in the binding.
+
 # Completed increment — CID Unicode and vertical metrics (#88), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |

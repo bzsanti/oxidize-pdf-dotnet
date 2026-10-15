@@ -33,6 +33,13 @@ strictly increasing reading-order indexes, nonempty text, and finite confidence
 between zero and one. Confidence is stored as recognition metadata; this API
 does not filter low-confidence words for you.
 
+**Core 5.4.2 geometry limitation:** requested regions do not reliably match actual
+selectable glyph bounds. A 20 pt wide word can occupy 160.02 pt; rotated pages
+also require a core correction. See [upstream #708](https://github.com/bzsanti/oxidizePdf/issues/708)
+and the real-FFI/Poppler probe `tools/ocr_geometry_probe.py`. Text extraction and
+prefix preservation do not demonstrate geometric alignment. Recognition and a
+correctly aligned searchable-PDF pipeline remain incomplete under #89.
+
 The plan identifies changed pages, added streams and font resources, and pages
 skipped because an oxidize-pdf OCR layer already exists. Each changed page gets
 an isolated font resource and an invisible text stream. Unicode is retained for

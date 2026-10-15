@@ -7,6 +7,10 @@ namespace OxidizePdf.NET;
 /// </summary>
 internal static class NativeMethods
 {
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_pdfa_validate([In] byte[] pdf, nuint length,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string request, out IntPtr output);
+
     private const string LibraryName = "oxidize_pdf_ffi";
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
