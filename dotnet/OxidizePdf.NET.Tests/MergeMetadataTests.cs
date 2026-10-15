@@ -7,7 +7,7 @@ public class MergeMetadataTests
 {
     // Independent PDF with two identifiable pages, four Info fields and an XMP
     // stream. Metadata assertions read the serialized result through the real FFI.
-    private static byte[] Pdf(string name, bool info = true, bool noPages = false, bool unicode = false)
+    internal static byte[] Pdf(string name, bool info = true, bool noPages = false, bool unicode = false)
     {
         string content1 = $"BT /F1 12 Tf 20 100 Td ({name}-one) Tj ET";
         string content2 = $"BT /F1 12 Tf 20 100 Td ({name}-two) Tj ET";

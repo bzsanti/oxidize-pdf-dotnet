@@ -110,7 +110,7 @@ fn merge(request: Request) -> Result<Vec<u8>, Failure> {
 // literal. Repair only our newly generated output, never arbitrary input PDFs.
 // A single Info revision uses UTF-16BE for non-ASCII selected fields. The core's
 // other Info values and original objects remain intact. Remove on core fix.
-fn encode_info_text(mut bytes: Vec<u8>) -> Result<Vec<u8>, String> {
+pub(crate) fn encode_info_text(mut bytes: Vec<u8>) -> Result<Vec<u8>, String> {
     use oxidize_pdf::parser::PdfReader;
     use std::fmt::Write;
     use std::io::Cursor;

@@ -1,3 +1,138 @@
+# Active increment — split options (#102), 2026-10-15
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| Core 5.4.2 defaults and metadata/optimize options | Demonstrated locally | Real-FFI Info assertions, including Unicode, absence and discard; optimization explicitly no-op |
+| Named byte results without caller filesystem authority | Demonstrated locally | Private RAII directory; portable pattern checks; two compiled negative controls |
+| Existing modes/APIs, owned bytes and typed failures | Demonstrated locally | All four modes, repeated ranges, snapshots, malformed input, page bounds and FFI output reset |
+| Contract gate, review/security and platform CI | Local checks/review complete; platform CI pending | CI must pass before integration; no package publication |
+
+Source: refreshed GitHub #102 and pinned core `operations/split.rs` (5.4.2).
+
+```csharp
+var parts = await PdfOperations.SplitNamedAsync(pdf, new PdfSplitOptions
+{
+    Mode = PdfSplitMode.Ranges,
+    Ranges = [(0, 2), (4, 4)],
+    OutputPattern = "part-{n}-{start}-{end}.pdf",
+    PreserveMetadata = true,
+    Optimize = false
+});
+// parts[0].FileName == "part-1-1-3.pdf"; parts[0].Bytes are caller-owned.
+```
+
+The existing SplitAsync overloads and four modes remain available. Options-based
+splits now snapshot input bytes and selectors before queueing. Cancellation affects
+queued work only. SplitNamedAsync returns independent owned byte arrays with
+suggested filenames; callers decide whether/where to persist them. No filename
+from the request enters filesystem operations. Private RAII temporary storage
+cleans inputs and partial outputs on success, errors and unwinding.
+
+Defaults match core: PreserveMetadata=true, Optimize=false, OutputPattern="page_{}.pdf".
+Only Title/Author/Subject/Keywords are copied; writer-generated Info may remain
+when preservation is false. XMP/custom Info and structural preservation are outside
+this reconstructing contract; use policy-driven PdfExistingDocumentOperations for
+those guarantees. Generated Unicode Info uses the existing bounded UTF-16BE repair
+from #103. Core 5.4.2 never reads Optimize: true is an explicit no-op, and named
+results report OptimizationApplied=false. No size reduction is promised.
+
+Names use one-based numbers: {n} is output ordinal, {} is page for SinglePages or
+start-end for range-based modes (including 2-2 for one-page ranges). {page} is valid
+only for SinglePages; {start}/{end} only for other modes. Unsupported tokens,
+separators, absolute paths, control characters, Windows device names and trailing
+space/dot are rejected; each resolved name is limited to 200 UTF-8 bytes. Named
+results reject duplicate names after lowercase comparison; use {n} for repeated
+ranges. Constant patterns are valid for one output. Existing byte-list results
+continue to allow repeated ranges. SplitAt retains core ordering and ignores zero
+and out-of-bounds points; it does not sort or deduplicate.
+
+Managed shape validation throws argument exceptions; native failures throw
+PdfSplitException (derived from PdfExtractionException), with InvalidInput,
+InvalidPdf, Io, Serialization or NativeFailure. C ABI symbol/signature and default
+JSON array-of-base64 response remain unchanged; optional named=true selects named
+objects. Unknown/irrelevant legacy JSON fields retain their prior ignored behavior.
+No general parser resource budget, immediate cancellation or global writer fix is
+claimed. No dependency/package version changes.
+
+## Quality review — split options increment
+
+### Resumen ejecutivo
+
+Scope: #102 changes over develop `808aaef8`, including new split implementation,
+managed API/results/tests, shared generated-Info helper visibility and parity
+contract. No unrelated operations were redesigned. Local acceptance is supported
+by real FFI and compiled negative controls. Platform acceptance remains pending CI.
+
+### Contratos y evidencia
+
+236 native tests and 123 focused .NET cases pass. Regression includes split options, existing
+operations, metadata merge, structural policies, parity and ABI. Assertions inspect
+serialized PDF metadata/text/page counts using an independent handwritten source
+fixture, plus ordering, duplicate ranges, owned buffers, snapshots, cancellation,
+invalid patterns, invalid PDF and partial range failure/recovery. Native tests
+exercise malformed JSON, zero/oversized chunk size, reversed/empty ranges, null
+pointers, invalid UTF-8, impossible lengths and legacy JSON defaults. Clippy with
+warnings denied and whitespace checks pass.
+
+Two compiled disposable negative controls in /tmp/split-options-mutant fail for
+intended assertions: bypassing portable-name validation accepts ../escape-{n}.pdf
+(return code 0 instead of InvalidArgument); passing the caller pattern to core
+writes split-<unique>-1.pdf into the mutant working directory, detected by the
+filesystem isolation assertion. Production sources/runtime remain unchanged by
+these experiments. Evidence: /tmp/split-options-mutant.log and
+/tmp/split-options-isolation-mutant.log. Baseline logs use /tmp/split-options-*.
+
+Manual review traced all request fields through JSON/core/naming/result decoding,
+source snapshots, thread-local errors, pointer preconditions and output reset,
+exactly-once buffer release, private paths and partial-error cleanup. Naming is
+metadata even if validation regresses: core receives only trusted internal tokens.
+The Unicode repair's implementation is unchanged; #103 regression remains relevant.
+
+### Hallazgos
+
+1. **Zero chunk core loop**: native/src/split_options.rs — core can loop forever
+   for zero and overflow for enormous chunks. Resolved by managed/native bounds;
+   native FFI tests reject zero and usize::MAX before core dispatch.
+2. **Temporary path ownership**: native/src/operations.rs — old split used shared
+   timestamp paths and removed only successfully-read outputs. Replaced for this
+   options operation by private RAII storage and unique ordinal paths, retaining
+   duplicates without overwrite. Isolation mutation and partial-failure tests pass.
+3. **Portable device names**: native/src/split_options.rs — simple separator checks
+   miss Windows reserved names, including superscript device digits and padded
+   stems. Explicit rejection and real-FFI examples now cover these cases.
+4. **Enum contract representation**: docs/parity-contract.json — initial Mode
+   default used text instead of the gate's numeric representation. Corrected to 0;
+   the initial 119-pass/1-fail run was a contract registration failure, not split
+   behavior. The subsequent 120-case run passed before additional boundary cases.
+
+No unresolved implementation finding in scope. Legacy no-options split and other
+old temporary-file helpers remain outside #102; the updated options API does not
+claim their cleanup behavior has changed. Broader writer issues remain in #87.
+
+### Calidad de Tests (Kripteia)
+
+Both skill-script analyses executed. Rust: score 97, 236 tests/25 files; new
+split_options.rs: 4 tests, score 98. C#: score 95, 997 tests/126 files; new
+SplitOptionsTests: 6 methods, score 100. Existing worst offenders include
+ffi_guard_unit_swallows_panic and corpus/setup-heavy tests. The tool's suggestions
+about hardcoded expectations do not invalidate independent behavioral oracles.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Rust reports 292 unsafe usages, mainly existing FFI declarations; no secret or
+taint-flow findings emitted. Changed pointer handling was reviewed manually.
+C# reports no security issues, with degraded syntax analysis in 34 files, including
+PdfOperations.cs and MergeMetadataTests.cs. Manual tracing covers these affected
+boundaries; the scan is supporting evidence, not proof. Telemetry writes were
+read-only in the sandbox, but both analyses completed successfully.
+
+### Métricas
+
+- Reviewed: 10 implementation/test/contract files plus this documentation.
+- Confirmed findings: 4, resolved within the authorized increment.
+- Product files modified by the final read-only review: 0.
+- Pending verification: platform CI before integration.
+
 # Completed increment — merge metadata modes (#103), 2026-10-14
 
 | Requirement / source | State / evidence | Blocker / next action |

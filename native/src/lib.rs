@@ -312,3 +312,5 @@ pub mod redaction;
 pub mod streams;
 
 pub mod named_images;
+
+mod split_options;

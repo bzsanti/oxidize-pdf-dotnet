@@ -636,21 +636,13 @@ pub unsafe extern "C" fn oxidize_reverse_pages_bytes(
 
 // ── split with options ────────────────────────────────────────────────────────
 
-/// Options JSON tag for split mode dispatch.
-#[derive(serde::Deserialize)]
-#[serde(tag = "mode")]
-enum SplitOptionsJson {
-    SinglePages,
-    ChunkSize { chunk_size: usize },
-    Ranges { ranges: Vec<[usize; 2]> },
-    SplitAt { split_at: Vec<usize> },
-}
-
 /// Split a PDF (supplied as bytes) with configurable split options.
 ///
 /// `options_json` must be a null-terminated JSON object with a `mode` tag,
 /// e.g. `{"mode":"ChunkSize","chunk_size":3}`.
-/// Returns a JSON array of base64-encoded PDF strings.
+/// Returns a JSON array of base64-encoded PDF strings by default. With `named`
+/// true, returns objects containing `FileName` and base64 `Bytes`. Patterns are
+/// suggested filenames only; private temporary paths are generated internally.
 /// The JSON string must be freed with `oxidize_free_string`.
 ///
 /// # Safety
@@ -666,14 +658,17 @@ pub unsafe extern "C" fn oxidize_split_pdf_bytes_with_options(
 ) -> c_int {
     crate::ffi_guard(move || {
         clear_last_error();
+        if !out_json.is_null() {
+            *out_json = ptr::null_mut();
+        }
         if pdf_bytes.is_null() || options_json.is_null() || out_json.is_null() {
             set_last_error("Null pointer provided to oxidize_split_pdf_bytes_with_options");
             return ErrorCode::NullPointer as c_int;
         }
         *out_json = ptr::null_mut();
 
-        if pdf_len == 0 {
-            set_last_error("PDF data is empty (0 bytes)");
+        if pdf_len == 0 || pdf_len > isize::MAX as usize {
+            set_last_error("PDF data length is invalid");
             return ErrorCode::PdfParseError as c_int;
         }
 
@@ -685,65 +680,8 @@ pub unsafe extern "C" fn oxidize_split_pdf_bytes_with_options(
             }
         };
 
-        let opts_json: SplitOptionsJson = match serde_json::from_str(opts_str) {
-            Ok(v) => v,
-            Err(e) => {
-                set_last_error(format!("Failed to parse options_json: {e}"));
-                return ErrorCode::SerializationError as c_int;
-            }
-        };
-
-        let split_mode = match opts_json {
-            SplitOptionsJson::SinglePages => oxidize_pdf::operations::SplitMode::SinglePages,
-            SplitOptionsJson::ChunkSize { chunk_size } => {
-                oxidize_pdf::operations::SplitMode::ChunkSize(chunk_size)
-            }
-            SplitOptionsJson::Ranges { ranges } => {
-                let page_ranges: Vec<oxidize_pdf::operations::PageRange> = ranges
-                    .iter()
-                    .map(|&[from, to]| oxidize_pdf::operations::PageRange::Range(from, to))
-                    .collect();
-                oxidize_pdf::operations::SplitMode::Ranges(page_ranges)
-            }
-            SplitOptionsJson::SplitAt { split_at } => {
-                oxidize_pdf::operations::SplitMode::SplitAt(split_at)
-            }
-        };
-
         let input_bytes = std::slice::from_raw_parts(pdf_bytes, pdf_len);
-
-        let result = with_temp_input(input_bytes, |input_path| {
-            let out_dir = std::env::temp_dir();
-            let ts = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0);
-            let pattern = format!(
-                "{}/oxidize_split_opts_{}_chunk_{{}}.pdf",
-                out_dir.display(),
-                ts
-            );
-
-            let options = oxidize_pdf::operations::SplitOptions {
-                mode: split_mode,
-                output_pattern: pattern,
-                ..Default::default()
-            };
-
-            let paths = oxidize_pdf::operations::split_pdf(input_path, options)
-                .map_err(|e| format!("split_pdf failed: {e}"))?;
-
-            let mut encoded_chunks = Vec::with_capacity(paths.len());
-            for path in &paths {
-                let chunk_bytes =
-                    fs::read(path).map_err(|e| format!("Failed to read split chunk: {e}"))?;
-                encoded_chunks.push(base64::engine::general_purpose::STANDARD.encode(&chunk_bytes));
-                let _ = fs::remove_file(path);
-            }
-
-            serde_json::to_string(&encoded_chunks)
-                .map_err(|e| format!("JSON serialization failed: {e}"))
-        });
+        let result = crate::split_options::split(input_bytes, opts_str);
 
         match result {
             Ok(json) => match CString::new(json) {
@@ -756,9 +694,9 @@ pub unsafe extern "C" fn oxidize_split_pdf_bytes_with_options(
                     ErrorCode::SerializationError as c_int
                 }
             },
-            Err(msg) => {
+            Err((code, msg)) => {
                 set_last_error(msg);
-                ErrorCode::IoError as c_int
+                code as c_int
             }
         }
     })

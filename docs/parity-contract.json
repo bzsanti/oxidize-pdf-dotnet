@@ -1,6 +1,6 @@
 {
   "core": "5.4.2",
-  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Merge metadata source modes. Remaining Rust API pending audit; no total parity claim.",
+  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Merge metadata source modes. Remaining Rust API pending audit; no total parity claim. Split options and suggested byte-result names.",
   "callables": {
     "PdfSignatureSlots.CreateAsync": [
       "pdf",
@@ -113,6 +113,11 @@
     ],
     "PdfOperations.MergeWithMetadataAsync": [
       "inputs",
+      "options",
+      "ct"
+    ],
+    "PdfOperations.SplitNamedAsync": [
+      "pdfBytes",
       "options",
       "ct"
     ]
@@ -278,6 +283,23 @@
     ],
     "PdfMergeException": [
       "Error"
+    ],
+    "PdfSplitOptions": [
+      "Mode",
+      "ChunkSize",
+      "Ranges",
+      "SplitAt",
+      "PreserveMetadata",
+      "Optimize",
+      "OutputPattern"
+    ],
+    "PdfSplitResult": [
+      "FileName",
+      "Bytes",
+      "OptimizationApplied"
+    ],
+    "PdfSplitException": [
+      "Error"
     ]
   },
   "defaults": {
@@ -357,6 +379,13 @@
       "Author": null,
       "Subject": null,
       "Keywords": null
+    },
+    "PdfSplitOptions": {
+      "Mode": 0,
+      "ChunkSize": 1,
+      "PreserveMetadata": true,
+      "Optimize": false,
+      "OutputPattern": "page_{}.pdf"
     }
   },
   "behavior_tests": [
@@ -413,6 +442,12 @@
     "MergeMetadataTests.InvalidIndexesEmptySelectionsAndConflictingOptionsAreRejected",
     "MergeMetadataTests.NativeFailuresAreTypedAndLaterMergesStillSucceed",
     "MergeMetadataTests.CallerMutationsAfterReturnCannotChangeQueuedRequest",
-    "MergeMetadataTests.UnicodeFieldsRoundTripForEverySourceMode"
+    "MergeMetadataTests.UnicodeFieldsRoundTripForEverySourceMode",
+    "SplitOptionsTests.MetadataAndOptimizationFollowCoreContract",
+    "SplitOptionsTests.RangesKeepOrderAndUseOneBasedNames",
+    "SplitOptionsTests.ExistingModesRetainTheirNaming",
+    "SplitOptionsTests.InvalidOrDuplicateNamesAreRejected",
+    "SplitOptionsTests.FailuresAndSnapshotsCrossRealFfi",
+    "SplitOptionsTests.LegacyOptionsHonorMetadataAndMissingInfo"
   ]
 }
