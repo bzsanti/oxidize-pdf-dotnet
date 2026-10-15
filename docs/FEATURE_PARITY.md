@@ -1,4 +1,4 @@
-# Active increment — incremental writer and Info policy (#87), 2026-10-15
+# Completed increment — incremental writer and Info policy (#87), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |
 | --- | --- | --- |
@@ -6,7 +6,7 @@
 | Preserve/Replace Info, including Unicode | Demonstrated locally, including negative control | Original reference/generation/absence retained; six replacement fields encoded correctly |
 | Exact prefix and valid revisions | Demonstrated locally | Independent fixture, exact prefix, each xref entry and Prev, repeated revisions, stream-xref base and trailer IDs |
 | Typed failures and ownership; unchanged SaveToBytes | Demonstrated locally | SafeHandle, checked copy/free, native boundaries, malformed/encrypted bases, unsupported structure and legacy-save regression |
-| Contract gate, quality/security and platform CI | Local review/checks pass; CI pending | Run platform CI on the implementation commit before develop |
+| Contract gate, quality/security and platform CI | Demonstrated: local checks/review and 14/14 CI jobs pass on `c49dcca` | None; package publication separate |
 
 Source: #87 and pinned core 5.4.2 WriterConfig/PdfWriter. The additive synchronous
 API supplies base bytes separately from the live PdfDocument containing new pages
@@ -27,7 +27,11 @@ is necessary for valid incremental trailer continuity and never rewrites the bas
 Scope: changes over develop `46f86c6`, including six product files, one new test
 file, parity contract and two documentation files. The additive native export and
 managed method use core 5.4.2 directly. Existing save signatures and behavior are
-unchanged. Local review is complete; platform CI remains the integration blocker.
+unchanged. Local review and all 14 platform CI jobs pass on implementation
+`c49dcca520fef3669787d3c3788627e1a3028406`:
+https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38768393315
+Documentation-only closure preserves product/test/contract/workflow identity with
+the validated implementation.
 See [public contract and usage](INCREMENTAL_WRITING.md).
 
 ### Contratos y evidencia
@@ -115,7 +119,7 @@ about unrestricted resource use or permission to modify signed PDFs.
 - Archivos revisados: 10 changed files, plus core writer/parser and existing ABI consumers.
 - Hallazgos totales: 3, reconciled above.
 - Archivos de producto modificados por la revisión: 0; the unsupported test fixture was corrected.
-- Verificaciones pendientes: platform CI on the implementation commit.
+- Verificaciones pendientes: none for #87 acceptance; package publication is separate.
 
 # Completed increment — tagged preflight and preparation (#86), 2026-10-15
 
