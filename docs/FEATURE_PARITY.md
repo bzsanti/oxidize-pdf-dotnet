@@ -81,6 +81,18 @@ promise to bound all allocations made by the core.
    instead of representing a partially recovered table as complete. Replace this
    adapter with a core table accessor when upstream makes one public.
 
+2. **CI toolchain lint**: native/src/font_inspection.rs:171 — CI uses Rust 1.99,
+   whose new chunks_exact_to_as_chunks lint rejects constant-sized chunks_exact
+   under warnings-as-errors; local Rust 1.96 did not flag it. Use
+   as_chunks::<3>().0.iter(), supported by the project's Rust 1.88 minimum.
+   The preceding remainder validation remains unchanged, so iteration visits
+   exactly the same triples. The first CI run 38776084208 is not acceptance
+   evidence; the corrected implementation requires a fresh platform run. All 245
+   native tests and 32 CID .NET cases pass again against the rebuilt library, as
+   does Clippy with all targets/features. The one-line iterator substitution does
+   not change the guards or Unicode selection exercised by the isolated mutant;
+   that evidence and the completed security analysis remain applicable.
+
 No confirmed defect remains in #88. CIDSystemInfo is declared metadata, not proof
 of effective collection fallback; actual Unicode is decided by the core. Full PDF
 parsing, embedded-font loading and internal CMap processing are not governed by
@@ -109,8 +121,8 @@ not certify global memory/time limits or unreviewed core internals.
 ### Métricas
 
 - Archivos revisados: 8 changed files, plus core font/collection/parser consumers and existing font-resource APIs.
-- Hallazgos totales: 1, resolved within scope as described.
-- Archivos de producto modificados por la revisión: 0.
+- Hallazgos totales: 2, resolved within scope as described.
+- Archivos de producto modificados por la revisión: 1 (CI lint compatibility).
 - Verificaciones pendientes: platform CI on the implementation commit.
 
 # Completed increment — incremental writer and Info policy (#87), 2026-10-15

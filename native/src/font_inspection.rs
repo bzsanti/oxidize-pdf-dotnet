@@ -168,7 +168,7 @@ fn vertical(
             if entries > max {
                 return Err(limit("Vertical metric table exceeds entry budget"));
             }
-            for (offset, triple) in values.0.chunks_exact(3).enumerate() {
+            for (offset, triple) in values.0.as_chunks::<3>().0.iter().enumerate() {
                 let key = first as usize + offset;
                 if key > u16::MAX as usize {
                     return Err(pdf_error("W2 override exceeds CID 65535"));
