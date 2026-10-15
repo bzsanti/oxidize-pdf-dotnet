@@ -1,4 +1,4 @@
-# Active increment — PDF/A validation (#90), 2026-10-15
+# Completed increment — PDF/A validation (#90), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |
 | --- | --- | --- |
@@ -6,7 +6,7 @@
 | Structured errors/warnings and operation failures | Demonstrated locally | Exhaustive variant mapping; distinguish parser failure from findings and unlock encrypted readers explicitly |
 | Valid/invalid fixtures per level; actual validator coverage | Demonstrated locally | Independently authored PDFs, compressed/uncompressed XMP and level-specific violations; no certification or conversion claim |
 | Ownership, boundary behavior and compatibility | Demonstrated locally | Snapshots, typed failures, native boundaries and real FFI; existing OCR regression passes |
-| Parity gate, quality/security review and platform CI | Local checks and review complete; platform CI pending | Validate final implementation on every configured platform before integration |
+| Parity gate, quality/security review and platform CI | Demonstrated: local checks and 14/14 CI jobs pass on `39100ed` | None for #90; package publication separate |
 
 ## Quality review — PDF/A validation (#90)
 
@@ -16,7 +16,11 @@ Reviewed ten changed implementation/test/contract/documentation/probe files over
 develop `324235d`, excluding preexisting session notes. The new API wraps the
 pinned validator and an optional reader unlock; no dependency or existing API
 changes. [Public contract and limitations](PDFA_VALIDATION.md). Local acceptance
-passes; platform CI and integration remain pending. The separate #89 upstream
+passes, and all 14 platform CI jobs pass on implementation
+`39100ed1125e6f1ea11489a5cc37228bf814e70c`:
+https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38808943719
+Documentation-only closure preserves product/test/contract/workflow identity with
+that validated SHA. The separate #89 upstream
 blocker is documented below and is not represented as completed implementation.
 
 ### Contratos y evidencia
@@ -34,7 +38,7 @@ All 248 native tests pass. Three new tests cover declared warnings/unemitted
 variants, Unicode/u64 payloads, operation error categories, null/UTF-8/impossible
 length boundaries and rejection before dereferencing over-budget input. Clippy
 with all targets/features and warnings denied passes; format checks are part of
-the final verification. Logs: `/tmp/pdfa-*.log`.
+the final verification and pass. Logs: `/tmp/pdfa-*.log`.
 
 An isolated compiled managed copy forces all requests to A1b while continuing to
 call the real native validator. Seven level cases fail their validity assertions;
@@ -107,7 +111,10 @@ absence of findings do not substitute for the ownership/credential review.
 - Confirmed findings: 4, reconciled above; #89 remains separately blocked.
 - Product changes made by review itself: 0; reader-unlock correction belongs to
   the authorized implementation and was revalidated.
-- Pending verification: final platform CI and integration evidence.
+- Pending verification for #90: none; all 14 configured platform CI jobs pass.
+- CI workflow preference: the user explicitly allowed this existing feature-push
+  run to finish, but future increments must use PR-triggered CI targeting
+  develop/main. No workflow change or new CI run is part of this closure.
 
 ## OCR #89 — upstream acceptance blocker
 
