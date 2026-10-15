@@ -1,4 +1,4 @@
-# Active increment — tagged preflight and preparation (#86), 2026-10-15
+# Completed increment — tagged preflight and preparation (#86), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |
 | --- | --- | --- |
@@ -6,7 +6,7 @@
 | Full preparation inventory separate from mutation plan | Demonstrated locally | Exact classic/stream-xref inventories, retired generation 3 and independent mutation inventory |
 | Prefix, ownership, permissions, ambiguity and final validation | Demonstrated locally, including negative control | Real-FFI handwritten fixtures, policy/validation rejection and input snapshots |
 | Typed options/results/errors and existing API compatibility | Demonstrated locally | Argument validation, typed native errors, legacy signatures/schema/exception retained |
-| Contract gate, quality/security and platform CI | Local checks/review complete; CI pending | Complete platform CI before integration; no package publication |
+| Contract gate, quality/security and platform CI | Demonstrated: local checks/review and 14/14 CI jobs pass on `7d7a5c0` | None; package publication separate |
 
 Source: refreshed #86, first pending high-priority entry in #81, and pinned core
 `writer/incremental_tagged_pdf.rs`. See [usage and precise contracts](TAGGED_PDF_EDITING.md#preflight-and-explicit-preparation).
@@ -24,7 +24,10 @@ Reviewed changes over develop `0b8905e`: additive preflight/prepared managed API
 options/results/errors, existing tagged FFI dispatch, behavioral tests and parity
 contract. The core recovery/editor is used directly; no reconstruction or custom
 repair algorithm is added. Local behavior and review are complete, including a compiled negative control;
-platform acceptance awaits CI.
+all 14 platform CI jobs pass on `7d7a5c0aab8d7661cf30fd79d527c6d29df92def`:
+https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38731361842
+Documentation-only closure preserves product/test/contract/workflow identity with
+the validated implementation.
 
 ### Contratos y evidencia
 
@@ -105,7 +108,7 @@ claimed as proof of safety.
 - Changed files reviewed: 7 implementation/test/contract/documentation files, with core/editor and existing model consumers traced.
 - Confirmed findings: 3, corrected within this increment.
 - Product files modified by the final read-only review: 0.
-- Pending verification: platform CI before integration.
+- Pending verification: none within #86; package publication is separate.
 
 # Completed increment — split options (#102), 2026-10-15
 
