@@ -299,6 +299,15 @@ internal static class NativeMethods
         out IntPtr outBytes,
         out nuint outLen);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_save_incremental(
+        DocumentSafeHandle handle,
+        [In] byte[] basePdf,
+        nuint baseLength,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string request,
+        out IntPtr outBytes,
+        out nuint outLen);
+
     /// <summary>Get the number of pages in the document</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_page_count(IntPtr handle, out nuint outCount);

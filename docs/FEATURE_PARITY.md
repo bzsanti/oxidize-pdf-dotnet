@@ -1,3 +1,122 @@
+# Active increment — incremental writer and Info policy (#87), 2026-10-15
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| All five core WriterConfig fields and a real base workflow | Demonstrated locally | Explicit byte-base append/leading-page replacement; incremental_update is selected by operation |
+| Preserve/Replace Info, including Unicode | Demonstrated locally, including negative control | Original reference/generation/absence retained; six replacement fields encoded correctly |
+| Exact prefix and valid revisions | Demonstrated locally | Independent fixture, exact prefix, each xref entry and Prev, repeated revisions, stream-xref base and trailer IDs |
+| Typed failures and ownership; unchanged SaveToBytes | Demonstrated locally | SafeHandle, checked copy/free, native boundaries, malformed/encrypted bases, unsupported structure and legacy-save regression |
+| Contract gate, quality/security and platform CI | Local review/checks pass; CI pending | Run platform CI on the implementation commit before develop |
+
+Source: #87 and pinned core 5.4.2 WriterConfig/PdfWriter. The additive synchronous
+API supplies base bytes separately from the live PdfDocument containing new pages
+and replacement metadata. Core supports classic output xrefs only; header/version
+remain those of the base. Replacement affects the first N pages, retains the tail,
+and is not a content overlay. Other document-level settings do not replace the
+base catalog. Existing full-save APIs remain unchanged. The core path-only API
+requires private RAII temporary storage. No automatic PR or package publication.
+
+The core also drops the base trailer ID. A bounded final generated-trailer repair
+will retain its original byte-string pair, after any generated Info repair; this
+is necessary for valid incremental trailer continuity and never rewrites the base.
+
+## Quality review — incremental writer (#87)
+
+### Resumen ejecutivo
+
+Scope: changes over develop `46f86c6`, including six product files, one new test
+file, parity contract and two documentation files. The additive native export and
+managed method use core 5.4.2 directly. Existing save signatures and behavior are
+unchanged. Local review is complete; platform CI remains the integration blocker.
+See [public contract and usage](INCREMENTAL_WRITING.md).
+
+### Contratos y evidencia
+
+61 focused .NET cases pass, including 12 new incremental-writer cases plus legacy
+saves, merge/split Info repair, ABI symbol resolution and reflection-based parity
+gates. Handwritten fixtures verify original generation-3 Info, absence of Info,
+Unicode and custom source metadata, XMP reference, two identifiable base pages,
+binary file IDs, append/leading-page replacement and untouched tail. Assertions
+check the original prefix, every new classic xref entry's object/generation/offset,
+each Prev pointer and repeated revisions. A handwritten stream-xref base is read
+and extended. New-stream compression is observed in bytes and extracted text.
+Replace covers all six Unicode fields and both identification policies; metadata-
+only revisions, malformed IDs/PDF, invalid options, encryption, unsupported Annots
+and disposed handles are covered. Failed writes leave the document reusable.
+
+242 native tests pass, including three new boundary tests: malformed/unknown JSON
+and enums, invalid writer combinations/version, null outputs/inputs, invalid UTF-8,
+zero/impossible slice lengths, cleared outputs and document reuse after failure.
+Clippy with warnings denied and format checks pass. Logs: /tmp/incremental-writer-*.log.
+
+A compiled isolated copy always selects Replace and omits Unicode repair. Four
+real-FFI cases fail for the intended reasons: two wrong Info-reference/absence
+assertions and two mojibake strings. Production sources/runtime remain unchanged;
+the baseline 61-case suite passes. Evidence: /tmp/incremental-writer-mutant-test.log
+and /tmp/incremental-writer-mutant. This discriminates policy and encoding behavior,
+not merely call success or output size.
+
+Manual review traced all five WriterConfig fields, request validation, core append
+and replacement paths, generated-only repairs, output ownership and failure mapping.
+The native call holds a SafeHandle reference; checked managed copying frees the
+buffer in finally. Slice length checks precede dereferencing, errors clear outputs,
+and the private temporary directory cleans up on return/error/unwind. The generated
+trailer repair inserts only hex byte strings after the final xref, leaving all
+object/xref offsets and the entire original prefix intact. Both parsers and byte
+assertions verify the resulting revisions. Existing four-field merge/split repairs
+retain their field selection; their regression cases pass.
+
+### Hallazgos
+
+1. **Unicode replacement Info**: native/src/incremental_writer.rs:119 — core
+   5.4.2 writes non-ASCII text as raw UTF-8 in PDF 1.x literals. The existing bounded
+   generated-Info helper now accepts an internal field list; only this new workflow
+   selects all six fields. Preserved source Info is never reinterpreted. Mutation
+   evidence demonstrates the corruption without this correction.
+2. **Trailer identifiers**: native/src/incremental_writer.rs:130 — the legacy
+   core writer drops base /ID. Restore the original two byte strings in the final
+   generated trailer, using hex encoding and preserving all offsets. Binary-ID and
+   repeated-revision assertions cover the repair, including after Unicode repair.
+3. **Recoverable malformed fixture**: dotnet/OxidizePdf.NET.Tests/IncrementalWriterTests.cs:198 —
+   an initial test assumed a wrong Pages reference must fail; the core parser
+   recovers it. The unsupported fixture now supplies a stream as Annots, which the
+   writer explicitly rejects. The prior failure was a test-contract assumption,
+   not evidence of an implementation fix.
+
+No remaining confirmed defect within #87. Full-save Unicode behavior remains
+unchanged as required by the issue's compatibility constraint. Core callback-style
+overlay is not exposed by this page-document workflow; content overlays use their
+existing operation APIs. Certification permission enforcement and configurable
+total resource budgets are not claimed by this low-level core API; use the signing
+policy APIs and track broader resource controls in #100. New document-level catalog
+settings are outside this workflow and explicitly documented, rather than silently
+represented as applied. No package publication is part of this delivery.
+
+### Calidad de Tests (Kripteia)
+
+Both mandatory scripts ran. Rust: 97, 242 tests/27 files; the new module has three
+tests, score 97. C#: 95, 1015 methods/128 files; IncrementalWriterTests has eight
+methods, score 100. Counts include theories once, unlike executed test-case counts.
+Existing worst offenders include ffi_guard_unit_swallows_panic and Dispose_Twice_
+DoesNotThrow (65); they are unchanged and outside #87. Scores supplement the
+independent fixtures and compiled negative control.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Rust reports 293 unsafe usages, mostly FFI declarations, and no emitted secret or
+taint-flow findings. C# reports no security issues, with degraded parsing in 37
+files including IncrementalWriterTests. Manual inspection covers the changed C#
+syntax and the full native FFI boundary. The telemetry database is read-only; both
+analyses completed and emitted their reports. A clean scan is not a guarantee
+about unrestricted resource use or permission to modify signed PDFs.
+
+### Métricas
+
+- Archivos revisados: 10 changed files, plus core writer/parser and existing ABI consumers.
+- Hallazgos totales: 3, reconciled above.
+- Archivos de producto modificados por la revisión: 0; the unsupported test fixture was corrected.
+- Verificaciones pendientes: platform CI on the implementation commit.
+
 # Completed increment — tagged preflight and preparation (#86), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |
@@ -907,7 +1026,7 @@ the current request is to update and analyze, not implement every Rust API.
 | NEW-004 / medium | `document.rs`: `BuildIdentification`, `set_build_identification` | Cannot disable generated build identification through `PdfDocument`; upstream default is Enabled |
 | NEW-005 / medium | `parser/reader.rs`, `parser/document.rs`: `effective_version`; `parser/objects.rs`: `to_text_with_version` | `GetPdfVersionAsync` still calls `reader.version()` in `native/src/parser.rs`; no catalog-aware effective-version API |
 | NEW-006 / medium | `parser/document.rs`: `decode_stream_with_recovery`, `extract_text_with_recovery` | No explicit recovery context/reporting contract in `PdfExtractor` |
-| NEW-007 / medium | `writer/pdf_writer/mod.rs`: `IncrementalInfoPolicy` | No general Preserve/Replace Info policy for the low-level incremental writer; distinct from existing structural-operation metadata policies |
+| NEW-007 / medium | `writer/pdf_writer/mod.rs`: `IncrementalInfoPolicy` | Implemented in #87: explicit incremental base bytes, append/leading-page replacement, Preserve/Replace Info; see [contract](INCREMENTAL_WRITING.md) |
 | NEW-008 / low | `text/metrics.rs`, `fonts/resolved.rs`, `text/font.rs`: CID collections, Unicode sequences and vertical metrics | Extraction benefits internally; managed font-resource models do not expose the full new CID mapping/vertical-metrics surface |
 
 ### Improvements inherited through existing calls
@@ -979,7 +1098,7 @@ Status values:
 | DOC-017 | Named destinations | no | Internal document links |
 | DOC-018 | Page labels | no | Custom page numbering (roman, alpha) |
 | DOC-019 | Structure tree (Tagged PDF) | no | Accessibility |
-| DOC-020 | Save with config (WriterConfig) | no | Compression, xref streams, PDF version |
+| DOC-020 | Save with config (WriterConfig) | yes | Existing full-save configuration plus explicit base-document incremental workflow (#87); classic incremental output only |
 | DOC-021 | Semantic entities | no | AI-ready markup |
 
 ## PAGE — Page creation

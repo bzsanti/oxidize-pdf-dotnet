@@ -19,6 +19,7 @@ pub mod graphics;
 pub mod header_footer;
 pub mod highlights;
 pub mod image;
+pub mod incremental_writer;
 pub mod ink;
 pub mod layout;
 pub mod lists;
