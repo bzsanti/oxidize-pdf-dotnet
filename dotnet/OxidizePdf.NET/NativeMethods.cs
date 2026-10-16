@@ -726,6 +726,10 @@ internal static class NativeMethods
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_restore_state(IntPtr page);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_clip_path(PageSafeHandle page,
+        [In] ClipCommand[] commands, nuint count, int windingRule);
+
     /// <summary>Set a rectangular clipping region</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_clip_rect(IntPtr page, double x, double y, double width, double height);
