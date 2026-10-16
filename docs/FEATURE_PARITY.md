@@ -1,4 +1,134 @@
-# Active increment — arbitrary clipping (#99), 2026-10-16
+# Active increment — form validation (#94), 2026-10-16
+
+Based on develop d47a087, after merging #107 and closing #99. Explicit validation
+uses core 5.4.2 without changing the dependency or existing FillField behavior.
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| All rules, masks, settings, values and results (#94) | Demonstrated locally | Typed models and synchronous real-core Validate/ValidateMany |
+| Custom rules and ordered diagnostics (#94) | Demonstrated locally | Snapshots, pure managed predicates, core Custom outcomes; mutation caught |
+| Unicode/empty/multiple-rule failures (#94) | Demonstrated locally | Six behavioral fixtures plus native boundary cases |
+| Existing FillField behavior (#94) | Demonstrated locally | Explicit invocation; regression covers reading, creation and filling |
+| Bounds, parity and quality/security (#94) | Demonstrated locally | 45 managed cases, 251 native units, Clippy and review below |
+| Platform CI (#94/#81) | Pending | Approved PR to develop; issue remains open until CI/integration |
+
+## Validation usage and contract
+
+```csharp
+var result = PdfFormValidation.Validate(new PdfFieldValidation(
+    "email", new PdfFormValue.Text("person@example.com"),
+    new PdfFieldValidator(new PdfValidationRule[] {
+        new PdfValidationRule.Required(), new PdfValidationRule.Email()
+    })));
+if (!result.IsValid)
+    foreach (var error in result.Errors)
+        Console.WriteLine(error.Message);
+```
+
+Call validation explicitly before the application's existing fill operation.
+ValidateMany returns independent requests in input order, including duplicate names.
+No document, JavaScript, external resource or persistent validation cache is involved.
+Rules and request data are snapshotted before invoking pure managed custom predicates;
+predicate exceptions propagate before native validation. No managed delegate pointer
+crosses FFI. Results are owned managed data; native output is always freed in finally.
+
+Core limits are explicit in XML docs and regression fixtures: all seven settings
+are stored but unused; conditions except Always evaluate false; Group is unused;
+Length counts UTF-8 bytes; formatting is not validation. Mask failures are Format,
+while email/URL/phone/date/time/card rule failures are Custom. Warnings are empty
+and Details is null. These are core contracts, not stronger binding guarantees.
+
+Limits: 256 requests, 128 rules/field, 1,024 total rules, 1 MiB input JSON,
+65,536 UTF-8 bytes/value, 1,024 bytes/name, 4,096 bytes/pattern or message, 32 number
+decimals, and 8 MiB output JSON. Custom placeholder is one Unicode scalar.
+Managed argument failures or PdfFormValidationException abort the whole call;
+field validation failures are returned diagnostics. Native callers must supply
+valid buffers; lengths are bounded before dereferencing.
+
+## Quality review — form validation (#94)
+
+### Resumen ejecutivo
+
+Reviewed nine implementation/test/contract/tracking files against d47a087 plus
+the working increment. Core validation.rs and calculations::FieldValue are the
+behavioral sources. No remaining confirmed implementation finding. Local review
+is complete; platform CI and integration remain pending. Earlier XMP probes and
+the blocked #104 prototype are outside this increment.
+
+### Contratos y evidencia
+
+FormValidationTests uses the real native library for every rule, every mask/layout,
+default settings, ordered failures, Unicode, empty values, callback snapshots,
+exceptions and request limits. Existing form read/create/fill tests and parity/ABI
+gates pass: 45 cases in /tmp/form-validation-final.log. Native tests pass 251 unit
+cases (/tmp/form-validation-native.log); the unrelated XMP integration probe has
+one passing control and five explicitly ignored upstream defects. Native boundary
+tests check null/zero/oversized/invalid UTF-8 input and no output on a late invalid
+request. Formatting and all-target/all-feature Clippy with denied warnings pass
+(/tmp/form-validation-clippy.log).
+
+A disposable compiled copy in /tmp/form-validation-mutant replaces custom predicate
+results with true. Three fixtures fail for the intended reasons: missing Custom
+diagnostic, falsely valid rejected value, and uncalled predicate. The other three
+pass; the production six pass. Log: /tmp/form-validation-mutant.log. Final added
+bound assertions also pass in the production suite.
+
+### Hallazgos
+
+No unresolved findings in the increment. During implementation, missing enum XML
+documentation was corrected; test expectations were reconciled with core's Custom
+diagnostic mapping before acceptance. Core limitations above remain documented,
+not silently implemented in the binding.
+
+### Calidad de Tests (Kripteia)
+
+Mandatory script ran on native/src and dotnet: Rust score 97, 251 tests/30 files;
+C# score 95, 1,044 tests/132 files. New native tests score 100 (2), new managed tests
+score 100 (6). Final changed test-file reanalysis also scores 100. Existing worst
+Rust test is ffi_guard_unit_swallows_panic (65); unrelated historical assertions
+were not expanded into this issue. Logs: /tmp/form-validation-qr-rust.log,
+/tmp/form-validation-qr-csharp.log and /tmp/form-validation-qr-final-tests.log.
+No score substitutes for the real-FFI and mutation evidence above.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Both mandatory security analyses executed. Rust lists 297 unsafe/FFI usages,
+including oxidize_form_validate; manual inspection confirms null checks, bounded
+read, panic containment and one owned allocation/free path. No reported secret
+or taint-flow finding. C# reports no security issues, with degraded syntax parsing
+for 41 existing files (none of the new validation files). Read-only telemetry DB
+warnings did not prevent either analysis. Managed callbacks execute only supplied
+application delegates synchronously. JSON does not execute expressions or scripts.
+
+### Métricas
+
+- Files reviewed: 9, plus core contracts and existing consumers.
+- Unresolved findings: 0.
+- Product files modified by review: 0; implementation corrections and tests above.
+- Pending verification: PR platform matrix and integration.
+
+# Blocked investigation — exact token counting (#104), 2026-10-16
+
+User authorized independent binding work after merging #107. #99 is closed and
+checked in #81; develop integration is `d47a087`. #104 uses existing core 5.4.2
+TokenCounter APIs, without upstream fixes. #93/#94 remain separate capabilities.
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| Word proxy and cl100k_base selection (#104) | Pending | Typed count API and explicit counter provenance; preserve defaults |
+| Optional build/discovery/unavailable errors (#104) | Pending | Cargo feature plus feature-enabled/disabled native verification |
+| Applicable semantic/hybrid chunker integration (#104) | Pending | Forward selection to core with_token_counter before chunking |
+| Independent pinned oracle and chunk budgets (#104) | Failed core budget probe | Core joins a and b into 3 tokens at budget 2, reporting oversized=false; correction/adoption required |
+| Ownership, errors, parity, quality/security (#104) | Pending | Real-FFI boundaries and integrated review |
+| Platform CI/integration (#104) | Pending | PR-based CI before integration |
+
+#104 prototype is preserved in `/tmp/tokens104-prototype`, not in the product tree.
+Direct core probe: `/tmp/tokens-core-budget.log`; Python tiktoken 0.12.0 confirms
+`a` and `b` cost one each while `a\nb` costs three. No core correction or acceptance
+claim. Exploratory managed URL-fixture failures concern key/value display text,
+not this independent core budget defect.
+
+# Completed increment — arbitrary clipping (#99), 2026-10-16
 
 Selected independent work after the user assigned upstream defects to the core.
 Core 5.4.2 exposes `ClippingPath` and `GraphicsContext::set_clipping_path`.
@@ -11,7 +141,7 @@ investigation; no new defect/completion claim is made for it.
 | Holes and save/restore scope (#99) | Demonstrated locally | Real-FFI operators, Poppler pixels and isolated wrong-rule mutation |
 | Finite coordinates, invalid/empty paths, ownership (#99) | Demonstrated locally | All six native coordinates, invalid commands/counts/rule, unchanged-page assertion, managed snapshots and lifetime tests |
 | Existing convenience APIs, parity and quality/security (#99) | Demonstrated locally | 23 focused .NET cases, 249 native unit cases, formatting/Clippy and review below |
-| Platform CI before integration (#99/#81) | Pending | PR-based CI only; #81 says no automatic PR creation |
+| Platform CI before integration (#99/#81) | Demonstrated: 14/14 jobs passed on `a7e1934` | Merged as d47a087; #99 closed and checked in #81 |
 
 ## Custom clipping usage and contract
 
@@ -49,7 +179,11 @@ dependency, public existing signature or workflow changes.
 Reviewed the eight implementation/test/probe/contract/tracking files for #99
 against develop `73bf34c` plus the final working changes. The earlier #91 probes
 and pre-existing handoff are separate. Local implementation and review complete;
-platform CI and integration remain pending. No PR/package publication performed.
+all 14 platform CI jobs passed on `a7e1934`. User-authorized
+[PR #107](https://github.com/bzsanti/oxidize-pdf-dotnet/pull/107) is merged as d47a087.
+[CI 38891979618](https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38891979618)
+was triggered by `pull_request`; #99 is closed and checked in #81.
+No package publication performed.
 
 ### Contratos y evidencia
 
@@ -117,7 +251,7 @@ filesystem/process behavior. No new dependencies or external input execution.
 - Files reviewed: 8 (#99 scope).
 - Findings: 2 contract boundaries documented above; no unresolved local blocker.
 - Product files modified by the review: 0.
-- Pending verification: PR-based platform CI, then integration and issue closure.
+- Pending actions: PR review, integration and issue closure. Platform CI complete.
 
 # Completed increment — PDF/A validation (#90), 2026-10-15
 

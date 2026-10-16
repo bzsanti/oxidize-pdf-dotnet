@@ -13,6 +13,7 @@ pub mod document;
 pub mod document_metadata;
 pub mod existing_pdf;
 pub mod font_inspection;
+pub mod form_validation;
 pub mod forms;
 pub mod free_text;
 pub mod geometric;
