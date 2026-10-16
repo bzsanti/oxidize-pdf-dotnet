@@ -1,3 +1,124 @@
+# Active increment — arbitrary clipping (#99), 2026-10-16
+
+Selected independent work after the user assigned upstream defects to the core.
+Core 5.4.2 exposes `ClippingPath` and `GraphicsContext::set_clipping_path`.
+#92 was inspected but not selected: its policy acceptance needs further core
+investigation; no new defect/completion claim is made for it.
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| Typed move/line/cubic/close and both winding rules (#99) | Demonstrated locally | Bounded path builder; complete validation before applying existing core operation |
+| Holes and save/restore scope (#99) | Demonstrated locally | Real-FFI operators, Poppler pixels and isolated wrong-rule mutation |
+| Finite coordinates, invalid/empty paths, ownership (#99) | Demonstrated locally | All six native coordinates, invalid commands/counts/rule, unchanged-page assertion, managed snapshots and lifetime tests |
+| Existing convenience APIs, parity and quality/security (#99) | Demonstrated locally | 23 focused .NET cases, 249 native unit cases, formatting/Clippy and review below |
+| Platform CI before integration (#99/#81) | Pending | PR-based CI only; #81 says no automatic PR creation |
+
+## Custom clipping usage and contract
+
+```csharp
+var path = new PdfClippingPath()
+    .MoveTo(10, 10).LineTo(90, 10).LineTo(90, 90).LineTo(10, 90).ClosePath()
+    .MoveTo(30, 30).LineTo(70, 30).LineTo(70, 70).LineTo(30, 70).ClosePath();
+page.SaveGraphicsState()
+    .ClipPath(path, PdfWindingRule.EvenOdd)
+    .DrawRect(0, 0, 100, 100).Fill()
+    .RestoreGraphicsState();
+```
+
+Coordinates are PDF points, serialized by core to three decimals. Both contours
+above have the same orientation: even-odd leaves a hole, nonzero fills the center.
+The default rule is nonzero. CurveTo takes two control points and an endpoint.
+Open subpaths close implicitly; a move-only/zero-area path is valid and clips to
+an empty region. An empty command list is rejected. Line/curve/close require a
+current point. End any prior unfinished drawing path before applying a custom
+clip, as with core clipping operations. Use graphics-state save/restore to restore
+the effective PDF clip; this change does not alter ClearClipping or convenience APIs.
+
+The mutable builder is not thread-safe. Calls copy up to 65,536 commands and
+retain no builder reference; SafeHandle marshalling keeps the page alive for the
+native call. Non-finite coordinates/unknown rules are argument errors, missing
+MoveTo/command overflow are invalid-operation errors, and consumed/disposed pages
+retain existing lifetime errors. Native callers receive existing typed error codes
+and last-error text. Invalid commands are rejected before page mutation. No core
+dependency, public existing signature or workflow changes.
+
+## Quality review — custom clipping (#99)
+
+### Resumen ejecutivo
+
+Reviewed the eight implementation/test/probe/contract/tracking files for #99
+against develop `73bf34c` plus the final working changes. The earlier #91 probes
+and pre-existing handoff are separate. Local implementation and review complete;
+platform CI and integration remain pending. No PR/package publication performed.
+
+### Contratos y evidencia
+
+`ClippingPathTests` crosses the real managed/native boundary and checks ordered
+geometry, both winding operators, q/Q painting scope, cubic coordinates, snapshots,
+consumed/disposed pages, invalid paths and the exact accepted command cap.
+`graphics::custom_clip_tests` verifies the fixed ABI layout, null/count/rule/kind
+errors, all six coordinates against NaN and both infinities, and unchanged page
+operations after a late invalid command. Oversized counts are rejected before
+reading a one-command buffer. No arbitrary invalid pointer is dereferenced.
+
+All 249 native unit tests pass; the separate earlier XMP probe has one passing
+control and five explicitly ignored upstream failures, not #99 acceptance cases.
+All 23 focused managed cases pass, including ellipse/transform regression and
+parity/ABI gates. All-target/all-feature Clippy with warnings denied and formatting
+pass. Logs: `/tmp/clipping-native-test.log`, `/tmp/clipping-dotnet-test.log`,
+`/tmp/clipping-clippy.log`. The first .NET attempt failed at sandbox MSBuild socket
+creation; the permitted retry compiled and passed.
+
+`python3 tools/clipping_render_probe.py native/target/debug/liboxidize_pdf_ffi.so`
+renders real-FFI PDFs with Poppler at 72 dpi. Center/ring/outside/restored pixels
+are respectively 0/0/255/0 for nonzero and 255/0/255/0 for even-odd (0 is black).
+The probe uses private temporary files, trusted explicit library selection, no
+shell and a 30-second renderer timeout. A disposable compiled managed copy in
+`/tmp/clipping-rule-mutant` forces rule zero while still using real FFI: the
+even-odd assertion fails for missing `W*`, with three controls passing. Log:
+`/tmp/clipping-mutant-test.log`. Production sources were not mutated.
+
+### Hallazgos
+
+1. **Existing current path participates in PDF clipping**:
+   `dotnet/OxidizePdf.NET/PdfPage.cs:2297` — the core appends path operators;
+   unfinished preceding geometry can participate. The new API explicitly requires
+   ending prior drawing paths, preserves core semantics, and documents q/Q scope.
+   This does not require a core change or modifying existing convenience methods.
+2. **Pointer validity remains a native caller obligation**:
+   `native/src/graphics.rs:576` — finite/count validation cannot establish raw
+   pointer allocation validity. The safety contract requires an aligned initialized
+   array and live exclusive page; managed marshalling supplies the array and holds
+   the page SafeHandle. Bounds are checked before constructing the slice.
+
+Both are explicit contract boundaries, not unresolved implementation blockers.
+
+### Calidad de Tests (Kripteia)
+
+Actual Rust analysis: score 97, 249 tests across 29 files. Managed test analysis:
+score 95, 1,028 tests across 125 files; all four new ClippingPathTests score 100.
+Existing repeated-dispose tests score 65 and remain outside this increment. The
+production-only C# and Python runs detect zero tests, so their score 100 supplies
+no test evidence. Logs: `/tmp/clipping-kripteia-{rust,csharp,tests,python}.log`.
+
+### Análisis de Seguridad (Kripteia Security)
+
+Rust reports 296 unsafe usages, predominantly existing FFI exports, including the
+new boundary. No additional taint/secret/dangerous-function category was reported.
+C# production/tests and Python report no security issues; C# has partial/error
+syntax-tree degradation on existing files, so these scans do not prove absence of
+defects. Telemetry writes failed on the readonly database but both analyses ran.
+Manual review covered native pointer/count/layout checks, complete validation
+before mutation, SafeHandle lifetime, bounded copying, error paths and the probe's
+filesystem/process behavior. No new dependencies or external input execution.
+
+### Métricas
+
+- Files reviewed: 8 (#99 scope).
+- Findings: 2 contract boundaries documented above; no unresolved local blocker.
+- Product files modified by the review: 0.
+- Pending verification: PR-based platform CI, then integration and issue closure.
+
 # Completed increment — PDF/A validation (#90), 2026-10-15
 
 | Requirement / source | State / evidence | Blocker / next action |

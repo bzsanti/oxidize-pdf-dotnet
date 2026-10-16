@@ -552,6 +552,162 @@ pub unsafe extern "C" fn oxidize_page_restore_state(page: *mut PageHandle) -> c_
 
 // ── Clipping ─────────────────────────────────────────────────────────────────
 
+/// Fixed-layout command: 0 move, 1 line, 2 cubic, 3 close. Coordinates in points.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ClipCommand {
+    pub x1: f64,
+    pub y1: f64,
+    pub x2: f64,
+    pub y2: f64,
+    pub x3: f64,
+    pub y3: f64,
+    pub kind: i32,
+}
+
+/// Apply a complete custom clipping path, validating before mutating the page.
+/// Rule 0 is nonzero; rule 1 is even-odd. Open subpaths close implicitly in PDF.
+///
+/// # Safety
+/// `page` must be a live, exclusively accessed PageHandle. `commands` must point
+/// to `count` initialized, aligned ClipCommands, readable for this call. Neither
+/// pointer is retained. Counts outside 1..=65536 are rejected before reading.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_page_clip_path(
+    page: *mut PageHandle,
+    commands: *const ClipCommand,
+    count: usize,
+    winding_rule: i32,
+) -> c_int {
+    crate::ffi_guard(move || {
+        clear_last_error();
+        if page.is_null() || commands.is_null() {
+            set_last_error("Null clipping page or commands");
+            return ErrorCode::NullPointer as c_int;
+        }
+        if count == 0 || count > 65_536 || !matches!(winding_rule, 0 | 1) {
+            set_last_error("Invalid clipping command count or winding rule");
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        use oxidize_pdf::graphics::{ClippingPath, WindingRule};
+        let rule = if winding_rule == 0 {
+            WindingRule::NonZero
+        } else {
+            WindingRule::EvenOdd
+        };
+        let mut path = ClippingPath::new().with_winding_rule(rule);
+        let mut has_current_point = false;
+        for command in std::slice::from_raw_parts(commands, count) {
+            if ![
+                command.x1, command.y1, command.x2, command.y2, command.x3, command.y3,
+            ]
+            .iter()
+            .all(|v| v.is_finite())
+                || !matches!(command.kind, 0..=3)
+                || (command.kind != 0 && !has_current_point)
+            {
+                set_last_error("Invalid clipping command, non-finite coordinate or missing MoveTo");
+                return ErrorCode::InvalidArgument as c_int;
+            }
+            match command.kind {
+                0 => {
+                    path.move_to(command.x1, command.y1);
+                }
+                1 => {
+                    path.line_to(command.x1, command.y1);
+                }
+                2 => {
+                    path.curve_to(
+                        command.x1, command.y1, command.x2, command.y2, command.x3, command.y3,
+                    );
+                }
+                3 => {
+                    path.close_path();
+                }
+                _ => unreachable!(),
+            }
+            has_current_point = true;
+        }
+        if let Err(error) = (*page).inner.graphics().set_clipping_path(path) {
+            set_last_error(format!("Failed to set clipping path: {error}"));
+            return ErrorCode::InvalidArgument as c_int;
+        }
+        ErrorCode::Success as c_int
+    })
+}
+
+#[cfg(test)]
+mod custom_clip_tests {
+    use super::*;
+    use crate::page::{oxidize_page_create, oxidize_page_free};
+
+    #[test]
+    fn validates_entire_path_before_mutation_and_bounds_before_reading() {
+        unsafe {
+            assert_eq!(std::mem::size_of::<ClipCommand>(), 56);
+            assert_eq!(std::mem::offset_of!(ClipCommand, kind), 48);
+            let page = oxidize_page_create(100.0, 100.0);
+            let move_to = ClipCommand {
+                x1: 1.0,
+                y1: 2.0,
+                x2: 0.0,
+                y2: 0.0,
+                x3: 0.0,
+                y3: 0.0,
+                kind: 0,
+            };
+            let before = (*page).inner.graphics().operations();
+            let invalid = ErrorCode::InvalidArgument as c_int;
+            assert_eq!(oxidize_page_clip_path(page, &move_to, 0, 0), invalid);
+            assert_eq!(
+                oxidize_page_clip_path(page, &move_to, usize::MAX, 0),
+                invalid
+            );
+            assert_eq!(oxidize_page_clip_path(page, &move_to, 65_537, 0), invalid);
+            assert_eq!(oxidize_page_clip_path(page, &move_to, 1, 2), invalid);
+            assert_eq!(
+                oxidize_page_clip_path(page, std::ptr::null(), 1, 0),
+                ErrorCode::NullPointer as c_int
+            );
+            assert_eq!(
+                oxidize_page_clip_path(std::ptr::null_mut(), &move_to, 1, 0),
+                ErrorCode::NullPointer as c_int
+            );
+            for kind in [1, 2, 3, 4, -1] {
+                assert_eq!(
+                    oxidize_page_clip_path(page, &ClipCommand { kind, ..move_to }, 1, 0),
+                    invalid
+                );
+            }
+            for coordinate in 0..6 {
+                for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+                    let mut bad = ClipCommand { kind: 2, ..move_to };
+                    match coordinate {
+                        0 => bad.x1 = value,
+                        1 => bad.y1 = value,
+                        2 => bad.x2 = value,
+                        3 => bad.y2 = value,
+                        4 => bad.x3 = value,
+                        _ => bad.y3 = value,
+                    }
+                    assert_eq!(
+                        oxidize_page_clip_path(page, [move_to, bad].as_ptr(), 2, 0),
+                        invalid
+                    );
+                }
+            }
+            assert_eq!((*page).inner.graphics().operations(), before);
+            assert_eq!(oxidize_page_clip_path(page, &move_to, 1, 1), 0);
+            assert!((*page)
+                .inner
+                .graphics()
+                .operations()
+                .contains("1.000 2.000 m\nW*\nn\n"));
+            oxidize_page_free(page);
+        }
+    }
+}
+
 /// Set a rectangular clipping region.
 ///
 /// # Safety
