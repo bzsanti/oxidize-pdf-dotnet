@@ -1,6 +1,6 @@
 {
   "core": "5.4.2",
-  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Merge metadata source modes. Remaining Rust API pending audit; no total parity claim. Split options and suggested byte-result names. Tagged preflight and explicit preparation. Base-document incremental append/replacement, all writer fields and Info policy. CID collection sequences and bounded font glyph/vertical-metric inspection. Limited core PDF/A validation, eight levels, findings and operation errors. Arbitrary clipping paths and both winding rules.",
+  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Merge metadata source modes. Remaining Rust API pending audit; no total parity claim. Split options and suggested byte-result names. Tagged preflight and explicit preparation. Base-document incremental append/replacement, all writer fields and Info policy. CID collection sequences and bounded font glyph/vertical-metric inspection. Limited core PDF/A validation, eight levels, findings and operation errors. Arbitrary clipping paths and both winding rules. Explicit core form validation rules, masks, settings and ordered diagnostics.",
   "callables": {
     "PdfSignatureSlots.CreateAsync": [
       "pdf",
@@ -184,7 +184,15 @@
       "x3",
       "y3"
     ],
-    "PdfClippingPath.ClosePath": []
+    "PdfClippingPath.ClosePath": [],
+    "PdfFormValidation.Validate": [
+      "field",
+      "settings"
+    ],
+    "PdfFormValidation.ValidateMany": [
+      "fields",
+      "settings"
+    ]
   },
   "properties": {
     "PdfSignatureSlot": [
@@ -511,6 +519,30 @@
     "PdfAException": [
       "Kind",
       "Finding"
+    ],
+    "PdfFieldValidationResult": [
+      "FieldName",
+      "IsValid",
+      "Errors",
+      "Warnings",
+      "FormattedValue"
+    ],
+    "PdfValidationError": [
+      "FieldName",
+      "ErrorType",
+      "Message",
+      "Details"
+    ],
+    "PdfFieldValidation": [
+      "FieldName",
+      "Value",
+      "Validator",
+      "Required"
+    ],
+    "PdfFieldValidator": [
+      "Rules",
+      "FormatMask",
+      "ErrorMessage"
     ]
   },
   "defaults": {
@@ -629,6 +661,15 @@
       "Level": 1,
       "CollectAllErrors": true,
       "Password": null
+    },
+    "PdfValidationSettings": {
+      "ValidateOnChange": true,
+      "ShowFormatHints": true,
+      "AutoFormat": true,
+      "AllowPartial": false,
+      "RealTimeValidation": true,
+      "HighlightErrors": true,
+      "ShowErrorMessages": true
     }
   },
   "behavior_tests": [
@@ -732,6 +773,12 @@
     "ClippingPathTests.WindingRulesAndSaveRestoreEmitDistinctScopedOperators",
     "ClippingPathTests.CubicOpenSubpathsAndReusableSnapshotsPreserveCoordinates",
     "ClippingPathTests.InvalidPathsDoNotMutatePageOrBuilder",
-    "ClippingPathTests.CommandBudgetAndAbiLayoutAreExplicit"
+    "ClippingPathTests.CommandBudgetAndAbiLayoutAreExplicit",
+    "FormValidationTests.EveryRulePreservesValidInvalidAndTypedDiagnostics",
+    "FormValidationTests.EveryMaskAndLayoutUsesCoreFormatting",
+    "FormValidationTests.DiagnosticsKeepRequiredMaskAndRuleOrderWithoutDrops",
+    "FormValidationTests.CoreLimitsDefaultsAndAllValueKindsAreExplicit",
+    "FormValidationTests.SnapshotsCustomPredicatesBatchOrderAndExceptionsAreOwned",
+    "FormValidationTests.InvalidRequestsAndBudgetsFailWithoutPartialOutput"
   ]
 }
