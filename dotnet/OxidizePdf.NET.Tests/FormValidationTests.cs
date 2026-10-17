@@ -103,8 +103,16 @@ public class FormValidationTests
             Assert.True(PdfFormValidation.Validate(new("x", new PdfFormValue.Empty(), Required: new("missing", "group", condition))).IsValid);
         var request = new PdfFieldValidation("x", new PdfFormValue.Empty(), Required: new("missing", Condition: new PdfRequirementCondition.Always()));
         Assert.False(PdfFormValidation.Validate(request).IsValid);
-        var disabled = new PdfValidationSettings { ValidateOnChange = false, ShowFormatHints = false, AutoFormat = false,
-            AllowPartial = true, RealTimeValidation = false, HighlightErrors = false, ShowErrorMessages = false };
+        var disabled = new PdfValidationSettings
+        {
+            ValidateOnChange = false,
+            ShowFormatHints = false,
+            AutoFormat = false,
+            AllowPartial = true,
+            RealTimeValidation = false,
+            HighlightErrors = false,
+            ShowErrorMessages = false
+        };
         Assert.Equal(JsonSerializer.Serialize(PdfFormValidation.Validate(request)), JsonSerializer.Serialize(PdfFormValidation.Validate(request, disabled)));
         Assert.Equal("2024-99-99", Format("20249999", new PdfFormatMask.Date()).FormattedValue); // mask alone is not date validation
     }
@@ -115,7 +123,8 @@ public class FormValidationTests
         var rules = new List<PdfValidationRule>();
         var fields = new List<PdfFieldValidation>();
         int calls = 0;
-        rules.Add(new PdfValidationRule.Custom("change caller lists", value => {
+        rules.Add(new PdfValidationRule.Custom("change caller lists", value =>
+        {
             calls++; rules.Clear(); fields.Clear(); return value == new PdfFormValue.Text("é");
         }));
         rules.Add(new PdfValidationRule.Length(Max: 1));
