@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.20.0] - Release candidate
+## [0.20.0] - 2026-10-19
 
 - Pin the Rust core to 5.5.0 and adapt validation to its stricter XMP/reference checks.
 - Add typed XMP metadata parsing/serialization and incremental catalog integration.

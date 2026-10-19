@@ -20,13 +20,7 @@
 - 🌍 **Cross-Platform** - Linux, Windows, macOS — x64 & ARM64, including musl/Alpine
 - 🛠️ **Full PDF toolkit** - Also creates and manipulates PDFs (text, graphics, merge, split, rotate, page extraction)
 
-## New in 0.19.0 — upstream 5.4.2
-
-Typed signature slots, complete extraction options and bounded recovery diagnostics
-are now available. See the [release notes](RELEASE-NOTES-v0.19.0.md) for changes,
-validation and the remaining upstream DocMDP limitation affecting notes/highlights.
-
-## 0.20.0 release candidate — core 5.5.0
+## New in 0.20.0 — core 5.5.0
 
 New typed APIs: `PdfXmp` for catalog metadata, `PdfCalculations` for the two core
 calculation engines, `PdfLazyDocument` / `PdfStreamingDocument` for seekable streams,
@@ -34,7 +28,8 @@ and `PdfBatch` for worker-based file and custom jobs. Stream readers are disposa
 and leave inputs open by default. Batch timeouts do not interrupt work or roll back
 files; Rotate/Compress and nonzero worker memory caps are explicitly unsupported.
 See the [acceptance ledger](docs/FEATURE_PARITY.md) for limits, tests and remaining
-core blockers. These changes still require platform CI and integration.
+core blockers, and the [changelog](CHANGELOG.md) for all additions since 0.19.0.
+The complete NuGet package is validated in CI on .NET 8/9/10.
 
 ## Feature guides
 
