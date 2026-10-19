@@ -28,6 +28,6 @@ with zipfile.ZipFile(sys.argv[1]) as package:
     for name in expected:
         assert package.getinfo(name).file_size > 0, f"Empty asset: {name}"
     nuspec = ET.fromstring(package.read("OxidizePdf.NET.nuspec"))
-    ns = {"n": "http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd"}
-    assert nuspec.findtext("n:metadata/n:version", namespaces=ns) == "0.20.0"
+    assert nuspec.findtext("{*}metadata/{*}id") == "OxidizePdf.NET"
+    assert nuspec.findtext("{*}metadata/{*}version") == "0.20.0"
 print("Package layout passed: eight native RIDs, three managed TFMs, documentation and metadata")
