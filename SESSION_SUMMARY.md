@@ -1,101 +1,31 @@
-# Sesión de Desarrollo - OxidizePdf.NET
-**Fecha:** 2025-11-04
-**Rama inicial:** main → develop
-**Contexto:** Publicación NuGet y configuración GitFlow
+# Session handoff — 2026-10-14
 
-## 🎯 Objetivos Completados
+Completed #103: MergeWithMetadataAsync exposes all four core MetadataMode variants
+with typed source/custom options, defaults and failures. Implementation
+`7a9ac2a99a47bbc3910e85a94f511f8363997555` passed all 14 platform CI jobs before
+integration into develop:
+https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/38641793379
+Closure changes documentation only; product/test/contract/workflow identity with
+the validated SHA is verified. No automatic PR or package publication.
 
-### 1. Publicación en NuGet.org
-- ✅ v0.1.0: .NET 6/8 support
-- ✅ v0.2.0: .NET 8/9 support (BREAKING CHANGE)
-- ✅ Licencia MIT correctamente configurada
-- ✅ Workflows CI/CD completamente funcionales
-- ✅ Cross-platform builds (Linux, Windows, macOS)
+Existing overloads remain source-compatible. Inputs/options are snapshotted and
+result bytes owned. Private RAII temporary inputs; original-list source indexes;
+Info-only semantics do not imply XMP or structural preservation. Core 5.4.2
+Unicode serialization needed a bounded repair of newly generated Info. All source
+modes/remerge and independent qpdf checks pass. Broader legacy writer evidence is
+recorded on #87; do not claim unrelated APIs are fixed.
 
-### 2. Actualización de Target Frameworks
-- ❌ Eliminado: .NET 6 (end-of-support Nov 2024)
-- ✅ Mantenido: .NET 8 (LTS hasta Nov 2026)
-- ✅ Agregado: .NET 9 (STS actual)
-- ✅ Documentación actualizada con requisitos
+Validation: 38 focused .NET cases (16 new), all 232 native tests, formatting/Clippy,
+parity/ABI, both Kripteia analyses and a compiled negative control forcing source
+index zero (two expected output assertion failures). Full acceptance/review and
+limitations: docs/FEATURE_PARITY.md. Evidence /tmp/merge-metadata-*.log,
+/tmp/merge-metadata-ci-result.json, /tmp/merge-metadata-mutant and qpdf artifacts.
 
-### 3. Configuración GitFlow
-- ✅ Rama `develop` creada y configurada como default
-- ✅ CONTRIBUTING.md actualizado con workflow completo
-- ✅ Workflows CI incluyen `develop` branch
-- ✅ Estructura lista para feature/release/hotfix branches
+Next: #102 (complete split options and output naming semantics). Output naming
+must not imply authority to write caller-selected files. Continue with the core
+5.4.2 contract, existing APIs and structural-policy distinctions. Refresh issue
+body before implementation.
 
-## 📦 Releases Publicados
-
-| Versión | Frameworks | Estado | URL |
-|---------|-----------|--------|-----|
-| v0.1.0 | .NET 6, 8 | Legacy | https://www.nuget.org/packages/OxidizePdf.NET/0.1.0 |
-| v0.2.0 | .NET 8, 9 | Latest | https://www.nuget.org/packages/OxidizePdf.NET/0.2.0 |
-
-## 🔧 Cambios Técnicos
-
-### Metadatos
-- Licencia: MIT
-- Version bumps: 0.1.0 → 0.2.0
-- Badges actualizados (.NET 6.0+ → 8.0+)
-
-### Workflows
-- Rust version: 1.77 → stable
-- Build directory corregido para .NET project
-- CI/CD incluye rama `develop`
-
-### Documentación
-- README.md: Requisitos y badges actualizados
-- CONTRIBUTING.md: GitFlow workflow completo
-- XML documentation: Warnings corregidos
-
-## 🧪 Estado de Tests
-- ✅ 5/5 tests pasando (.NET 9)
-- ✅ Build limpio sin warnings
-- ✅ Multi-platform compilation verificada
-
-## 🌳 Estructura de Ramas
-
-```
-main (producción)
-├── v0.1.0 (tag)
-├── v0.2.0 (tag)
-│
-develop (integración) ← DEFAULT
-└── GitFlow documentation commit
-```
-
-## 🚀 Próximos Pasos
-
-1. **Feature Development**: Crear `feature/*` branches desde `develop`
-2. **Testing**: Agregar más tests de integración
-3. **Documentation**: Considerar ejemplos adicionales
-4. **Performance**: Benchmarks para optimizaciones futuras
-5. **Releases**: Seguir GitFlow para v0.3.0+
-
-## 📊 Métricas de la Sesión
-
-- **Commits creados:** 4
-- **Tags creados:** 2 (v0.1.0, v0.2.0)
-- **Ramas creadas:** 1 (develop)
-- **Workflows ejecutados:** 3 (2 exitosos, 1 fallido inicial)
-- **Releases publicados:** 2
-- **Files modificados:** 5
-  - OxidizePdf.NET.csproj (version + frameworks)
-  - PdfExtractor.cs (XML docs)
-  - README.md (badges + requirements)
-  - CONTRIBUTING.md (GitFlow)
-  - .github/workflows/*.yml (Rust version)
-
-## 🎉 Logros Destacados
-
-1. **Paquete completamente funcional** publicado en NuGet.org
-2. **Multi-target support** para .NET moderno (8/9)
-3. **GitFlow establecido** para desarrollo colaborativo estructurado
-4. **CI/CD robusto** con cross-compilation automática
-5. **Documentación completa** para contribuidores
-
----
-
-**Estado final:** ✅ Proyecto listo para producción y desarrollo colaborativo
-**Rama activa:** develop
-**Última versión:** v0.2.0
+Prior #105/#96/#95/#97 complete. Core 5.4.2, managed 0.19.0, native 0.14.0;
+test-only PKCS 10.0.13. Active integration branch: develop. Preserve the
+no-worktree choice and existing cleanup history.

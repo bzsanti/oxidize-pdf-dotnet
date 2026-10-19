@@ -1,10 +1,356 @@
-# Release decision — 0.18.0
+# Checkout reconciliation — 2026-10-14
 
-The user explicitly authorized releasing the current state on 2026-09-27,
-accepting upstream issues #633 and #634 until a subsequent official fix release.
-This supersedes the historical release-blocking conclusion below. The four
-regression tests remain enabled and failing on official 5.1.5. Release package
-version is 0.18.0 and native FFI version is 0.14.0.
+User authorized committing, pushing and cleaning/updating the stale branch.
+The original pending tree is preserved in commit `8d83a2a`. The branch is now
+`chore/reconcile-upstream-5.4.2`, integrating `origin/develop` at `adb9499`.
+Published managed version: 0.19.0; native FFI: 0.14.0; official core: 5.4.2.
+
+| Requirement | Evidence / state | Blocker / next action |
+| --- | --- | --- |
+| Preserve pending work | Snapshot commit `8d83a2a`; local workflow, benchmark results and audit retained | None |
+| Reconcile current implementation | Source/test/build files match current develop, including CR fixture and parity APIs | None: `git diff origin/develop --exit-code -- dotnet native .github` passes |
+| Current documentation | Published release history retained; audit and handoff updated | None |
+| Commit and push clean branch | Resolved merge is committed on the renamed branch | Delivery check: remote SHA equals HEAD and worktree is clean |
+
+Code conflicts were older formatting, serialization or lint implementations;
+current develop wins after comparison, preserving color/space diagnostics and
+all released APIs. No runtime behavior is added by this reconciliation.
+Exact source/test/build equality with develop was verified. Prior validation remains applicable:
+`docs/evidence/parity-recovery/recovery-native-tests.log` (224 passed),
+`recovery-full-tests.log` (1001 library + 15 KernelMemory passed), plus the
+committed Kripteia Rust/C# analyses and review in `docs/PARITY-RECOVERY-REVIEW.md`.
+The native debug runtime was rebuilt locally with `cargo build --offline` and
+copied to the ignored Linux x64 runtime asset. No new release is part of this task. Remaining parity work stays in #81/#86–#105;
+the published DocMDP limitation remains documented in CHANGELOG/release notes.
+
+Fresh reconciliation validation: `dotnet test dotnet/OxidizePdf.sln --no-restore
+--verbosity minimal` passed **1011/1011 SDK tests and 15/15 KernelMemory tests**
+on net10.0; managed libraries built for net8/net9/net10. The initial sandbox
+attempt failed because MSBuild sockets were denied; the authorized rerun passed.
+`git diff --cached --check origin/develop` passed. Historical release-note Markdown
+hard breaks were preserved. Local develop was fast-forwarded to origin/develop.
+The obsolete remote upstream-4.0.0 tip is an ancestor of develop and can be removed
+as part of the authorized branch cleanup without losing commits.
+
+The records below describe historical checkout states, not current blockers.
+
+---
+
+# Session closed — 2026-10-13
+
+## Outcome and repository state
+
+The requested dependency update, parity investigation and issue creation are
+complete. Full Rust/.NET parity is **not** implemented: remaining work is tracked
+by [#81](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/81) and the 20 concrete
+issues [#86–#105](https://github.com/bzsanti/oxidize-pdf-dotnet/issues?q=is%3Aissue%20is%3Aopen%20%22feat%28parity%29%22).
+Every new issue's title/body and parent link was read back and verified. The
+per-issue mapping is in `docs/FEATURE_PARITY.md`; publication is separate.
+
+- Checkout: `/home/santi/repos/BelowZero/oxidizePdf/oxidize-dotnet`.
+- Branch: `feature/upstream-4.0.0`; HEAD: `d7c40caf8fac5d9eacb78e80f71e5086fa803f7c`.
+- This is an older dirty checkout, **not** remote develop. Inspected remote commit:
+  `adb94995899bdc57f1d622431a9c6510dd055edd`.
+- Current session changes: exact core pin 5.1.5 → 5.4.2 in `native/Cargo.toml`,
+  local ignored lockfile/runtime rebuild, additions/corrections to README,
+  CHANGELOG, FEATURE_PARITY and this existing migration handoff. Those files
+  already contained earlier work; the entire diff does not belong to this session.
+- The other modified/untracked source/tests/docs, `.claude` changes, deleted
+  `.claude/settings.local.json`, SESSION_SUMMARY, AGENTS.md, benchmark results
+  and kripteia.toml predated this work and were preserved. Ownership is not
+  inferred from their untracked status. Managed/native package versions were
+  not reassigned (local managed 0.16.1 / FFI 0.13.0).
+- No stage, commit, branch change, push, PR or release. External issue mutations
+  occurred only during the explicitly authorized issue-creation task, not closure.
+- All validation and issue-creation processes started here finished. No process
+  or service is intentionally left running. No benchmarks were run.
+
+## Validation and interpretation
+
+Reuse the detailed commands/logs below: Rust **220/220**, .NET **992/993**, old
+bookmark/metadata regression families **20/20**, Clippy/fmt pass, net8/net9/net10
+builds pass without warnings. Closing `git diff --check` passes; no broad suite
+was repeated just for closure. Cross-platform packaging was not validated here.
+
+The sole local .NET failure is the old CR fixture, not an unresolved remote bug.
+Remote #79 already adds explicit ToUnicode mappings, retains all three expected
+CR-policy results, and records a rejected mutation. This is source/documentation
+evidence from remote develop, not a new local test run. NEW-001/002/004/005 and
+text recovery in NEW-006 are also implemented remotely; raw stream access remains
+#95. Do not file duplicate issues or patch the upstream decoder from the older
+B1 diagnosis below. The historical validation remains accurate for local sources.
+
+## Next session
+
+1. Read #81 and the chosen child issue, then inspect current remote develop.
+2. Reconcile this checkout's pre-existing changes before integrating anything.
+   Prefer a separate ordinary clone if isolation is needed; the earlier handoff
+   prohibits worktrees. Do not reset this checkout or copy the old integration
+   wholesale over current develop.
+3. Implement one agreed capability against the current source, with its complete
+   options/results/errors, behavioral/boundary tests and parity contract entry.
+   Acceptance is the child issue's criteria plus #81's quality/security/platform
+   requirements, not an API count. Issue creation does not close implementation.
+4. If resuming this local checkout specifically, first reconcile the already
+   corrected CR fixture and five implemented APIs; the local suite still has
+   the documented failure until that source reconciliation occurs.
+
+Useful read-only entry points:
+
+```bash
+git status --short
+gh issue view 81 --repo bzsanti/oxidize-pdf-dotnet
+gh issue view 86 --repo bzsanti/oxidize-pdf-dotnet
+gh api repos/bzsanti/oxidize-pdf-dotnet/commits/develop --jq .sha
+```
+
+Evidence retained: `/tmp/oxidize-parity-issues/` (20 exact bodies, manifest,
+creation journal and verified remote snapshots), `/tmp/oxidize-dotnet-develop-audit/`
+and its tarball (inspected source), `/tmp/oxidize-542-repro/`, the Cargo index,
+source delta and `/tmp/oxidize-542-*.log` files listed below. Network and MSBuild
+may need sandbox escalation; no credentials or private document data were added.
+
+## Closing cleanup
+
+Start: `2026-10-13T19:46:28.645434+00:00`.
+Five-day cutoff: `2026-10-08T19:46:28.645434+00:00`.
+Read-only inventory with resolved paths, mtimes, counts and sizes:
+`/tmp/oxidize-close-20261013-inventory.json`.
+
+Inspected only the three session-owned directories above plus these exact files:
+`/tmp/oxidize-upstream-index.jsonl`, `/tmp/oxidize-515-542.diff`,
+`/tmp/oxidize-dotnet-develop-audit.tar.gz`,
+`/tmp/oxidize-dotnet-issues-before.json`, `/tmp/oxidize-rust-issues-before.json`,
+`/tmp/oxidize-dotnet-issues-precreate.json`, and the seven build/test/lint/repro logs
+with prefix `/tmp/oxidize-542-` recorded under Validation below.
+All **429 inventoried files (14,721,053 bytes)** were newer than the cutoff and
+preserved. Temporary files deleted: **0**; temporary bytes reclaimed: **0**.
+No uncertain candidate was selected for removal, and no broad shared-cache or
+`/tmp` scan/purge was performed. Unrelated older artifacts were not inspected.
+New closure inventory/hash/sweep logs are also retained and are newer than cutoff.
+
+Cargo workspace resolved to this repository's `native/Cargo.toml`.
+Installed tool: `cargo-sweep-sweep 0.8.0`. Both commands succeeded:
+
+```bash
+cargo sweep --dry-run --time 5 /home/santi/repos/BelowZero/oxidizePdf/oxidize-dotnet/native
+cargo sweep --time 5 /home/santi/repos/BelowZero/oxidizePdf/oxidize-dotnet/native
+```
+
+Preview and actual cleanup were confined to `native/target`, each reporting
+**1.79 GiB**. Cargo-sweep does not report a file/directory deletion count here;
+no count was inferred. Logs: `/tmp/oxidize-close-20261013-sweep-preview.log` and
+`/tmp/oxidize-close-20261013-sweep.log`. Cleanup failures: **none**.
+A before/after SHA-256 check confirmed every tracked file unchanged by cleanup;
+all inventoried evidence still exists. The handoff was then updated and checked.
+
+---
+
+# Remote-state reconciliation — 2026-10-13
+
+Subsequent issue triage inspected remote develop at `adb94995899bdc57f1d622431a9c6510dd055edd`.
+The local B1 evidence below is real for this checkout, but **is not an outstanding
+remote release blocker**: #79 already corrected the fixture with explicit ToUnicode
+while retaining all three policy expectations and a discriminating negative control.
+See remote `docs/UPSTREAM-5.4.2.md`. Five of the eight new API gaps are also already
+implemented there. The checkout was preserved; no synchronization was performed.
+
+The remaining source-confirmed gaps now have 20 implementation issues (#86–#105),
+indexed in [FEATURE_PARITY.md](FEATURE_PARITY.md) and umbrella
+[#81](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/81). No duplicate upstream
+CR issue was created. Historical local validation below retains its original scope.
+
+# Upstream update — 2026-10-13
+
+Scope: adopt the latest official Rust release and audit .NET parity; preserve
+existing local work. No upstream patches or new feature implementation.
+The [public Cargo index](https://index.crates.io/ox/id/oxidize-pdf) confirms 5.4.2
+(published 2026-10-11), not yanked. Published checksum:
+`eb85baf2cf24b9ba56fface490e5d04bb9827ed33ce21e9f8f5e028d6ee34713`.
+
+| Requirement | Evidence / state | Blocker / next action |
+|---|---|---|
+| Latest official dependency | Demonstrated: exact `=5.4.2`, offline Cargo resolution/build passes; Linux runtime rebuilt | None; local Cargo.lock is ignored by existing repository policy |
+| Existing behavior retained | Not fully met: Rust 220/220; .NET 992/993 | B1: WinAnsi CR/LF compatibility below |
+| Previous #633/#634 failures | Demonstrated resolved: unchanged BookmarkReadingTests + ExistingDocumentOperationsTests, 20/20 | Closed on official 5.4.2 |
+| Current Rust parity analysis | Demonstrated: current managed/FFI source compared with published Rust 5.1.5–5.4.2 delta | Eight new/expanded API gaps and broader backlog in FEATURE_PARITY.md; implementation outside this request |
+| Build/lint | Demonstrated: Clippy all targets with warnings denied, fmt, net8/net9/net10 builds | None |
+
+## B1 — existing carriage-return contract
+
+`Upstream460Tests.ExtractionOptions_ApplyReadingOrderAndAllCarriageReturnPolicies`
+fails at line 114. The PDF fixture uses Helvetica/WinAnsi with
+`(A\015B\015\012C) Tj`. Remove policy expected `AB\nC`; actual text is
+`A\uFFFDB\uFFFD\uFFFDC`. The wrapper still passes all three CR policies to the
+Rust `TextExtractor`. The new font resolution path treats undefined font codes
+as replacement characters before text sanitization; postprocessing replacement
+characters in .NET cannot safely recover which were CR versus LF or other codes.
+
+Independently reproduced without FFI/.NET in `/tmp/oxidize-542-repro`, against
+the official 5.4.2 crate: Remove, ReplaceWithSpace and NormalizeLineEnding all
+return `A\uFFFDB\uFFFD\uFFFDC`. Source and PDF fixture are retained there;
+`/tmp/oxidize-542-repro.log` records the run. This confirms the behavior is in
+the upstream extraction path rather than managed serialization or the ABI.
+
+This is a compatibility failure against the existing wrapper contract, not yet
+an adjudication that the new PDF encoding behavior violates the specification.
+Keep the test unchanged and enabled. Next action: reconcile the upstream decoding
+contract with the existing CR policy, obtain an official compatible fix (or an
+explicitly approved contract change), then rerun this test and full regressions.
+No local upstream patch, lossy replacement workaround, issue submission or release
+was performed. Publication remains blocked by B1; updating the dependency and
+analyzing parity does not establish release acceptance.
+
+## Validation on current sources
+
+- `cargo build --offline --manifest-path native/Cargo.toml`: passed;
+  `/tmp/oxidize-542-build.log`. Debug Linux binary copied into the ignored runtime
+  asset used by the managed tests.
+- `cargo test --offline --manifest-path native/Cargo.toml`: **220 passed**;
+  `/tmp/oxidize-542-rust-tests.log`.
+- `cargo clippy --offline --manifest-path native/Cargo.toml --all-targets -- -D warnings`:
+  passed; `/tmp/oxidize-542-clippy.log`. `cargo fmt --check`: passed.
+- Full .NET suite (`--no-restore`): **993 total, 992 passed, 1 failed, 0 skipped**;
+  `/tmp/oxidize-542-dotnet-tests.log`. The sole failure is B1.
+- Unchanged previous regression families (`--no-build --no-restore --filter
+  'FullyQualifiedName~BookmarkReadingTests|FullyQualifiedName~ExistingDocumentOperationsTests'`):
+  **20 passed**; `/tmp/oxidize-542-prior-regressions.log`.
+- Managed build (`--no-restore`): **net8/net9/net10 pass, zero warnings/errors**;
+  `/tmp/oxidize-542-frameworks.log`.
+- `git diff --check`: passed. Cross-platform native packaging was not run.
+
+Review scope: dependency adoption and documentation, retaining all existing tests
+and ABI sources. Regression evidence covers existing FFI behavior, validation,
+malformed-input and policy tests; it is not an exhaustive security audit of the
+new core. No new exports, unsafe blocks or optional features were added. The
+upstream public-key recipient API remains unsupported/fail-closed, not a usable
+cryptographic capability. Prior user changes and package versions were preserved.
+The checkout was not reset to published main, committed, or published.
+
+The historical release/handoff below remains provenance, not current validation.
+
+# Session handoff — 2026-09-27
+
+**Closed after successful 0.18.0 publication.** The user explicitly accepted
+upstream #633/#634 for this release and requested a subsequent release once
+fixed. Do not reintroduce local upstream patches or weaken/skip regression tests.
+No build, test, or publication process is intentionally left running.
+
+## Local state and ownership
+
+- Original checkout: `/home/santi/repos/BelowZero/oxidizePdf/oxidize-dotnet`.
+  Branch `feature/upstream-4.0.0`, HEAD
+  `d7c40caf8fac5d9eacb78e80f71e5086fa803f7c`. Still dirty: it contains the
+  integration source and documentation, but its version metadata remains the
+  pre-release local state (managed 0.16.1 / FFI 0.13.0).
+- Do not mistake those local versions for the published artifact. Release
+  metadata was prepared in a separate clone, not by resetting this checkout.
+- Clean release clone: `/tmp/oxidize-dotnet-release-018`, branch
+  `release/0.18.0`, commit `a1ed6a61a0adc1dcb50a5518a0859ff158f27944`.
+  Its PR #78 was merged as `f2c42a2411db287732374b127677d57bde698cc8`, tagged
+  `v0.18.0`. Published managed version 0.18.0 / native FFI 0.14.0 / core 5.1.5.
+- Pre-existing/user-owned changes preserved: `.claude/commands/start-session.md`,
+  deleted `.claude/settings.local.json`, `SESSION_SUMMARY.md`,
+  `docs/superpowers/specs/benchmark-results/`, and `kripteia.toml`.
+  None were included in the release. The older SESSION_SUMMARY was not overwritten;
+  this migration document is the authoritative handoff for the current session.
+- Closing did not stage, commit, push, switch branches or update external systems.
+  No new benchmarks were run; existing benchmark files are not release evidence.
+
+## Validation evidence
+
+- `cargo test --offline --manifest-path native/Cargo.toml`: 220 passed.
+  `/tmp/oxidize-515-full-rust.log`.
+- `dotnet test dotnet/OxidizePdf.NET.Tests/OxidizePdf.NET.Tests.csproj --no-restore`:
+  993 total, 989 passed, 4 failed. `/tmp/oxidize-515-full-dotnet.log`.
+- `dotnet build dotnet/OxidizePdf.NET/OxidizePdf.NET.csproj --no-restore`:
+  net8/net9/net10 succeeded, zero warnings/errors.
+  `/tmp/oxidize-515-framework-build.log`.
+- Release Linux binary targeted tests: 103 total, 99 passed, the same 4 failed,
+  zero skipped. `/tmp/oxidize-018-release-smoke.log`.
+- The four failures are two mixed nested/sibling bookmark round trips (#633),
+  and reconstructive extraction/split metadata-discard cases (#634).
+- Release workflow 36340623272 succeeded on all eight native RIDs and both
+  publication jobs. NuGet index and downloaded package were independently
+  checked; package contents and SHA-256 are recorded below.
+- Closing validation: `git diff --check` passed; no broad suite rerun.
+
+## Next session
+
+Start from published `main`/`v0.18.0`, preserving the original checkout's personal
+changes before any local synchronization. No worktrees: they are prohibited.
+Check whether #633/#634 have an official published fix; adopt that version
+without vendor patches, then run:
+
+```bash
+gh issue view 633 --repo bzsanti/oxidizePdf
+gh issue view 634 --repo bzsanti/oxidizePdf
+cargo build --manifest-path native/Cargo.toml
+cp native/target/debug/liboxidize_pdf_ffi.so dotnet/OxidizePdf.NET/runtimes/linux-x64/native/liboxidize_pdf_ffi.so
+dotnet test dotnet/OxidizePdf.NET.Tests/OxidizePdf.NET.Tests.csproj --filter 'FullyQualifiedName~BookmarkReadingTests|FullyQualifiedName~ExistingDocumentOperationsTests'
+```
+
+Acceptance for the follow-up: all four previously failing tests pass unchanged
+against the official dependency, then full Rust/.NET regression and supported
+framework builds pass. Prepare the next release with notes identifying both fixes.
+In this environment MSBuild requires execution outside the sandbox for local
+sockets; network commands may also need escalation.
+
+## Closing cleanup
+
+Inventory started: `2026-09-27T19:47:14.083902+00:00`. Five-day cutoff: `2026-09-22T19:47:14.083902+00:00`.
+
+| Resolved project-owned location | Files preserved | Bytes | Older than cutoff |
+|---|---:|---:|---:|
+| `/tmp/oxidize-018-linux-artifact` | 1 | 11231888 | 0 |
+| `/tmp/oxidize-018-published` | 1 | 38578398 | 0 |
+| `/tmp/oxidize-515-issue-repro` | 4 | 48540 | 0 |
+| `/tmp/oxidize-withdrawn-patches-c8xcs33f` | 998 | 19804893 | 992 |
+
+All inventoried files were preserved as validation/reproduction or withdrawn-patch
+history referenced by this handoff. The old timestamps in the withdrawn vendor
+backup originate from packaged source files; age alone is not deletion authority.
+This backup is not a build dependency and is not in the release. No shared cache,
+repository root, or broad `/tmp` scan/purge was performed. The release clone was
+preserved as a repository. Other ownership-uncertain items were not removed.
+Detailed mtime inventory: `/tmp/oxidize-close-018-inventory.json`.
+
+Cargo workspace resolved by `cargo locate-project --workspace --manifest-path
+native/Cargo.toml` to this repository's `native/Cargo.toml`. Installed tool:
+`cargo-sweep-sweep 0.8.0`. Commands:
+
+```bash
+cargo sweep --dry-run --time 5 /home/santi/repos/BelowZero/oxidizePdf/oxidize-dotnet/native
+cargo sweep --time 5 /home/santi/repos/BelowZero/oxidizePdf/oxidize-dotnet/native
+```
+
+Both succeeded, confined to `native/target`, reporting nothing to clean.
+**Deleted: 0 files / 0 directories. Reclaimed: 0 bytes. Cleanup failures: none.**
+All referenced evidence and tracked content were retained.
+
+---
+
+# Published release — 0.18.0
+
+On 2026-09-27 the user explicitly authorized publishing the current integration
+with upstream issues #633 and #634 accepted until a later fix release.
+This supersedes the historical blocking conclusion below.
+
+- PR #78 merged: https://github.com/bzsanti/oxidize-pdf-dotnet/pull/78
+- Release commit: f2c42a2411db287732374b127677d57bde698cc8
+- Tag/release: https://github.com/bzsanti/oxidize-pdf-dotnet/releases/tag/v0.18.0
+- NuGet: https://www.nuget.org/packages/OxidizePdf.NET/0.18.0
+- Release workflow 36340623272: all eight native builds, NuGet publication,
+  and GitHub release succeeded.
+- NuGet flat-container index confirms 0.18.0 available.
+- Downloaded package verified: eight native RIDs, net8.0/net9.0/net10.0 assemblies,
+  version 0.18.0, FFI 0.14.0, and all sixteen checked new native exports.
+- Linux release binary smoke tests: 99 passed, only the four accepted upstream
+  regressions failed; no skipped tests. Package binary matches the tested artifact.
+- Package SHA-256: f87b9b49e7f0d586020b5b056e0a83f61a6e1b5f2321724387c4beec68c1b930
+- Release prepared in separate clone `/tmp/oxidize-dotnet-release-018`; original
+  checkout, branch and unrelated user-owned edits were preserved. No worktrees.
+- No patches to the official upstream source were used.
 
 # Upstream 5 migration
 

@@ -7,7 +7,7 @@ namespace OxidizePdf.NET;
 
 /// <summary>
 /// Stateless PDF manipulation operations: split, merge, rotate, and page extraction.
-/// All methods work with byte arrays, requiring no file system access.
+/// All methods accept byte arrays; native implementations may use temporary files.
 /// </summary>
 public static partial class PdfOperations
 {
@@ -309,7 +309,23 @@ public static partial class PdfOperations
             throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
 
         ct.ThrowIfCancellationRequested();
-        return Task.Run(() => SplitWithOptions(pdfBytes, options), ct);
+        var json = options.ToJson();
+        var snapshot = pdfBytes.ToArray();
+        return Task.Run(() => SplitWithOptions(snapshot, json), ct);
+    }
+
+    /// <summary>Splits into owned byte arrays with suggested filenames. No caller
+    /// files are written. Input bytes and selectors are snapshotted before scheduling.
+    /// Cancellation cancels queued work only. Native failures use PdfSplitException.</summary>
+    public static Task<List<PdfSplitResult>> SplitNamedAsync(byte[] pdfBytes, PdfSplitOptions? options = null, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (pdfBytes.Length == 0) throw new ArgumentException("PDF bytes cannot be empty", nameof(pdfBytes));
+        var json = (options ?? new PdfSplitOptions()).ToJson(named: true);
+        var snapshot = pdfBytes.ToArray();
+        return Task.Run(() => JsonSerializer.Deserialize<List<PdfSplitResult>>(SplitOptionsJson(snapshot, json))
+            ?? throw new PdfExtractionException("Native split returned no results"), ct);
     }
 
     /// <summary>
@@ -366,8 +382,12 @@ public static partial class PdfOperations
     /// through the builder), this works on any parsed PDF produced elsewhere (Acrobat, pdftk,
     /// ReportLab, …). The base bytes are preserved verbatim as the output prefix; only the
     /// touched field objects, a partial cross-reference section and a new trailer are appended.
-    /// It sets <c>/AcroForm/NeedAppearances true</c> so compliant viewers regenerate the field
-    /// appearance on open; explicit <c>/AP</c> appearance-stream generation is an upstream follow-up.
+    /// The core generates text appearances, selects button appearance states, and sets
+    /// <c>/AcroForm/NeedAppearances true</c>. Effective read-only flags (including inherited
+    /// flags) reject the entire batch without modifying the input. Encrypted PDFs are rejected.
+    /// Preserving the original byte prefix does not establish signature validity or enforce
+    /// certification and field-lock policies. Cancellation can prevent scheduling; it does not
+    /// interrupt a native call already running.
     /// </remarks>
     /// <param name="pdfBytes">The source PDF as a byte array.</param>
     /// <param name="fields">Map of fully-qualified field name (e.g. <c>"address.street"</c>) to new value.</param>
@@ -837,7 +857,12 @@ public static partial class PdfOperations
         }
     }
 
-    private static List<byte[]> SplitWithOptions(byte[] pdfBytes, PdfSplitOptions options)
+    private static List<byte[]> SplitWithOptions(byte[] pdfBytes, string optionsJson) =>
+        (JsonSerializer.Deserialize<List<string>>(SplitOptionsJson(pdfBytes, optionsJson))
+            ?? throw new PdfExtractionException("Native split returned no results"))
+        .Select(Convert.FromBase64String).ToList();
+
+    private static string SplitOptionsJson(byte[] pdfBytes, string optionsJson)
     {
         IntPtr pdfPtr = IntPtr.Zero;
         IntPtr jsonPtr = IntPtr.Zero;
@@ -847,25 +872,28 @@ public static partial class PdfOperations
             pdfPtr = Marshal.AllocHGlobal(pdfBytes.Length);
             Marshal.Copy(pdfBytes, 0, pdfPtr, pdfBytes.Length);
 
-            var optionsJson = options.ToJson();
-
             var result = NativeMethods.oxidize_split_pdf_bytes_with_options(
                 pdfPtr,
                 (nuint)pdfBytes.Length,
                 optionsJson,
                 out jsonPtr);
 
-            ThrowIfError(result, "Failed to split PDF with options");
+            if (result != 0)
+            {
+                var message = NativeMethods.GetLastError() ?? "Native split failed";
+                var error = (NativeMethods.ErrorCode)result switch
+                {
+                    NativeMethods.ErrorCode.InvalidArgument => PdfSplitError.InvalidInput,
+                    NativeMethods.ErrorCode.PdfParseError => PdfSplitError.InvalidPdf,
+                    NativeMethods.ErrorCode.IoError => PdfSplitError.Io,
+                    NativeMethods.ErrorCode.SerializationError => PdfSplitError.Serialization,
+                    _ => PdfSplitError.NativeFailure,
+                };
+                throw new PdfSplitException(error, message);
+            }
 
-            var json = Marshal.PtrToStringUTF8(jsonPtr) ?? "[]";
-            var base64Chunks = JsonSerializer.Deserialize<List<string>>(json)
-                ?? new List<string>();
-
-            var chunks = new List<byte[]>(base64Chunks.Count);
-            foreach (var encoded in base64Chunks)
-                chunks.Add(Convert.FromBase64String(encoded));
-
-            return chunks;
+            return Marshal.PtrToStringUTF8(jsonPtr)
+                ?? throw new PdfExtractionException("Native split returned no JSON");
         }
         finally
         {

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-19
+
+- Pin the Rust core to 5.5.0 and adapt validation to its stricter XMP/reference checks.
+- Add typed XMP metadata parsing/serialization and incremental catalog integration.
+- Add both form calculation engines with typed definitions, values, events and errors.
+- Add disposable lazy/streaming readers over seekable managed streams, including
+  effective resource settings and owned page/object results.
+- Add batch split/merge/extract and custom jobs with per-item outcomes and progress.
+  Rotate/Compress are rejected before execution because the core only copies files.
+- Include typed form validation, arbitrary clipping paths, PDF/A validation,
+  CID Unicode/vertical metrics, tagged preparation, incremental writer configuration,
+  complete split options, merge metadata modes, named images and raw stream decoding
+  integrated since 0.19.0.
+- Validate all eight NuGet native assets and consume the package on .NET 8/9/10 in CI.
+
+Known limitations: incremental forms still bypass DocMDP P=1 (core #794), polyline
+option types remain inaccessible (#795), and batch Rotate/Compress await real
+implementations (#797). Existing OCR and exact-token parity work remains open.
+Do not use incremental form filling on certified PDFs. Batch timeouts do not
+interrupt running work or roll back output. No full-parity claim.
+
+- Add bounded `PdfExtractor.GetPageResourceProvenanceAsync` to distinguish direct,
+  inherited and absent resources, report dictionary/owner references, and list
+  named resource identities while preserving the existing flattened API (#96).
+
+- Add `PdfExtractor.GetPageGeometryAsync`: one-based existing-page inspection of
+  inherited MediaBox/CropBox and raw clockwise rotation, retaining the existing
+  dimension tuple API and its rotated MediaBox semantics (#105).
+
 ## [0.19.0] - 2026-10-11
 
 - Update the exact Rust core dependency to the published 5.4.2.

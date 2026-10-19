@@ -1,6 +1,6 @@
 {
-  "core": "5.4.2",
-  "scope": "Audited signature slots and complete text extraction/recovery settings. Remaining Rust API pending audit; no total parity claim.",
+  "core": "5.5.0",
+  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Merge metadata source modes. Remaining Rust API pending audit; no total parity claim. Split options and suggested byte-result names. Tagged preflight and explicit preparation. Base-document incremental append/replacement, all writer fields and Info policy. CID collection sequences and bounded font glyph/vertical-metric inspection. Limited core PDF/A validation, eight levels, findings and operation errors. Arbitrary clipping paths and both winding rules. Explicit core form validation rules, masks, settings and ordered diagnostics. Core 5.5.0 XMP integration, explicit isolated calculation sequences, native batch workers, and managed seekable-stream lazy/page-at-a-time readers.",
   "callables": {
     "PdfSignatureSlots.CreateAsync": [
       "pdf",
@@ -61,7 +61,202 @@
     ],
     "PdfDocument.SetBuildIdentification": [
       "policy"
-    ]
+    ],
+    "PdfExtractor.GetPageGeometryAsync": [
+      "pdfBytes",
+      "pageNumber",
+      "cancellationToken"
+    ],
+    "PdfExtractor.GetPageResourceProvenanceAsync": [
+      "pdfBytes",
+      "pageNumber",
+      "options",
+      "cancellationToken"
+    ],
+    "PdfStreams.ReadAsync": [
+      "pdf",
+      "objectId",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfStreams.ReadPageAsync": [
+      "pdf",
+      "pageIndex",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfStreams.DecodeAsync": [
+      "pdf",
+      "objectId",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfStreams.DecodePageContentAsync": [
+      "pdf",
+      "pageIndex",
+      "contentsIndex",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfImages.ExtractAsync": [
+      "pdf",
+      "pageIndex",
+      "resourceName",
+      "formPath",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfOperations.MergeWithMetadataAsync": [
+      "inputs",
+      "options",
+      "ct"
+    ],
+    "PdfOperations.SplitNamedAsync": [
+      "pdfBytes",
+      "options",
+      "ct"
+    ],
+    "PdfTaggedOperations.PlanPreparedAsync": [
+      "pdf",
+      "mutations",
+      "preparation",
+      "limits",
+      "ct"
+    ],
+    "PdfTaggedOperations.EditPreparedAsync": [
+      "pdf",
+      "mutations",
+      "preparation",
+      "limits",
+      "ct"
+    ],
+    "PdfTaggedOperations.PreflightAsync": [
+      "pdf",
+      "limits",
+      "ct"
+    ],
+    "PdfDocument.SaveIncrementalToBytes": [
+      "basePdf",
+      "options"
+    ],
+    "PdfFonts.InspectAsync": [
+      "pdf",
+      "pageIndex",
+      "resourceName",
+      "characterCodes",
+      "cids",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfFonts.LookupCollection": [
+      "ordering",
+      "cids"
+    ],
+    "PdfAValidation.ValidateAsync": [
+      "pdf",
+      "options",
+      "parserOptions",
+      "ct"
+    ],
+    "PdfPage.ClipPath": [
+      "path",
+      "windingRule"
+    ],
+    "PdfClippingPath.MoveTo": [
+      "x",
+      "y"
+    ],
+    "PdfClippingPath.LineTo": [
+      "x",
+      "y"
+    ],
+    "PdfClippingPath.CurveTo": [
+      "x1",
+      "y1",
+      "x2",
+      "y2",
+      "x3",
+      "y3"
+    ],
+    "PdfClippingPath.ClosePath": [],
+    "PdfFormValidation.Validate": [
+      "field",
+      "settings"
+    ],
+    "PdfFormValidation.ValidateMany": [
+      "fields",
+      "settings"
+    ],
+    "PdfCalculations.RunEngine": [
+      "steps"
+    ],
+    "PdfCalculations.RunSystem": [
+      "steps",
+      "settings"
+    ],
+    "PdfXmp.Parse": [
+      "xml"
+    ],
+    "PdfXmp.Serialize": [
+      "metadata"
+    ],
+    "PdfXmp.SerializeIdentifier": [
+      "identifier"
+    ],
+    "PdfXmp.ValidateForPdfA": [
+      "metadata"
+    ],
+    "PdfXmp.Read": [
+      "pdfBytes"
+    ],
+    "PdfXmp.Write": [
+      "pdfBytes",
+      "metadata"
+    ],
+    "PdfBatch.Run": [
+      "jobs",
+      "options",
+      "progress",
+      "ct"
+    ],
+    "PdfLazyDocument.Open": [
+      "stream",
+      "options",
+      "leaveOpen",
+      "ct"
+    ],
+    "PdfLazyDocument.GetConfiguration": [],
+    "PdfLazyDocument.GetPage": [
+      "pageIndex",
+      "ct"
+    ],
+    "PdfLazyDocument.GetObject": [
+      "number",
+      "generation",
+      "ct"
+    ],
+    "PdfLazyDocument.PreloadPage": [
+      "pageIndex",
+      "ct"
+    ],
+    "PdfLazyDocument.ClearCache": [],
+    "PdfStreamingDocument.Open": [
+      "stream",
+      "options",
+      "leaveOpen",
+      "ct"
+    ],
+    "PdfStreamingDocument.NextPage": [
+      "ct"
+    ],
+    "PdfStreamingDocument.GetConfiguration": [],
+    "PdfStreamingDocument.ClearCache": []
   },
   "properties": {
     "PdfSignatureSlot": [
@@ -122,6 +317,405 @@
       "StructureTag",
       "Color",
       "SpaceDecisions"
+    ],
+    "Models.PageGeometry": [
+      "PageNumber",
+      "Rotation",
+      "MediaBox",
+      "CropBox",
+      "Width",
+      "Height"
+    ],
+    "Models.PageGeometryBox": [
+      "Left",
+      "Bottom",
+      "Right",
+      "Top"
+    ],
+    "Models.PageResourceProvenance": [
+      "PageNumber",
+      "PageReference",
+      "Origin",
+      "SourceReference",
+      "ResourceDictionaryReference",
+      "AncestorDepth",
+      "ResolvedResources",
+      "Entries"
+    ],
+    "Models.PageResourceEntry": [
+      "Category",
+      "Name",
+      "Reference"
+    ],
+    "PdfIndirectObjectId": [
+      "ObjectNumber",
+      "GenerationNumber"
+    ],
+    "Models.PageResources": [
+      "FontNames",
+      "HasXObjects",
+      "ResourceKeys"
+    ],
+    "PdfRawStream": [
+      "Data",
+      "ObjectId",
+      "ContentsIndex",
+      "Filter",
+      "DecodeParameters"
+    ],
+    "PdfDecodedStream": [
+      "Data",
+      "ObjectId",
+      "ContentsIndex",
+      "Diagnostics",
+      "DecodedWithoutRecovery"
+    ],
+    "PdfStreamValue": [
+      "Type",
+      "Value"
+    ],
+    "PdfStreamRecoveryDiagnostic": [
+      "FilterIndex",
+      "Kind",
+      "Error"
+    ],
+    "PdfStreamException": [
+      "Kind"
+    ],
+    "PdfNamedImage": [
+      "PageIndex",
+      "PageObjectId",
+      "ResourceName",
+      "FormPath",
+      "FormObjectIds",
+      "ObjectId",
+      "ResourceOwnerId",
+      "ResourceDictionaryId",
+      "Width",
+      "Height",
+      "BitsPerComponent",
+      "ImageMask",
+      "EncodedFormat",
+      "OutputFormat",
+      "EncodedData",
+      "Data",
+      "Dictionary",
+      "Diagnostics"
+    ],
+    "PdfImageException": [
+      "Kind",
+      "StreamErrorKind"
+    ],
+    "PdfMergeMetadataOptions": [
+      "Mode",
+      "SourceIndex",
+      "Custom"
+    ],
+    "PdfMergeMetadata": [
+      "Title",
+      "Author",
+      "Subject",
+      "Keywords"
+    ],
+    "PdfMergeException": [
+      "Error"
+    ],
+    "PdfSplitOptions": [
+      "Mode",
+      "ChunkSize",
+      "Ranges",
+      "SplitAt",
+      "PreserveMetadata",
+      "Optimize",
+      "OutputPattern"
+    ],
+    "PdfSplitResult": [
+      "FileName",
+      "Bytes",
+      "OptimizationApplied"
+    ],
+    "PdfSplitException": [
+      "Error"
+    ],
+    "PdfTaggedPreparationOptions": [
+      "RecoverIndexes",
+      "DocumentLanguage"
+    ],
+    "PdfTaggedPreparationPlan": [
+      "PreparationObjects",
+      "MutationPlan"
+    ],
+    "PdfTaggedPreparedEditResult": [
+      "PreparationObjects",
+      "Edit"
+    ],
+    "PdfTaggedException": [
+      "Error"
+    ],
+    "PdfTaggedLimits": [
+      "MaxObjects",
+      "MaxDepth",
+      "MaxEntries",
+      "MaxDecodedContentBytes"
+    ],
+    "PdfTaggedEditResult": [
+      "PdfBytes",
+      "Plan",
+      "ValidationBefore",
+      "ValidationAfter"
+    ],
+    "PdfTaggedObjectId": [
+      "ObjectNumber",
+      "Generation"
+    ],
+    "PdfTaggedValidation": [
+      "Tagged",
+      "Valid",
+      "StructureTreeRoot",
+      "RoleMap",
+      "ClassNames",
+      "ClassMap",
+      "Artifacts",
+      "Elements",
+      "ParentTreeEntries",
+      "ParentTree",
+      "ContentMcids",
+      "Findings"
+    ],
+    "PdfIncrementalSaveOptions": [
+      "PageMode",
+      "InfoPolicy",
+      "Writer"
+    ],
+    "PdfIncrementalSaveException": [
+      "Error"
+    ],
+    "PdfSaveOptions": [
+      "UseXrefStreams",
+      "UseObjectStreams",
+      "PdfVersion",
+      "CompressStreams"
+    ],
+    "PdfFontInspection": [
+      "ResourceName",
+      "Subtype",
+      "WritingMode",
+      "Glyphs",
+      "CidSystemInfo",
+      "VerticalMetrics",
+      "VerticalAdvances"
+    ],
+    "PdfDecodedGlyph": [
+      "SourceCode",
+      "Cid",
+      "GlyphId",
+      "Unicode",
+      "Advance"
+    ],
+    "PdfCidSystemInfo": [
+      "Registry",
+      "Ordering",
+      "Supplement"
+    ],
+    "PdfCidVerticalMetrics": [
+      "DefaultAdvance",
+      "Overrides",
+      "Ranges"
+    ],
+    "PdfCidAdvanceRange": [
+      "First",
+      "Last",
+      "Advance"
+    ],
+    "PdfCidAdvance": [
+      "Cid",
+      "Advance"
+    ],
+    "PdfCidCollectionLookup": [
+      "Ordering",
+      "Supported",
+      "Mappings"
+    ],
+    "PdfCidUnicodeMapping": [
+      "Cid",
+      "Unicode",
+      "UnicodeScalar"
+    ],
+    "PdfFontException": [
+      "Error"
+    ],
+    "PdfAValidationOptions": [
+      "Level",
+      "CollectAllErrors",
+      "Password"
+    ],
+    "PdfAValidationResult": [
+      "Level",
+      "IsValid",
+      "Errors",
+      "Warnings",
+      "ErrorCount",
+      "WarningCount"
+    ],
+    "PdfAValidationError": [
+      "Kind",
+      "Message",
+      "FontName",
+      "Location",
+      "Details",
+      "ColorSpace",
+      "ReferenceType",
+      "ObjectId",
+      "Actual",
+      "Required",
+      "FileName",
+      "MissingField",
+      "ActionType"
+    ],
+    "PdfAValidationWarning": [
+      "Kind",
+      "Message",
+      "FontName",
+      "Details",
+      "Field",
+      "SizeBytes"
+    ],
+    "PdfAException": [
+      "Kind",
+      "Finding"
+    ],
+    "PdfFieldValidationResult": [
+      "FieldName",
+      "IsValid",
+      "Errors",
+      "Warnings",
+      "FormattedValue"
+    ],
+    "PdfValidationError": [
+      "FieldName",
+      "ErrorType",
+      "Message",
+      "Details"
+    ],
+    "PdfFieldValidation": [
+      "FieldName",
+      "Value",
+      "Validator",
+      "Required"
+    ],
+    "PdfFieldValidator": [
+      "Rules",
+      "FormatMask",
+      "ErrorMessage"
+    ],
+    "PdfCalculationStepResult": [
+      "Value",
+      "EngineSummary",
+      "SystemSummary",
+      "Events",
+      "Settings",
+      "ExportedOrder"
+    ],
+    "PdfCalculationEvent": [
+      "Timestamp",
+      "Field",
+      "Kind",
+      "OldValue",
+      "NewValue"
+    ],
+    "PdfCalculationException": [
+      "Kind",
+      "StepIndex"
+    ],
+    "PdfXmpMetadata": [
+      "Title",
+      "Creator",
+      "Description",
+      "Keywords",
+      "CreateDate",
+      "ModifyDate",
+      "CreatorTool",
+      "PdfAIdentifier",
+      "DocumentId",
+      "InstanceId"
+    ],
+    "PdfXmpIdentifier": [
+      "Part",
+      "Conformance",
+      "Amendment",
+      "Corrigenda"
+    ],
+    "PdfBatchJobResult": [
+      "Index",
+      "Name",
+      "Status",
+      "DurationSeconds",
+      "Error",
+      "OutputFiles",
+      "CallbackError"
+    ],
+    "PdfBatchResult": [
+      "TotalJobs",
+      "Successful",
+      "Failed",
+      "Cancelled",
+      "DurationSeconds",
+      "Results"
+    ],
+    "PdfBatchProgress": [
+      "TotalJobs",
+      "CompletedJobs",
+      "FailedJobs",
+      "RunningJobs",
+      "ElapsedSeconds",
+      "EstimatedRemainingSeconds",
+      "Throughput",
+      "Percentage",
+      "IsComplete"
+    ],
+    "PdfStreamedPage": [
+      "PageIndex",
+      "Width",
+      "Height",
+      "MediaBox",
+      "Text",
+      "Content"
+    ],
+    "PdfLazyPage": [
+      "Number",
+      "Generation",
+      "MediaBox",
+      "CropBox",
+      "Rotation",
+      "Dictionary",
+      "InheritedResources",
+      "Annotations"
+    ],
+    "PdfLazyConfiguration": [
+      "PageCount",
+      "Requested",
+      "Effective",
+      "Unsupported",
+      "Stats"
+    ],
+    "PdfStreamingConfiguration": [
+      "Requested",
+      "Effective",
+      "ProgressiveHintsUnsupported",
+      "CachedPages",
+      "MemoryUsage"
+    ],
+    "PdfLazyObject": [
+      "Kind",
+      "Boolean",
+      "Integer",
+      "Real",
+      "Name",
+      "Data",
+      "Items",
+      "Entries",
+      "Number",
+      "Generation"
     ]
   },
   "defaults": {
@@ -158,9 +752,128 @@
       "LenientEncoding": true,
       "PreferredEncoding": null,
       "LenientSyntax": false
+    },
+    "Models.PageResourceReadOptions": {
+      "MaxAncestorDepth": 256,
+      "MaxEntries": 100000,
+      "MaxNameBytes": 1048576
+    },
+    "PdfStreamOptions": {
+      "MaxEncodedBytes": 16777216,
+      "MaxDecodedBytes": 16777216,
+      "AllowRecovery": false,
+      "MaxStreams": 1024,
+      "MaxReferenceDepth": 32,
+      "MaxMetadataDepth": 16,
+      "MaxMetadataNodes": 4096,
+      "MaxMetadataBytes": 65536
+    },
+    "PdfNamedImageOptions": {
+      "Limits": {
+        "MaxImages": 1000,
+        "MaxEncodedBytesPerImage": 67108864,
+        "MaxTotalEncodedBytes": 268435456,
+        "MaxDecodedPixelsPerImage": 100000000
+      },
+      "MaxDecodedBytes": 16777216,
+      "AllowRecovery": false,
+      "MaxAncestorDepth": 256,
+      "MaxFormDepth": 16,
+      "MaxReferenceDepth": 32,
+      "MaxNameBytes": 4096,
+      "MaxMetadataDepth": 16,
+      "MaxMetadataNodes": 4096,
+      "MaxMetadataBytes": 65536
+    },
+    "PdfMergeMetadataOptions": {
+      "Mode": 0,
+      "SourceIndex": null,
+      "Custom": null
+    },
+    "PdfMergeMetadata": {
+      "Title": null,
+      "Author": null,
+      "Subject": null,
+      "Keywords": null
+    },
+    "PdfSplitOptions": {
+      "Mode": 0,
+      "ChunkSize": 1,
+      "PreserveMetadata": true,
+      "Optimize": false,
+      "OutputPattern": "page_{}.pdf"
+    },
+    "PdfTaggedPreparationOptions": {
+      "RecoverIndexes": false,
+      "DocumentLanguage": null
+    },
+    "PdfTaggedLimits": {
+      "MaxObjects": 100000,
+      "MaxDepth": 256,
+      "MaxEntries": 1000000,
+      "MaxDecodedContentBytes": 268435456
+    },
+    "PdfIncrementalSaveOptions": {
+      "PageMode": 0,
+      "InfoPolicy": 0,
+      "Writer": {
+        "UseXrefStreams": false,
+        "UseObjectStreams": false,
+        "PdfVersion": "1.4",
+        "CompressStreams": true
+      }
+    },
+    "PdfFontInspectionOptions": {
+      "MaxCodeBytes": 4096,
+      "MaxCids": 4096,
+      "MaxMetricEntries": 4096,
+      "MaxLookupWork": 1000000,
+      "MaxUnicodeBytes": 1048576
+    },
+    "PdfAValidationOptions": {
+      "Level": 1,
+      "CollectAllErrors": true,
+      "Password": null
+    },
+    "PdfValidationSettings": {
+      "ValidateOnChange": true,
+      "ShowFormatHints": true,
+      "AutoFormat": true,
+      "AllowPartial": false,
+      "RealTimeValidation": true,
+      "HighlightErrors": true,
+      "ShowErrorMessages": true
+    },
+    "PdfCalculationSettings": {
+      "AutoRecalculate": true,
+      "MaxDepth": 100,
+      "LogEvents": true,
+      "DecimalPrecision": 2
+    },
+    "PdfStreamingOptions": {
+      "BufferSize": 262144,
+      "PageCacheSize": 3,
+      "MaxContentStreamSize": 10485760,
+      "ProgressiveHints": true,
+      "MemoryLimit": 104857600
+    },
+    "PdfLazyOptions": {
+      "LazyLoading": true,
+      "MemoryMapping": true,
+      "CacheSize": 1000,
+      "Streaming": true,
+      "BufferSize": 65536,
+      "MmapThreshold": 10485760
+    },
+    "PdfBatchOptions": {
+      "MemoryLimitPerWorker": 0,
+      "ProgressIntervalMs": 100,
+      "StopOnError": false,
+      "JobTimeoutMs": 300000
     }
   },
   "behavior_tests": [
+    "PdfOperationsFillFormTests.FillFormFields_ReadOnlyField_RejectsBatchAndPreservesInput",
     "SignatureSlotTests.SlotLifecyclePreservesRevisionsAndSeparatesHandwritingFromCms",
     "SignatureSlotTests.InvalidTargetsAndStrokesAreRejectedWithoutChangingInput",
     "SignatureSlotTests.PreCancelledOperationAndEmptyPdfFailBeforeNativeCall",
@@ -169,6 +882,120 @@
     "TextRecoveryTests.NormalizationZeroBudgetAndFragmentMetadataAreExposed",
     "TextRecoveryTests.BuildIdentificationControlsSerializedMetadata",
     "TextRecoveryTests.EveryCarriageReturnPolicyReachesTheNewExtractor",
-    "SignatureSlotTests.DigitalSignatureValueCompletesSlotAndPreventsRemoval"
+    "SignatureSlotTests.DigitalSignatureValueCompletesSlotAndPreventsRemoval",
+    "PageGeometryTests.RotationAndUnrotatedBoxesPreserveLegacyDimensions",
+    "PageGeometryTests.InheritedGeometryUsesNearestAncestorAndPageOverrides",
+    "PageGeometryTests.MissingCropAndRotationRemainDistinctFromExplicitValues",
+    "PageGeometryTests.InvalidInputIndexesLimitsAndCancellationAreRejected",
+    "PageGeometryTests.QueuedInspectionOwnsAnInputSnapshot",
+    "PageResourceProvenanceTests.DirectOwnershipDoesNotDependOnDictionaryIndirection",
+    "PageResourceProvenanceTests.InheritedOwnershipIdentifiesNearestDeclaringNode",
+    "PageResourceProvenanceTests.EmptyOverridesAndAbsenceRemainDistinctWithoutCrossPageLeakage",
+    "PageResourceProvenanceTests.ResolvedInventoryIncludesNamedCategoriesAndPreservesFlattenedApi",
+    "PageResourceProvenanceTests.InvalidResourceDeclarationsFailInsteadOfFallingBack",
+    "PageResourceProvenanceTests.RequiredMalformedAncestryIsRejected",
+    "PageResourceProvenanceTests.TraversalEntryAndNameBudgetsHaveExactBoundaries",
+    "PageResourceProvenanceTests.ValidationAndSnapshotOwnershipReachTheRealFfi",
+    "RawStreamTests.RawChainPreservesBytesOrderParametersAndIdentity",
+    "RawStreamTests.UnfilteredEmptyAndAbsentContentsAreDistinct",
+    "RawStreamTests.RecoveryIsOptInAndKeepsFilterPosition",
+    "RawStreamTests.CorruptionPredictorsAndUnsupportedFiltersRemainErrors",
+    "RawStreamTests.DecodedBudgetsRejectExpansionWithoutTruncating",
+    "RawStreamTests.InspectionBudgetsHaveExactAggregateBoundaries",
+    "RawStreamTests.InvalidSelectorsAndIndirectMetadataFailExplicitly",
+    "RawStreamTests.InputsAreOwnedAndLegacyDecodedApiIsPreserved",
+    "RawStreamTests.IndirectPredictorParametersAreAppliedByTheDocument",
+    "NamedImageTests.SelectsDistinctNamesAndAliasesWithoutExtractingUnrelatedResources",
+    "NamedImageTests.InheritedIndirectResourcesAndEmptyOverridesPreserveOwnership",
+    "NamedImageTests.MissingNonImageAndDanglingResourcesHaveTypedErrors",
+    "NamedImageTests.FormsRequireExplicitPathsAndUseNearestDeclaredResources",
+    "NamedImageTests.ChainedFiltersResolvePredictorsAndRetainColorDecodeAndMaskMetadata",
+    "NamedImageTests.UnsupportedFiltersFailInsteadOfSkippingTheNamedImage",
+    "NamedImageTests.JpegPassthroughAndStencilSamplesHaveExplicitFormats",
+    "NamedImageTests.ImageCountPixelAndByteLimitsAreEnforcedBeforeDecode",
+    "NamedImageTests.RecoveryDiagnosticsAndExpansionLimitsReuseStreamSemantics",
+    "NamedImageTests.LookupAndMetadataLimitsHaveExactBoundaries",
+    "NamedImageTests.ExistingBatchApiStillReturnsEncodedPngFiles",
+    "NamedImageTests.InputsAndNestedSettingsAreSnapshottedAndInvalidInputsFail",
+    "MergeMetadataTests.DefaultAndLegacyMergesKeepFirstInputFields",
+    "MergeMetadataTests.SelectedInputUsesOriginalIndexAndPreservesPageOrder",
+    "MergeMetadataTests.CustomFieldsRetainUnicodeEscapesNullAndEmptyValues",
+    "MergeMetadataTests.NoSourceFieldsAreCopiedForNoneOrEmptyCustom",
+    "MergeMetadataTests.MissingSourceInfoDoesNotFallBackToAnotherInput",
+    "MergeMetadataTests.ZeroPageInputRetainsItsMetadataSourceIndex",
+    "MergeMetadataTests.InfoCopyDoesNotClaimStructuralOrXmpPreservation",
+    "MergeMetadataTests.InvalidIndexesEmptySelectionsAndConflictingOptionsAreRejected",
+    "MergeMetadataTests.NativeFailuresAreTypedAndLaterMergesStillSucceed",
+    "MergeMetadataTests.CallerMutationsAfterReturnCannotChangeQueuedRequest",
+    "MergeMetadataTests.UnicodeFieldsRoundTripForEverySourceMode",
+    "SplitOptionsTests.MetadataAndOptimizationFollowCoreContract",
+    "SplitOptionsTests.RangesKeepOrderAndUseOneBasedNames",
+    "SplitOptionsTests.ExistingModesRetainTheirNaming",
+    "SplitOptionsTests.InvalidOrDuplicateNamesAreRejected",
+    "SplitOptionsTests.FailuresAndSnapshotsCrossRealFfi",
+    "SplitOptionsTests.LegacyOptionsHonorMetadataAndMissingInfo",
+    "TaggedPreparationTests.PreflightRecoversDerivedIndexesButReportsMissingAuthorMetadata",
+    "TaggedPreparationTests.CompletePreparationInventoryIsSeparateFromMutationPlan",
+    "TaggedPreparationTests.PreparedApplyRejectsIncompleteFinalDocumentIncludingNoopMutations",
+    "TaggedPreparationTests.PreparationStepsAreExplicitAndLanguageCannotOverwriteExistingValues",
+    "TaggedPreparationTests.AmbiguousOwnershipAndResourceLimitsAreRejected",
+    "TaggedPreparationTests.CertificationRejectsPreflightAndPreparation",
+    "TaggedPreparationTests.InputsAreSnapshottedAndFailuresDoNotPoisonLaterCalls",
+    "TaggedPreparationTests.RetiredInventoryPreservesOriginalGeneration",
+    "TaggedPreparationTests.EncryptionAndInvalidDescriptionEditsAreRejected",
+    "TaggedPreparationTests.RecoveryEnablesFinalValidationEvenWhenIndexesAlreadyExist",
+    "IncrementalWriterTests.AppendPreservesInfoIdentityOrAbsenceAndOriginalPrefix",
+    "IncrementalWriterTests.ReplacementUsesLeadingPagesAndRetainsUntouchedTail",
+    "IncrementalWriterTests.ReplaceInfoEncodesAllSixUnicodeFieldsAndHonorsIdentification",
+    "IncrementalWriterTests.CompressionOnlyAffectsNewStreamsAndBaseVersionRemains",
+    "IncrementalWriterTests.StreamXrefBaseCanReceiveClassicIncrementalRevision",
+    "IncrementalWriterTests.EmptyChangesCanReplaceInfoWithoutDroppingPages",
+    "IncrementalWriterTests.InvalidArgumentsMalformedAndEncryptedBasesHaveDistinctFailures",
+    "IncrementalWriterTests.MalformedTrailerIdsAndUnsupportedPageStructureFailWithoutConsumingChanges",
+    "FontInspectionTests.CollectionLookupDistinguishesCollectionsMissingCidsAndScalarResults",
+    "FontInspectionTests.CollectionSequencesRetainAllScalars",
+    "FontInspectionTests.CodesCidsGidsUnicodeAndWritingDirectionRemainIndependent",
+    "FontInspectionTests.CollectionFallbackUsesCidAndRegistryWithoutInventingUnicode",
+    "FontInspectionTests.DefaultMetricsAndFullCidRangeRemainCompact",
+    "FontInspectionTests.SimpleFontHasNoCidAndNoVerticalTable",
+    "FontInspectionTests.QueuedInputsAndOptionsAreSnapshotted",
+    "FontInspectionTests.MalformedVerticalMetricsFailExplicitly",
+    "FontInspectionTests.EachQueryAndResponseBudgetIsEnforced",
+    "FontInspectionTests.WorkTableResponseAndArgumentBoundsAreEnforced",
+    "FontInspectionTests.UnknownCollectionAndLookupBoundsAreExplicit",
+    "FontInspectionTests.CjkGlyphFallbackRetainsSupplementaryVariationSelector",
+    "PdfAValidationTests.EachLevelAcceptsMatchingMetadataAndRejectsMismatchedIdentity",
+    "PdfAValidationTests.AllFindingsRetainVariantPayloadsAndCoreCollectSettingBehavior",
+    "PdfAValidationTests.LevelDependentRulesMatchActualCoreCoverage",
+    "PdfAValidationTests.MalformedPdfAndUnresolvableReferencesAreOperationFailures",
+    "PdfAValidationTests.NativeBoundaryRejectsMalformedRequestsAndInvalidLevels",
+    "PdfAValidationTests.EncryptionExternalActionsAndMissingMetadataRemainConformanceFindings",
+    "PdfAValidationTests.InputsAndSettingsAreSnapshottedBeforeScheduling",
+    "ClippingPathTests.WindingRulesAndSaveRestoreEmitDistinctScopedOperators",
+    "ClippingPathTests.CubicOpenSubpathsAndReusableSnapshotsPreserveCoordinates",
+    "ClippingPathTests.InvalidPathsDoNotMutatePageOrBuilder",
+    "ClippingPathTests.CommandBudgetAndAbiLayoutAreExplicit",
+    "FormValidationTests.EveryRulePreservesValidInvalidAndTypedDiagnostics",
+    "FormValidationTests.EveryMaskAndLayoutUsesCoreFormatting",
+    "FormValidationTests.DiagnosticsKeepRequiredMaskAndRuleOrderWithoutDrops",
+    "FormValidationTests.CoreLimitsDefaultsAndAllValueKindsAreExplicit",
+    "FormValidationTests.SnapshotsCustomPredicatesBatchOrderAndExceptionsAreOwned",
+    "FormValidationTests.InvalidRequestsAndBudgetsFailWithoutPartialOutput",
+    "CalculationTests.SystemPropagatesTypedValuesAndOrderedEventsThroughTwoHops",
+    "CalculationTests.LowerEngineFunctionsExpressionsAndRemovalPreserveCoreResults",
+    "CalculationTests.LowerEngineDependencyOrderMissingInputsAndInfinityAreObservable",
+    "CalculationTests.CyclesSyntaxRangeAndDepthFailuresHaveTypedStepIndices",
+    "CalculationTests.InvalidRequestsAreBoundedAndNativeOutputIsCleared",
+    "XmpTests.AllPropertiesAndIdentifierEscapingRoundTripThroughCore",
+    "XmpTests.NamespaceAliasesMalformedXmlAndLimitsAreDistinguished",
+    "XmpTests.MissingMetadataIsNotMalformedMetadataAndWriteCanInsertIt",
+    "BatchTests.MixedOutcomesPreserveIndicesDuplicatesAndBoundedConcurrency",
+    "BatchTests.SerialStopAndTimeoutContractsDoNotClaimInterruption",
+    "BatchTests.UnsupportedMemoryAndProgressFailuresLeaveNoRunningCallbacks",
+    "BatchTests.BuiltInMergeAndExtractWriteReadableFilesAndRetainFailures",
+    "StreamReaderTests.StreamingReadsRealPagesWithPartialReadsAndCacheBudgets",
+    "StreamReaderTests.LazyObjectsKeepTypesGenerationsAndEffectiveOptions",
+    "StreamReaderTests.OwnershipMalformedInputAndContentLimitsReleaseResources",
+    "StreamReaderTests.CancellationReadErrorsAndReentryCannotEscapeNativeCallbacks"
   ]
 }

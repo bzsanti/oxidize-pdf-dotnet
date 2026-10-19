@@ -67,7 +67,7 @@ impl Settings {
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
-struct ParserSettings {
+pub(crate) struct ParserSettings {
     strict_mode: bool,
     recover_from_stream_errors: bool,
     ignore_corrupt_streams: bool,
@@ -82,7 +82,7 @@ struct ParserSettings {
     lenient_syntax: bool,
 }
 impl ParserSettings {
-    fn core(self) -> Result<ParseOptions, String> {
+    pub(crate) fn core(&self) -> Result<ParseOptions, String> {
         let preferred_encoding = self
             .preferred_encoding
             .map(|v| match v {

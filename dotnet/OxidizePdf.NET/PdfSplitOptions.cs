@@ -41,24 +41,45 @@ public sealed class PdfSplitOptions
     /// <summary>
     /// 0-based page indices at which to split. Each index starts a new chunk.
     /// Only used when <see cref="Mode"/> is <see cref="PdfSplitMode.SplitAt"/>.
+    /// Core ignores zero/out-of-bounds points and preserves supplied order;
+    /// points are not sorted or deduplicated.
     /// </summary>
     public int[]? SplitAt { get; init; }
 
-    /// <summary>Serialises the options to the JSON format expected by the native FFI.</summary>
-    internal string ToJson() => Mode switch
+    /// <summary>Copy Title, Author, Subject and Keywords (default true).
+    /// Does not preserve XMP, custom Info fields or document structure.</summary>
+    public bool PreserveMetadata { get; init; } = true;
+
+    /// <summary>Requested optimization (default false). Core 5.4.2 ignores this
+    /// flag; enabling it does not optimize or promise smaller output.</summary>
+    public bool Optimize { get; init; }
+
+    /// <summary>Suggested filename pattern, default page_{}.pdf. Never a write path.
+    /// Supports {n} (one-based output ordinal), {} (one-based page or start-end),
+    /// {page} for SinglePages, and {start}/{end} for other modes. Names must be
+    /// portable filenames (at most 200 UTF-8 bytes). Named results must be unique ignoring case. Unsupported tokens are rejected.</summary>
+    public string OutputPattern { get; init; } = "page_{}.pdf";
+
+    internal string ToJson(bool named = false)
     {
-        PdfSplitMode.SinglePages => """{"mode":"SinglePages"}""",
-        PdfSplitMode.ChunkSize => $$$"""{"mode":"ChunkSize","chunk_size":{{{ChunkSize}}}}""",
-        PdfSplitMode.Ranges => JsonSerializer.Serialize(new
+        if (!Enum.IsDefined(Mode)) throw new ArgumentException("Invalid split mode", nameof(Mode));
+        if (Mode == PdfSplitMode.ChunkSize && ChunkSize < 1)
+            throw new ArgumentOutOfRangeException(nameof(ChunkSize));
+        if (Mode == PdfSplitMode.Ranges && (Ranges is null || Ranges.Length == 0 || Ranges.Any(r => r.From < 0 || r.To < r.From)))
+            throw new ArgumentException("Nonempty ascending nonnegative ranges are required", nameof(Ranges));
+        if (Mode == PdfSplitMode.SplitAt && (SplitAt is null || SplitAt.Any(p => p < 0)))
+            throw new ArgumentException("Nonnegative split points are required", nameof(SplitAt));
+        ArgumentNullException.ThrowIfNull(OutputPattern);
+        return JsonSerializer.Serialize(new
         {
-            mode = "Ranges",
-            ranges = Ranges!.Select(r => new[] { r.From, r.To }).ToArray(),
-        }),
-        PdfSplitMode.SplitAt => JsonSerializer.Serialize(new
-        {
-            mode = "SplitAt",
-            split_at = SplitAt,
-        }),
-        _ => throw new ArgumentException($"Invalid split mode: {Mode}"),
-    };
+            mode = Mode.ToString(),
+            chunk_size = ChunkSize,
+            ranges = Ranges?.Select(r => new[] { r.From, r.To }).ToArray(),
+            split_at = SplitAt?.ToArray(),
+            preserve_metadata = PreserveMetadata,
+            optimize = Optimize,
+            output_pattern = OutputPattern,
+            named,
+        });
+    }
 }

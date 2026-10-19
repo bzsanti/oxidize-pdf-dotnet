@@ -6,12 +6,16 @@ use std::ptr;
 // ── Sub-modules ───────────────────────────────────────────────────────────────
 
 pub mod annotations;
+pub mod batch;
+pub mod calculations;
 pub mod chunking;
 pub mod cid_font;
 pub mod columns;
 pub mod document;
 pub mod document_metadata;
 pub mod existing_pdf;
+pub mod font_inspection;
+pub mod form_validation;
 pub mod forms;
 pub mod free_text;
 pub mod geometric;
@@ -19,15 +23,20 @@ pub mod graphics;
 pub mod header_footer;
 pub mod highlights;
 pub mod image;
+pub mod incremental_writer;
 pub mod ink;
 pub mod layout;
+pub mod lazy_streaming;
 pub mod lists;
 pub mod measure;
+pub mod merge_metadata;
 pub mod operations;
 pub mod outline_read;
 pub mod page;
 pub mod parser;
+pub mod pdfa;
 pub mod pipeline_config;
+pub mod resource_provenance;
 pub mod security;
 pub mod semantic;
 pub mod semantic_compare;
@@ -39,6 +48,7 @@ pub mod text;
 pub mod text_extraction;
 pub mod text_validation;
 pub mod types;
+pub mod xmp;
 
 // ── Error infrastructure ──────────────────────────────────────────────────────
 
@@ -306,3 +316,79 @@ pub mod tagged_existing;
 pub mod ocr_layer;
 
 pub mod redaction;
+
+pub mod streams;
+
+pub mod named_images;
+
+mod split_options;
+
+#[cfg(test)]
+mod parity_550_boundary_tests {
+    use super::*;
+    #[test]
+    fn new_boundaries_clear_outputs_before_rejecting_null_or_excessive_input() {
+        unsafe {
+            let mut output = std::ptr::dangling_mut::<c_char>();
+            assert_eq!(
+                calculations::oxidize_calculations(std::ptr::null(), 1, &mut output),
+                1
+            );
+            assert!(output.is_null());
+            assert_eq!(
+                calculations::oxidize_calculations(b"x".as_ptr(), usize::MAX, &mut output),
+                9
+            );
+            assert!(output.is_null());
+            assert_eq!(
+                xmp::oxidize_xmp_model(b"x".as_ptr(), usize::MAX, &mut output),
+                9
+            );
+            assert!(output.is_null());
+            assert_eq!(
+                xmp::oxidize_xmp_read(b"x".as_ptr(), usize::MAX, &mut output),
+                9
+            );
+            let mut bytes = std::ptr::dangling_mut::<u8>();
+            let mut length = 99usize;
+            assert_eq!(
+                xmp::oxidize_xmp_write(
+                    std::ptr::null(),
+                    1,
+                    std::ptr::null(),
+                    1,
+                    &mut bytes,
+                    &mut length
+                ),
+                1
+            );
+            assert!(bytes.is_null());
+            assert_eq!(length, 0);
+            assert_eq!(
+                batch::oxidize_batch(b"x".as_ptr(), usize::MAX, None, None, &mut output),
+                9
+            );
+            assert!(output.is_null());
+            let mut handle = std::ptr::dangling_mut::<lazy_streaming::ReaderHandle>();
+            assert_eq!(
+                lazy_streaming::oxidize_reader_open(
+                    0,
+                    None,
+                    None,
+                    false,
+                    b"x".as_ptr(),
+                    1,
+                    &mut handle
+                ),
+                1
+            );
+            assert!(handle.is_null());
+            assert_eq!(
+                lazy_streaming::oxidize_reader_query(handle, 0, 0, 0, &mut output),
+                1
+            );
+            assert!(output.is_null());
+            lazy_streaming::oxidize_reader_free(handle);
+        }
+    }
+}

@@ -7,7 +7,47 @@ namespace OxidizePdf.NET;
 /// </summary>
 internal static class NativeMethods
 {
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_pdfa_validate([In] byte[] pdf, nuint length,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string request, out IntPtr output);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_calculations([In] byte[] input, nuint length, out IntPtr output);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_xmp_model([In] byte[] input, nuint length, out IntPtr output);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_xmp_read([In] byte[] pdf, nuint length, out IntPtr output);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_xmp_write([In] byte[] pdf, nuint length, [In] byte[] input, nuint inputLength, out IntPtr output, out nuint outputLength);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate int BatchJobCallback(nuint index);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void BatchProgressCallback(IntPtr input, nuint length);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_batch([In] byte[] input, nuint length, BatchJobCallback callback, BatchProgressCallback? progress, out IntPtr output);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate nint ReaderRead(nuint context, IntPtr destination, nuint length);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate long ReaderSeek(nuint context, long offset, byte origin);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_reader_open(nuint context, ReaderRead read, ReaderSeek seek,
+        [MarshalAs(UnmanagedType.I1)] bool streaming, byte[] input, nuint length, out IntPtr handle);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_reader_query(ReaderSafeHandle handle, byte operation, uint index, ushort generation, out IntPtr output);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void oxidize_reader_free(IntPtr handle);
+
     private const string LibraryName = "oxidize_pdf_ffi";
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_form_validate([In] byte[] input, nuint length, out IntPtr output);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_merge_pdfs_with_metadata(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string requestJson, out IntPtr output, out nuint length);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_document_set_build_identification(DocumentSafeHandle handle, byte policy);
@@ -294,6 +334,20 @@ internal static class NativeMethods
         int compressStreams,
         out IntPtr outBytes,
         out nuint outLen);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_document_save_incremental(
+        DocumentSafeHandle handle,
+        [In] byte[] basePdf,
+        nuint baseLength,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string request,
+        out IntPtr outBytes,
+        out nuint outLen);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_font_inspect(
+        [In] byte[] pdf, nuint length,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string request, out IntPtr output);
 
     /// <summary>Get the number of pages in the document</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -703,6 +757,10 @@ internal static class NativeMethods
     /// <summary>Restore the most recently saved graphics state</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_page_restore_state(IntPtr page);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_page_clip_path(PageSafeHandle page,
+        [In] ClipCommand[] commands, nuint count, int windingRule);
 
     /// <summary>Set a rectangular clipping region</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1614,6 +1672,15 @@ internal static class NativeMethods
         IntPtr pdfBytes,
         nuint pdfLen,
         out IntPtr outVersion);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_page_geometry(
+        IntPtr pdfBytes, nuint pdfLen, nuint pageNumber, out IntPtr outJson);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_get_page_resource_provenance(
+        IntPtr pdfBytes, nuint pdfLen, nuint pageNumber, nuint maxDepth,
+        nuint maxEntries, nuint maxNameBytes, out IntPtr outJson);
 
     /// <summary>Get the dimensions of a specific page from a parsed PDF (1-based)</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

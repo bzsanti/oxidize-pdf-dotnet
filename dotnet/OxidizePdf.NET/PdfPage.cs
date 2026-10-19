@@ -2295,6 +2295,25 @@ public sealed class PdfPage : IDisposable
         return this;
     }
 
+    /// <summary>Intersects the current clip with a custom path. Emits the path
+    /// followed by W n or W* n. Use SaveGraphicsState/RestoreGraphicsState to
+    /// limit its scope. End any existing drawing path before calling this method.</summary>
+    /// <remarks>Copies the path synchronously. Empty paths and invalid winding
+    /// rules are rejected before changing the page. A move-only or zero-area path
+    /// is valid and clips to an empty region. The core serializes coordinates to
+    /// three decimal places. Existing clipping convenience methods are unchanged.</remarks>
+    public PdfPage ClipPath(PdfClippingPath path, PdfWindingRule windingRule = PdfWindingRule.NonZero)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        if (!Enum.IsDefined(windingRule))
+            throw new ArgumentOutOfRangeException(nameof(windingRule));
+        ThrowIfDisposed();
+        var commands = path.Snapshot();
+        ThrowIfError(NativeMethods.oxidize_page_clip_path(_safeHandle, commands, (nuint)commands.Length, (int)windingRule),
+            "Failed to set clipping path");
+        return this;
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void ThrowIfDisposed()

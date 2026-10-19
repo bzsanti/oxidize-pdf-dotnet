@@ -671,6 +671,52 @@ public sealed class PdfDocument : IDisposable
     }
 
     /// <summary>
+    /// Append an incremental revision to basePdf using this document's pages.
+    /// The returned array owns a byte-exact copy of the original base followed by
+    /// the revision. Neither the input array nor this document is consumed.
+    /// Only supplied pages and (with Replace) Info metadata are applied; the base
+    /// catalog remains authoritative. This synchronous call requires exclusive
+    /// access to this document and the input array until it returns.
+    /// Prefix preservation does not establish signature validity or permission
+    /// to modify a certified PDF. Encrypted bases are unsupported.
+    /// </summary>
+    /// <param name="basePdf">Complete base PDF bytes.</param>
+    /// <param name="options">Append pages and preserve Info by default.</param>
+    /// <returns>Owned incremental PDF bytes.</returns>
+    public byte[] SaveIncrementalToBytes(byte[] basePdf, PdfIncrementalSaveOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(basePdf);
+        if (basePdf.Length == 0) throw new ArgumentException("Base PDF cannot be empty", nameof(basePdf));
+        ThrowIfDisposed();
+        string request = (options ?? new()).ToJson();
+        int code = NativeMethods.oxidize_document_save_incremental(
+            _safeHandle, basePdf, (nuint)basePdf.Length, request, out var pointer, out var length);
+        try
+        {
+            if (code != 0)
+            {
+                var error = (NativeMethods.ErrorCode)code switch
+                {
+                    NativeMethods.ErrorCode.InvalidArgument => PdfIncrementalSaveError.InvalidInput,
+                    NativeMethods.ErrorCode.PdfParseError => PdfIncrementalSaveError.InvalidPdf,
+                    NativeMethods.ErrorCode.EncryptionError => PdfIncrementalSaveError.EncryptedBase,
+                    NativeMethods.ErrorCode.IoError => PdfIncrementalSaveError.Io,
+                    NativeMethods.ErrorCode.SerializationError => PdfIncrementalSaveError.Serialization,
+                    _ => PdfIncrementalSaveError.NativeFailure,
+                };
+                throw new PdfIncrementalSaveException(error, NativeMethods.GetLastError() ?? "Incremental write failed");
+            }
+            var bytes = new byte[checked((int)length)];
+            Marshal.Copy(pointer, bytes, 0, bytes.Length);
+            return bytes;
+        }
+        finally
+        {
+            if (pointer != IntPtr.Zero) NativeMethods.oxidize_free_bytes(pointer, length);
+        }
+    }
+
+    /// <summary>
     /// Sets the action triggered when the document is opened (navigate to a
     /// destination, or open a URI). Returns <c>this</c> for fluent chaining.
     /// </summary>
