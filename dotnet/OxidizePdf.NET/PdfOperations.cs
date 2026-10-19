@@ -382,8 +382,12 @@ public static partial class PdfOperations
     /// through the builder), this works on any parsed PDF produced elsewhere (Acrobat, pdftk,
     /// ReportLab, …). The base bytes are preserved verbatim as the output prefix; only the
     /// touched field objects, a partial cross-reference section and a new trailer are appended.
-    /// It sets <c>/AcroForm/NeedAppearances true</c> so compliant viewers regenerate the field
-    /// appearance on open; explicit <c>/AP</c> appearance-stream generation is an upstream follow-up.
+    /// The core generates text appearances, selects button appearance states, and sets
+    /// <c>/AcroForm/NeedAppearances true</c>. Effective read-only flags (including inherited
+    /// flags) reject the entire batch without modifying the input. Encrypted PDFs are rejected.
+    /// Preserving the original byte prefix does not establish signature validity or enforce
+    /// certification and field-lock policies. Cancellation can prevent scheduling; it does not
+    /// interrupt a native call already running.
     /// </remarks>
     /// <param name="pdfBytes">The source PDF as a byte array.</param>
     /// <param name="fields">Map of fully-qualified field name (e.g. <c>"address.street"</c>) to new value.</param>

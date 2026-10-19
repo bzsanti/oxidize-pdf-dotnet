@@ -1,6 +1,6 @@
 {
-  "core": "5.4.2",
-  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Merge metadata source modes. Remaining Rust API pending audit; no total parity claim. Split options and suggested byte-result names. Tagged preflight and explicit preparation. Base-document incremental append/replacement, all writer fields and Info policy. CID collection sequences and bounded font glyph/vertical-metric inspection. Limited core PDF/A validation, eight levels, findings and operation errors. Arbitrary clipping paths and both winding rules. Explicit core form validation rules, masks, settings and ordered diagnostics.",
+  "core": "5.5.0",
+  "scope": "Audited signature slots, text extraction/recovery settings and existing-page geometry/resource provenance and raw/bounded streams and named image XObjects. Merge metadata source modes. Remaining Rust API pending audit; no total parity claim. Split options and suggested byte-result names. Tagged preflight and explicit preparation. Base-document incremental append/replacement, all writer fields and Info policy. CID collection sequences and bounded font glyph/vertical-metric inspection. Limited core PDF/A validation, eight levels, findings and operation errors. Arbitrary clipping paths and both winding rules. Explicit core form validation rules, masks, settings and ordered diagnostics. Core 5.5.0 XMP integration, explicit isolated calculation sequences, native batch workers, and managed seekable-stream lazy/page-at-a-time readers.",
   "callables": {
     "PdfSignatureSlots.CreateAsync": [
       "pdf",
@@ -192,7 +192,71 @@
     "PdfFormValidation.ValidateMany": [
       "fields",
       "settings"
-    ]
+    ],
+    "PdfCalculations.RunEngine": [
+      "steps"
+    ],
+    "PdfCalculations.RunSystem": [
+      "steps",
+      "settings"
+    ],
+    "PdfXmp.Parse": [
+      "xml"
+    ],
+    "PdfXmp.Serialize": [
+      "metadata"
+    ],
+    "PdfXmp.SerializeIdentifier": [
+      "identifier"
+    ],
+    "PdfXmp.ValidateForPdfA": [
+      "metadata"
+    ],
+    "PdfXmp.Read": [
+      "pdfBytes"
+    ],
+    "PdfXmp.Write": [
+      "pdfBytes",
+      "metadata"
+    ],
+    "PdfBatch.Run": [
+      "jobs",
+      "options",
+      "progress",
+      "ct"
+    ],
+    "PdfLazyDocument.Open": [
+      "stream",
+      "options",
+      "leaveOpen",
+      "ct"
+    ],
+    "PdfLazyDocument.GetConfiguration": [],
+    "PdfLazyDocument.GetPage": [
+      "pageIndex",
+      "ct"
+    ],
+    "PdfLazyDocument.GetObject": [
+      "number",
+      "generation",
+      "ct"
+    ],
+    "PdfLazyDocument.PreloadPage": [
+      "pageIndex",
+      "ct"
+    ],
+    "PdfLazyDocument.ClearCache": [],
+    "PdfStreamingDocument.Open": [
+      "stream",
+      "options",
+      "leaveOpen",
+      "ct"
+    ],
+    "PdfStreamingDocument.NextPage": [
+      "ct"
+    ],
+    "PdfStreamingDocument.GetConfiguration": [],
+    "PdfStreamingDocument.ClearCache": []
   },
   "properties": {
     "PdfSignatureSlot": [
@@ -543,6 +607,115 @@
       "Rules",
       "FormatMask",
       "ErrorMessage"
+    ],
+    "PdfCalculationStepResult": [
+      "Value",
+      "EngineSummary",
+      "SystemSummary",
+      "Events",
+      "Settings",
+      "ExportedOrder"
+    ],
+    "PdfCalculationEvent": [
+      "Timestamp",
+      "Field",
+      "Kind",
+      "OldValue",
+      "NewValue"
+    ],
+    "PdfCalculationException": [
+      "Kind",
+      "StepIndex"
+    ],
+    "PdfXmpMetadata": [
+      "Title",
+      "Creator",
+      "Description",
+      "Keywords",
+      "CreateDate",
+      "ModifyDate",
+      "CreatorTool",
+      "PdfAIdentifier",
+      "DocumentId",
+      "InstanceId"
+    ],
+    "PdfXmpIdentifier": [
+      "Part",
+      "Conformance",
+      "Amendment",
+      "Corrigenda"
+    ],
+    "PdfBatchJobResult": [
+      "Index",
+      "Name",
+      "Status",
+      "DurationSeconds",
+      "Error",
+      "OutputFiles",
+      "CallbackError"
+    ],
+    "PdfBatchResult": [
+      "TotalJobs",
+      "Successful",
+      "Failed",
+      "Cancelled",
+      "DurationSeconds",
+      "Results"
+    ],
+    "PdfBatchProgress": [
+      "TotalJobs",
+      "CompletedJobs",
+      "FailedJobs",
+      "RunningJobs",
+      "ElapsedSeconds",
+      "EstimatedRemainingSeconds",
+      "Throughput",
+      "Percentage",
+      "IsComplete"
+    ],
+    "PdfStreamedPage": [
+      "PageIndex",
+      "Width",
+      "Height",
+      "MediaBox",
+      "Text",
+      "Content"
+    ],
+    "PdfLazyPage": [
+      "Number",
+      "Generation",
+      "MediaBox",
+      "CropBox",
+      "Rotation",
+      "Dictionary",
+      "InheritedResources",
+      "Annotations"
+    ],
+    "PdfLazyConfiguration": [
+      "PageCount",
+      "Requested",
+      "Effective",
+      "Unsupported",
+      "Stats"
+    ],
+    "PdfStreamingConfiguration": [
+      "Requested",
+      "Effective",
+      "ProgressiveHintsUnsupported",
+      "CachedPages",
+      "MemoryUsage"
+    ],
+    "PdfLazyObject": [
+      "Kind",
+      "Boolean",
+      "Integer",
+      "Real",
+      "Name",
+      "Data",
+      "Items",
+      "Entries",
+      "Number",
+      "Generation"
     ]
   },
   "defaults": {
@@ -670,9 +843,37 @@
       "RealTimeValidation": true,
       "HighlightErrors": true,
       "ShowErrorMessages": true
+    },
+    "PdfCalculationSettings": {
+      "AutoRecalculate": true,
+      "MaxDepth": 100,
+      "LogEvents": true,
+      "DecimalPrecision": 2
+    },
+    "PdfStreamingOptions": {
+      "BufferSize": 262144,
+      "PageCacheSize": 3,
+      "MaxContentStreamSize": 10485760,
+      "ProgressiveHints": true,
+      "MemoryLimit": 104857600
+    },
+    "PdfLazyOptions": {
+      "LazyLoading": true,
+      "MemoryMapping": true,
+      "CacheSize": 1000,
+      "Streaming": true,
+      "BufferSize": 65536,
+      "MmapThreshold": 10485760
+    },
+    "PdfBatchOptions": {
+      "MemoryLimitPerWorker": 0,
+      "ProgressIntervalMs": 100,
+      "StopOnError": false,
+      "JobTimeoutMs": 300000
     }
   },
   "behavior_tests": [
+    "PdfOperationsFillFormTests.FillFormFields_ReadOnlyField_RejectsBatchAndPreservesInput",
     "SignatureSlotTests.SlotLifecyclePreservesRevisionsAndSeparatesHandwritingFromCms",
     "SignatureSlotTests.InvalidTargetsAndStrokesAreRejectedWithoutChangingInput",
     "SignatureSlotTests.PreCancelledOperationAndEmptyPdfFailBeforeNativeCall",
@@ -779,6 +980,22 @@
     "FormValidationTests.DiagnosticsKeepRequiredMaskAndRuleOrderWithoutDrops",
     "FormValidationTests.CoreLimitsDefaultsAndAllValueKindsAreExplicit",
     "FormValidationTests.SnapshotsCustomPredicatesBatchOrderAndExceptionsAreOwned",
-    "FormValidationTests.InvalidRequestsAndBudgetsFailWithoutPartialOutput"
+    "FormValidationTests.InvalidRequestsAndBudgetsFailWithoutPartialOutput",
+    "CalculationTests.SystemPropagatesTypedValuesAndOrderedEventsThroughTwoHops",
+    "CalculationTests.LowerEngineFunctionsExpressionsAndRemovalPreserveCoreResults",
+    "CalculationTests.LowerEngineDependencyOrderMissingInputsAndInfinityAreObservable",
+    "CalculationTests.CyclesSyntaxRangeAndDepthFailuresHaveTypedStepIndices",
+    "CalculationTests.InvalidRequestsAreBoundedAndNativeOutputIsCleared",
+    "XmpTests.AllPropertiesAndIdentifierEscapingRoundTripThroughCore",
+    "XmpTests.NamespaceAliasesMalformedXmlAndLimitsAreDistinguished",
+    "XmpTests.MissingMetadataIsNotMalformedMetadataAndWriteCanInsertIt",
+    "BatchTests.MixedOutcomesPreserveIndicesDuplicatesAndBoundedConcurrency",
+    "BatchTests.SerialStopAndTimeoutContractsDoNotClaimInterruption",
+    "BatchTests.UnsupportedMemoryAndProgressFailuresLeaveNoRunningCallbacks",
+    "BatchTests.BuiltInMergeAndExtractWriteReadableFilesAndRetainFailures",
+    "StreamReaderTests.StreamingReadsRealPagesWithPartialReadsAndCacheBudgets",
+    "StreamReaderTests.LazyObjectsKeepTypesGenerationsAndEffectiveOptions",
+    "StreamReaderTests.OwnershipMalformedInputAndContentLimitsReleaseResources",
+    "StreamReaderTests.CancellationReadErrorsAndReentryCannotEscapeNativeCallbacks"
   ]
 }

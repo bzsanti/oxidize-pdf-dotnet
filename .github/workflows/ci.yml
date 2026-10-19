@@ -143,6 +143,48 @@ jobs:
         working-directory: dotnet
         run: dotnet test OxidizePdf.NET.Tests/OxidizePdf.NET.Tests.csproj --no-build --configuration Release --filter FullyQualifiedName~TextRecoveryTests.RecoveryIsExplicitAndReportsContentsOrFormIdentity
 
+  # Validate exactly the artifacts that a release package will contain, without publishing.
+  validate-package:
+    name: Validate NuGet Package
+    needs: build-native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: artifacts
+      - name: Assemble native runtime assets
+        shell: bash
+        run: |
+          for artifact in artifacts/native-*; do
+            rid="${artifact##*/native-}"
+            mkdir -p "dotnet/OxidizePdf.NET/runtimes/$rid/native"
+            cp "$artifact"/* "dotnet/OxidizePdf.NET/runtimes/$rid/native/"
+          done
+      - name: Pack release candidate
+        run: dotnet pack dotnet/OxidizePdf.NET/OxidizePdf.NET.csproj --configuration Release --output artifacts/packages
+      - name: Verify NuGet contents
+        run: python3 validation/check_package.py artifacts/packages/OxidizePdf.NET.0.20.0.nupkg
+      - name: Consume NuGet on .NET 8, 9 and 10
+        shell: bash
+        run: |
+          dotnet restore validation/PackageSmoke/PackageSmoke.csproj --configfile validation/NuGet.Config --packages artifacts/consumer-packages
+          for framework in net8.0 net9.0 net10.0; do
+            dotnet run --project validation/PackageSmoke/PackageSmoke.csproj --configuration Release --framework "$framework" --no-restore
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: validated-nuget-candidate
+          path: artifacts/packages/*.nupkg
+          retention-days: 7
+
   # Lint and format checks
   lint:
     name: Lint and Format
@@ -175,6 +217,10 @@ jobs:
       - name: Run Clippy
         working-directory: native
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run Native Tests
+        working-directory: native
+        run: cargo test --tests
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4

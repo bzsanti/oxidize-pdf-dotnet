@@ -114,8 +114,8 @@ public class NamedImageTests
     [InlineData("Missing", PdfImageErrorKind.MissingResource)]
     [InlineData("Form", PdfImageErrorKind.NotImage)]
     [InlineData("NotStream", PdfImageErrorKind.NotImage)]
-    // Core resolves a dangling object reference to PDF null, which is not an image.
-    [InlineData("Broken", PdfImageErrorKind.NotImage)]
+    // Core 5.5.0 rejects a dangling reference rather than fabricating PDF null.
+    [InlineData("Broken", PdfImageErrorKind.InvalidData)]
     public async Task MissingNonImageAndDanglingResourcesHaveTypedErrors(string name, PdfImageErrorKind kind)
         => await Fails(Pdf(), name, kind);
 

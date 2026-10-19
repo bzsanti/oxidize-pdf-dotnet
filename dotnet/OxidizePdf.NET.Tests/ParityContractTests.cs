@@ -73,7 +73,7 @@ public class ParityContractTests
             case "result": root["properties"]!["PdfExtractedPage"]![2] = "MissingDiagnostics"; break;
             case "default": root["defaults"]!["PdfTextExtractionOptions"]!["NormalizeNonBreakingSpaces"] = true; break;
             case "test": root["behavior_tests"]![0] = "SignatureSlotTests.MissingTest"; break;
-            case "core": cargo = cargo.Replace("=5.4.2", "=5.4.3"); break;
+            case "core": cargo = cargo.Replace("=" + root["core"]!.GetValue<string>(), "=0.0.0"); break;
         }
         Assert.NotEmpty(Validate(root.ToJsonString(), cargo));
     }

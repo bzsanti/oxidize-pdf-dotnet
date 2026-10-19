@@ -11,6 +11,35 @@ internal static class NativeMethods
     internal static extern int oxidize_pdfa_validate([In] byte[] pdf, nuint length,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string request, out IntPtr output);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_calculations([In] byte[] input, nuint length, out IntPtr output);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_xmp_model([In] byte[] input, nuint length, out IntPtr output);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_xmp_read([In] byte[] pdf, nuint length, out IntPtr output);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_xmp_write([In] byte[] pdf, nuint length, [In] byte[] input, nuint inputLength, out IntPtr output, out nuint outputLength);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate int BatchJobCallback(nuint index);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void BatchProgressCallback(IntPtr input, nuint length);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_batch([In] byte[] input, nuint length, BatchJobCallback callback, BatchProgressCallback? progress, out IntPtr output);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate nint ReaderRead(nuint context, IntPtr destination, nuint length);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate long ReaderSeek(nuint context, long offset, byte origin);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_reader_open(nuint context, ReaderRead read, ReaderSeek seek,
+        [MarshalAs(UnmanagedType.I1)] bool streaming, byte[] input, nuint length, out IntPtr handle);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_reader_query(ReaderSafeHandle handle, byte operation, uint index, ushort generation, out IntPtr output);
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void oxidize_reader_free(IntPtr handle);
+
     private const string LibraryName = "oxidize_pdf_ffi";
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

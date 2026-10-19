@@ -1,3 +1,271 @@
+# Release candidate validation — 0.20.0, 2026-10-19
+
+User authorized continuation through release validation, not publication.
+Scope: implemented capabilities and previously integrated changes since 0.19.0;
+#89/#92/#98/#104 and unsupported batch operations retain the blockers below.
+
+| Requirement | Evidence / state | Remaining gate |
+| --- | --- | --- |
+| Source/review | Existing real-FFI, mutation, Rust/C# security/test analysis reused for unchanged implementation; package source mapping and artifact paths reviewed | CI on exact commit |
+| Candidate metadata | Managed version 0.20.0 and changelog; Release solution: 1228 library + 15 Kernel Memory tests pass | Platform/package validation |
+| Platform portability | Eight native targets, four managed test platforms configured | PR CI on exact candidate commit |
+| Package consumption | Local NuGet consumer passes on .NET 8/10; local incomplete RID package correctly rejected; source mapping pins OxidizePdf.NET to candidate feed | CI must verify all eight fresh native assets, three TFMs and .NET 9 runtime |
+| Known limitations | Core #794/#795/#797 explicitly documented; batch fail-before-work tested | These operations excluded from completion claims; no weakened acceptance |
+| Publication | Not authorized by this validation request | No release tag, NuGet push or release workflow dispatch |
+
+Local evidence: /tmp/oxidize-020-tests.log, /tmp/oxidize-020-consumer.log,
+/tmp/oxidize-020-layout-local.log, /tmp/oxidize-020-format.log. Packaging smoke has
+no xUnit tests (Kripteia reports zero test files); its executable exit status is the
+behavioral evidence. Security scan completed with no findings; manual review covers
+NuGet source selection and package layout. No source or package publishing credentials
+are used by the new CI validation job. Historical results below remain historical.
+
+# Implementation scope — all unblocked issues, 2026-10-19
+
+User selected all released-fix candidates (#91/#92/#93/#98/#100/#101).
+This section supersedes the historical status and next actions below. Core remains
+exactly 5.5.0. Four binding surfaces are implemented locally; full issue acceptance
+and platform CI remain open. No replacement core or arbitrary JavaScript execution.
+
+| Requirement / source | Current evidence | Blocker / next action |
+| --- | --- | --- |
+| #91 XMP | Full supported model, parse/serialize/identity RDF/validation, catalog read and incremental write; real-FFI compressed metadata, Unicode, malformed input, prefix/Info preservation and DocMDP rejection pass | Platform CI; limited core model does not retain unknown properties or synchronize Info; validation only covers supported identity checks |
+| #93 calculations | Both engines, all definition variants, values/events/settings/formats/order export; typed ordered operations and errors pass real FFI | Platform CI; JavaScript definition retains core placeholder behavior, no script execution; exported calculation order is not claimed topological |
+| #100 lazy/streaming | Seekable managed Stream callbacks, real pages and typed objects, effective options/cache stats, SafeHandle lifetime and disposal; partial reads, nonzero initial position, cancellation and error recovery tested | Platform CI; bounded caches are not a process memory cap; cancellation checkpoints do not interrupt CPU-only core work |
+| #101 batch | Core worker pool, stable item indices/results, progress, custom callbacks, merge/extract/split file readback, concurrency/stop/timeout/error contracts | Core [#797](https://github.com/bzsanti/oxidizePdf/issues/797): Rotate/Compress merely copy input; binding rejects the entire request before work. Full operation acceptance needs upstream correction. Nonzero memory cap rejected; Rayon/performance engines unavailable |
+| #92 incremental forms | ReadOnly regression passes; new certification counterexample retained | Core [#794](https://github.com/bzsanti/oxidizePdf/issues/794): filler accepts DocMDP P=1. Same fixture is rejected by core IncrementalObjectEditor with PermissionDenied. Need public policy enforcement in filler before remaining field/appearance acceptance |
+| #98 annotation creation | Earlier PDF payload probes pass | Core [#795](https://github.com/bzsanti/oxidizePdf/issues/795): public PolylineAnnotation.with_endings requires private polygon::LineEndingStyle, incompatible with exported LineEndingStyle. Need core public type/export fix before complete options binding |
+| #89 / #104 | Prior independent investigations retained below | Outside released-fix implementation set; no inferred fix or closure |
+
+## Contracts and review
+
+Calculation requests are bounded to 256 ordered steps/1 MiB, with finite inputs,
+expression/depth/precision limits and bounded outputs. XMP decoding is limited to
+1 MiB; writing uses the public incremental editor and preserves Info unchanged.
+Lazy/streaming borrow readable seekable streams exclusively, start at offset zero,
+and retain callbacks until native disposal. Default leaveOpen=true; explicit
+ownership disposes the input. Native calls are serialized and reentrancy rejected.
+Managed callback exceptions cannot unwind through Rust. Failed streaming reads
+fault the session rather than silently advancing. Typed object traversal is bounded.
+Batch callbacks may run on native threads; all workers join before return. Timeouts
+are completion budgets, not interruption or rollback; cancellation is pre-start.
+Callers own output-path collision policy. Unsupported batch operations fail before
+any callback or file operation, instead of reporting a successful copy as rotation.
+
+Manual review corrected swallowed managed I/O exceptions during lenient native
+initialization and initial-position handling. An ownership mutation in a disposable
+copy reverses leaveOpen behavior: the real-FFI disposal test fails at its ownership
+assertion; production passes. Initial mutant build fixture omissions were corrected
+and are not counted as mutation evidence. Test/security Kripteia scans ran for both
+languages (Rust 97, C# 95); C# has 43 degraded syntax trees, and Rust enumerates
+unsafe FFI sites. These tools do not certify the upstream core.
+
+Validation: native 252 units + 22 passing probes, one ignored known DocMDP failure;
+explicit ignored-probe execution reproduces the failure with passing controls.
+Full managed run: 1,227 pass/one failure (nonzero initial stream position). After
+fixing native initialization, the affected integrated suite passes all 39 cases;
+unchanged full-suite results are reused. Clippy all targets/features denies warnings,
+format and ABI/parity gates pass. Batch guard/split verification is recorded in
+/tmp/unblocked-batch-final.log. Platform CI is still required before integration.
+
+Evidence: /tmp/unblocked-native.log, /tmp/unblocked-managed-full.log,
+/tmp/unblocked-managed-final.log, /tmp/unblocked-clippy-final.log,
+/tmp/unblocked-format-final.log, /tmp/unblocked-boundaries-final.log,
+/tmp/unblocked-ownership-mutant.log, /tmp/unblocked-review-{rust,csharp}-final.log.
+#92 reproducer: native/tests/incremental_form_core_contract.rs,
+/tmp/form92-policy550.log. #98 external-consumer compiler evidence:
+/tmp/core550-annotation-access.log (E0308), private module confirmed in core source.
+#101 source evidence: core 5.5.0 src/batch/worker.rs Rotate/Compress branches.
+On user request, registered core #794/#795/#797 after checking for duplicates,
+with reproducers/evidence, acceptance criteria and downstream issue links.
+No issues closed, commits, push or PR performed. Existing dirty handoff and probes preserved. Next action: platform CI for implemented surfaces and
+upstream corrections for the three incomplete contracts; do not mark full parity.
+
+# Active continuation — core 5.5.0, 2026-10-19
+
+Official [v5.5.0](https://github.com/bzsanti/oxidizePdf/releases/tag/v5.5.0)
+verified (published 2026-10-19). Exact native pin and parity contract now use
+5.5.0; local ignored Cargo.lock resolves the registry package and roxmltree 0.21.1.
+Existing feature selection and public APIs are preserved. Earlier evidence below
+is historical, superseded only where this section gives current evidence.
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| Adopt released fixes | Demonstrated locally: 251 native units + 22 core regression cases pass | Platform CI/integration pending |
+| #91 XMP | Six probes pass including all five previous failures | Full model/document integration remains unimplemented |
+| #92 incremental forms | ReadOnly fix passes direct-core and real-FFI mixed-batch rejection; writable control preserves prefix/readback | Signature/certification/field-lock policy, complete field/error/appearance acceptance remain pending |
+| #93 calculations | Three probes pass; public value/event accessors verify values, order, old/new values and timestamps | Implement typed binding and remaining arithmetic/error contracts |
+| #98 annotations | Four final-PDF probes pass including attachment reference and MIME readability | Full constructors/options plus payload readback and FFI acceptance remain pending |
+| #100/#101 streaming/batch | Six probes pass including real pages, timeout and stop-on-error | Full binding, effective memory options, optional features and RID acceptance pending; #758 now CLOSED |
+| #89 OCR | Upstream #708 still OPEN, refreshed from GitHub | Existing upstream geometry/provider dependency remains |
+| #104 exact tokens | Previous budget failure not retested; release does not establish correction | Reconstruct missing /tmp prototype and verify selected-counter budgets |
+
+## Compatibility and #92 continuation
+
+Rebuilt linux-x64 debug native library and used it in the real managed suite.
+Initial full run: 1,185 passed / 10 failed out of 1,195. All failures were traced:
+5.5.0 rejects invalid PDF/A identities at XML parse time; validator maps these to
+XmpMetadataMissing. Part mismatch fixtures now use another *valid* identity,
+retaining exact mismatch payload assertions. Missing-identity XML now declares its
+namespace; a new test separately checks invalid identity/malformed XML rejection.
+Parser #754 rejects dangling references instead of fabricating null: named-image
+errors now correctly expect InvalidData; dangling PDF/A OpenAction must throw
+ParseError rather than pass validation. No production fallback or relaxed
+assertion was introduced. Final affected-suite run: all 55 pass; the other 1,141
+cases passed in the full run and their sources are unchanged.
+
+Added #92 real-FFI regression: a batch containing writable and ReadOnly fields
+throws, input remains unchanged, and a subsequent writable-only fill succeeds
+with exact prefix/value and retained ReadOnly flag. Included in parity gate.
+The gate's core mutation now derives the current pin instead of hardcoding 5.4.2.
+Removed 13 obsolete ignore attributes from the core probes. These are core
+regressions, not evidence of six completed binding capabilities.
+
+## Review and validation
+
+Scope: dependency adoption, existing core probes, managed compatibility fixtures,
+ReadOnly FFI regression, gate and API documentation. Reviewed the form boundary's
+input copy, native result/error propagation and finally-based buffer release;
+no FFI layout/ownership changes. Historical 5.4.2 failures provide RED for the
+newly active core regression cases. Current GREEN: 273 native tests, focused
+55 managed tests, all-target/all-feature Clippy with warnings denied. Full-suite
+results reused only for unchanged cases. Platform CI and release remain pending.
+
+Both Kripteia analyses executed for Rust and C#: Rust score 97 (273 tests/35 files),
+C# score 95 (1,046 tests/132 files in the final scan). Rust security enumerated 297
+existing unsafe/FFI usages without secret/taint findings; C# reported no security
+findings with 41 degraded syntax trees. Telemetry readonly warnings did not prevent
+analysis. Scores/unsafe counts are not approval of the entire upstream core.
+Manual review found stale diagnostics and a hardcoded mutation, corrected above.
+Remaining capability requirements are recorded in the table, not waived by upgrade.
+
+Evidence: /tmp/core550-native-tests.log, /tmp/core550-native-final.log,
+/tmp/core550-calculation-access.log, /tmp/core550-dotnet-tests.log,
+/tmp/core550-focused.log, /tmp/core550-clippy-final.log, /tmp/core550-format.log,
+/tmp/core550-review-rust.log, /tmp/core550-review-csharp-final.log and
+/tmp/core550-format-final.log.
+No commit, push, PR, issue closure or publication. Existing dirty handoff/probes
+preserved. Next implementation increment: #91 full XMP integration or #93 typed
+calculations, whose previously blocking core contracts now pass; #92 remains
+open until its remaining policy and complete behavioral requirements are proven.
+
+# Verification — streaming #100 and batch #101, 2026-10-17
+
+Scope is feasibility/dependency verification requested by the user, not full
+binding implementation. Baseline core 5.4.2, develop 3457d2; earlier probes and
+tracking preserved. No core replacement or dependency upgrade.
+
+| Requirement / source | State / evidence | Verification / stop condition |
+| --- | --- | --- |
+| #100 real lazy pages/objects | 5.4.2 constructor hardcodes zero pages; upstream #725 is CLOSED | Confirmed count mismatch (1 versus 0); adopt released correction |
+| #100 real streaming contents/bounds | 5.4.2 PageStreamer fabricates pages/content; upstream #724 is CLOSED | Confirmed three fabricated A4 pages versus one 321x456 page |
+| #100 effective memory options | Upstream #758 remains OPEN | Reuse issue evidence; no claim of process-wide memory cap |
+| #101 per-item outcomes/order and concurrency | Worker pool retains indices and fixed worker count | Passed mixed outcomes, exact names/order, observed <=2 workers |
+| #101 timeout/resource options | Worker ignores memory_limit and job_timeout | Confirmed 30ms success at 1ms timeout; memory remains source-only evidence |
+| #101 stop_on_error | Custom-job branch does not set cancellation | Confirmed second side effect executes after serial failure; core #776 |
+| #101 optional performance/rayon | Native build omits both | Source inventory only; no optional-feature runtime/packaging claim |
+
+Verification completed: ordinary reader returns one page; lazy returns zero;
+streamer returns three A4 pages for a single 321x456 page. Upstream #724/#725
+are closed but their corrections are absent from pinned 5.4.2; #758 remains open.
+Do not infer that a suitable newer release was tested or adopted.
+
+Batch mixed-outcome/order/two-worker-bound control passes. Timeout 1ms with a
+30ms job reports success; serial stop_on_error runs the second callback after
+failure. Core https://github.com/bzsanti/oxidizePdf/issues/776 owns these failures
+and the source-only unused memory-limit finding. Optional performance/rayon
+paths and RID builds are not runtime-validated and remain pending.
+
+Probe native/tests/stream_batch_core_contract.rs; log /tmp/stream-batch-core.log.
+Explicit run: two controls pass, four assertions fail. Normal run: two pass and
+four known failures ignored, not passing acceptance. Format/focused Clippy pass.
+Fixed in-memory PDF and finite custom callbacks; longest sleep is 30ms, no
+external scripts or caller-selected file output. Full implementation review,
+real-FFI acceptance and platform CI remain pending. #100/#101 updated; no product
+changes, core replacement or dependency bump.
+
+# Active investigation — annotation creation (#98), 2026-10-17
+
+Baseline integrated develop 3457d2; core pinned 5.4.2. Existing new-document
+constructors live in native/src/annotations.rs and PdfPage.cs; incremental
+editors are distinct and do not demonstrate creation parity.
+
+| Public core family/options | Existing .NET creation coverage | Remaining requirement |
+| --- | --- | --- |
+| URI/GoTo Link; Text icon/open; Stamp standard/custom | Selected constructors present | Full action/destination/common option inventory before implementation |
+| Line endings/interior; Square/Circle border effects | Basic geometry and colors present | Missing subtype/common options |
+| Highlight/Underline/StrikeOut, Squiggly and arbitrary QuadPoints | First three rectangle constructors present | Squiggly, quad geometry and markup options |
+| FreeText DA/quadding/rich text/default style | No new-document constructor | Typed configuration and final dictionary tests |
+| Polygon/Polyline vertices, border, opacity, endings | No new-document constructor | Geometry validation and configuration |
+| Ink strokes and bounds | No new-document constructor | Typed strokes and malformed geometry tests |
+| Popup parent/open/color/flags | No new-document constructor | Verify valid writer-assigned parent relationships |
+| FileAttachment filename/data/MIME/icon | No new-document constructor | Confirmed payload discard; core #774 blocks acceptance |
+| Common contents/subject/name/date/flags/border/color | Partial specialized setters only | Full supported typed options and serialization |
+| Other AnnotationType variants (Sound/Movie/etc.) | Enum-only is not functional creation | Do not claim unsupported variants as complete |
+
+Feasibility investigation completed: core #774 blocks attachment acceptance.
+Final PDF /FS/EF/F is a direct Type/Length dictionary, not an indirect stream;
+source discards the payload. Adding MIME text/plain produces an empty parsed
+annotation dictionary (observed failure, exact MIME root cause not established).
+FreeText contents/alignment and Ink coordinates survive serialization/readback.
+Probe: native/tests/annotation_creation_core_contract.rs. Explicit run: two pass,
+two acceptance failures; normal run: two pass/two ignored. Format and focused
+Clippy pass. Log /tmp/annotations98-core.log. Initial get_page harness error was
+corrected by Pages/Kids traversal before recording this evidence.
+Upstream https://github.com/bzsanti/oxidizePdf/issues/774 contains full reproducer.
+The diagnostic uses fixed in-memory data only, executes no attachments/actions,
+and adds no dependency. Full FFI/managed implementation, real-FFI tests, parity
+gate, quality/security review and platform CI remain pending. Core repairs stay
+upstream; no binding-side replacement writer.
+
+# Active investigation — calculation engine (#93), 2026-10-17
+
+Pinned core 5.4.2, integrated develop 3457d2. Reusing the previous observation
+about inaccessible system values/events; no replacement engine is authorized.
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| Typed calculations/results (#93) | Blocked: external consumer produces six E0616 errors; no public alternative getters in 5.4.2 | Core #771: typed result/event accessors required |
+| Dependencies/order/cycles (#93) | Lower engine value/order and direct system/cycle controls pass; system two-hop event assertion fails (2 vs 3) | Core #771: propagate transitive dependencies; exact system value readback awaits accessor |
+| Missing references/arithmetic errors (#93) | Pending | Inventory semantic limits after feasibility gate |
+| Complete FFI/models/ownership, tests, parity, quality/security and platform CI (#93) | Not implemented | Required for completion; never infer parity from diagnostic controls |
+
+Feasibility investigation completed: upstream blocker
+https://github.com/bzsanti/oxidizePdf/issues/771 includes both reproductions.
+Runtime evidence: native/tests/calculation_core_contract.rs and
+/tmp/calculations93-core.log (two controls pass, one acceptance assertion fails).
+Normal run: two pass, one known failure ignored; not passing #93 acceptance.
+Compile evidence: /tmp/calculations93-access and /tmp/calculations93-access.log.
+The initial no-compression harness failed dependency compilation; corrected with
+compression before recording E0616. No product dependency change.
+Formatting, focused Clippy and diff checks pass. Probes use only fixed in-memory
+values and existing dependencies; no PDF scripts or external runtime executed.
+Full implementation quality/security review and platform CI remain pending.
+Core changes stay upstream; partial lower-engine support alone cannot close #93.
+
+# Active investigation — incremental forms (#92), 2026-10-17
+
+Based on integrated develop 3457d2, pinned core 5.4.2. #94 is closed and checked
+in #81. Existing FillFormFieldsAsync already exposes the incremental core filler;
+the issue body overlooked this API. No replacement API is required merely to
+expose fill_many. User strategy remains: core defects must be repaired upstream.
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| Existing-byte single/batch filling (#92) | Existing managed/FFI API found in PdfOperations.cs/forms.rs | Audit full behavior before extending surface |
+| Prefix preservation and batch failure (#92) | Two direct-core controls pass | Not real-FFI acceptance; probe in native/tests/incremental_form_core_contract.rs |
+| Read-only fields (#92) | Confirmed failure: /Ff 1 accepts mutation | Upstream oxidizePdf#770; adopt released correction before acceptance |
+| Invalid fields and signature/lock policy (#92) | Pending | Separate investigation; no unsupported claim of preservation |
+| Appearances, typed errors, ownership, parity and review/CI (#92) | Pending | Required before acceptance; no completion claim |
+
+Explicit run: two controls pass and ReadOnly rejection fails; normal run: two pass,
+one known failure ignored. Formatting and focused Clippy pass. Reproducer is
+attached to https://github.com/bzsanti/oxidizePdf/issues/770 and #92 is updated.
+Evidence: /tmp/incremental-form-core-20261017.log.
+
+The new probe uses fixed in-memory data and existing dependencies, with no external
+resources or executable PDF actions. It is a core diagnostic, not FFI acceptance.
+
 # Active increment — form validation (#94), 2026-10-16
 
 Based on develop d47a087, after merging #107 and closing #99. Explicit validation
@@ -10,7 +278,7 @@ uses core 5.4.2 without changing the dependency or existing FillField behavior.
 | Unicode/empty/multiple-rule failures (#94) | Demonstrated locally | Six behavioral fixtures plus native boundary cases |
 | Existing FillField behavior (#94) | Demonstrated locally | Explicit invocation; regression covers reading, creation and filling |
 | Bounds, parity and quality/security (#94) | Demonstrated locally | 45 managed cases, 251 native units, Clippy and review below |
-| Platform CI (#94/#81) | Pending | Approved PR to develop; issue remains open until CI/integration |
+| Platform CI (#94/#81) | Demonstrated on 2d84db0 | PR #108, run 39054241586: all 14 jobs pass, pull_request event. Local full format check also passes. Merged via PR #108 as 3457d2 on 2026-10-17. |
 
 ## Validation usage and contract
 
@@ -52,7 +320,10 @@ valid buffers; lengths are bounded before dereferencing.
 Reviewed nine implementation/test/contract/tracking files against d47a087 plus
 the working increment. Core validation.rs and calculations::FieldValue are the
 behavioral sources. No remaining confirmed implementation finding. Local review
-is complete; platform CI and integration remain pending. Earlier XMP probes and
+is complete; the formatting-only correction 2d84db0 resolves the prior CI whitespace
+failure. The exact CI format command passes locally (537 files, zero changes);
+non-whitespace test content is identical. All 14 PR CI jobs pass on 2d84db0
+(run 39054241586); merged via PR #108 as 3457d2 on 2026-10-17. Earlier XMP probes and
 the blocked #104 prototype are outside this increment.
 
 ### Contratos y evidencia
@@ -252,6 +523,51 @@ filesystem/process behavior. No new dependencies or external input execution.
 - Findings: 2 contract boundaries documented above; no unresolved local blocker.
 - Product files modified by the review: 0.
 - Pending actions: PR review, integration and issue closure. Platform CI complete.
+
+# Active investigation — XMP (#91), 2026-10-16
+
+Issue criteria refreshed from GitHub against local develop `73bf34c`; core remains
+pinned to 5.4.2. No XMP binding or completion claim has been introduced.
+
+User decision: corrections belong to the core; do not implement a replacement
+parser in this binding. Open core issues searched on 2026-10-16: existing
+[#741](https://github.com/bzsanti/oxidizePdf/issues/741) covers RDF attribute-form
+identifiers and namespace handling. Created
+[#763](https://github.com/bzsanti/oxidizePdf/issues/763) for the additional
+property-loss, XML parsing and escaping defects, with all six self-contained
+probes and a cross-reference to #741. #91 remains blocked on corrected core
+adoption plus the downstream implementation/acceptance work below.
+
+| Requirement / source | State / evidence | Blocker / next action |
+| --- | --- | --- |
+| Preserve supported model properties through parse/serialize (#91) | Failed: keywords disappear; title entities remain escaped | Correct/adopt core parser and serializer; rerun `xmp_core_contract` |
+| Namespaces and malformed XML (#91) | Failed: equivalent namespace prefix loses title; unclosed XML succeeds | Namespace-aware XML validation/parsing required upstream or an explicitly designed adapter |
+| Safe serialization of supported identifier fields (#91) | Failed: amendment text can insert XML elements | Escape all textual fields; retain injection regression |
+| Supported document integration and Info/XMP policy (#91) | Pending: writer generates XMP from Info, not from the PDF/A XMP model | Establish supported full-model write path and explicit consistency semantics before binding |
+| Typed FFI, ownership, bounded inputs, parity gate, review and platform CI (#91) | Not implemented | Remains required after core strategy is settled; CI via PR targeting develop/main |
+
+Reproduction: `cargo test --offline --manifest-path native/Cargo.toml --test
+xmp_core_contract -- --include-ignored`. Six compiled tests call the actual pinned
+core: five fail their acceptance assertions, one Unicode/identifier control passes.
+The five known-failure probes are explicitly ignored in ordinary test runs; this
+is an upstream diagnostic suite, **not passing #91 acceptance or FFI evidence**.
+The ordinary run passes the control and reports five ignored tests. No production
+source, dependency, public API or workflow was changed. Formatting passed.
+
+Source inspection: `pdfa/xmp.rs` implements the model named by #91 using regex
+extraction; `to_xml` omits keywords and escapes only some fields. The separate
+`metadata::XmpMetadata` has a different property model and parser; substituting it
+is not automatically equivalent to the issue's PDF/A model. `Document::create_xmp_metadata`
+and `writer/pdf_writer/mod.rs` generate the catalog metadata stream from Info.
+This establishes the default writer behavior, not a claim that every possible
+low-level integration path is unavailable. Read integration, compressed stream
+limits, full-model write support and policy still require implementation evidence.
+
+The new probes use fixed, small in-memory strings and existing dependencies; they
+do not write files, execute PDF actions or expose an FFI. The identifier regression
+captures XML property injection, not OS command execution. Full implementation
+quality/security review and platform CI remain pending. #89's previously recorded
+OCR blocker is independent and remains open.
 
 # Completed increment — PDF/A validation (#90), 2026-10-15
 

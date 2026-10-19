@@ -1,7 +1,7 @@
 # PDF/A validation
 
 `PdfAValidation.ValidateAsync` exposes the **checks implemented by oxidize-pdf
-5.4.2**, with levels `A1a`, `A1b`, `A2a`, `A2b`, `A2u`, `A3a`, `A3b`, `A3u`.
+5.5.0**, with levels `A1a`, `A1b`, `A2a`, `A2b`, `A2u`, `A3a`, `A3b`, `A3u`.
 The default target is `A1b`. No PDF/A-4 level or PDF/A converter is exposed by
 this core release.
 
@@ -89,3 +89,9 @@ are accepted/rejected by this validator at every level. They are intentionally
 not labelled externally certified files. Compressed/uncompressed XMP, mismatched
 identity, rule differences and operation failures exercise the real FFI. Native
 unit tests cover declared variants which the current validator never emits.
+
+Core 5.5.0 compatibility: malformed XML and invalid PDF/A identity values fail
+XMP parsing; the core validator reports these as `XmpMetadataMissing`. A valid
+identity for another level still reports `XmpInvalidPdfAIdentifier` with mismatch
+details. Dangling object references now produce operation errors rather than
+being replaced with PDF null; a dangling OpenAction is not a passing validation.
