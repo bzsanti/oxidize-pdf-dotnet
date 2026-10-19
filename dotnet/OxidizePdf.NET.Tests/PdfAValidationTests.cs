@@ -66,16 +66,30 @@ public class PdfAValidationTests
             Assert.Empty(valid.Errors); Assert.Empty(valid.Warnings);
             Assert.Equal(0, valid.ErrorCount); Assert.Equal(0, valid.WarningCount);
         }
-        var invalid = await PdfAValidation.ValidateAsync(Pdf("9", conformance), options);
+        // Use a valid identity for another level so parsing succeeds before comparison.
+        var otherPart = part == "1" ? "2" : "1";
+        var invalid = await PdfAValidation.ValidateAsync(Pdf(otherPart, "B"), options);
         Assert.False(invalid.IsValid);
         Assert.Equal(level, invalid.Level);
         var error = Assert.Single(invalid.Errors);
         Assert.Equal(PdfAValidationErrorKind.XmpInvalidPdfAIdentifier, error.Kind);
-        Assert.Equal($"Part mismatch: expected {part}, found 9", error.Details);
+        Assert.Equal($"Part mismatch: expected {part}, found {otherPart}", error.Details);
         Assert.Contains(error.Details!, error.Message);
         Assert.Null(error.FontName);
         var wrongConformance = await PdfAValidation.ValidateAsync(Pdf(part, conformance == "A" ? "B" : "A"), options);
         Assert.Equal(PdfAValidationErrorKind.XmpInvalidPdfAIdentifier, Assert.Single(wrongConformance.Errors).Kind);
+    }
+
+    [Fact]
+    public async Task InvalidIdentityAndMalformedXmlAreRejectedByCoreParser()
+    {
+        // Core 5.5.0 maps XMP parser failures to XmpMetadataMissing findings.
+        foreach (var pdf in new[] { Pdf("9"), Pdf(xmlOverride: "<x:xmpmeta/>") })
+        {
+            var result = await PdfAValidation.ValidateAsync(pdf);
+            Assert.False(result.IsValid);
+            Assert.Equal(PdfAValidationErrorKind.XmpMetadataMissing, Assert.Single(result.Errors).Kind);
+        }
     }
 
     [Fact]
@@ -123,17 +137,14 @@ public class PdfAValidationTests
     [Fact]
     public async Task MalformedPdfAndUnresolvableReferencesAreOperationFailures()
     {
-        foreach (var pdf in new[] { Encoding.ASCII.GetBytes("not a PDF"), Pdf(catalog: "/Pages 99 0 R") })
+        foreach (var pdf in new[] { Encoding.ASCII.GetBytes("not a PDF"), Pdf(catalog: "/Pages 99 0 R"), Pdf(catalog: "/OpenAction 99 0 R") })
         {
             var error = await Assert.ThrowsAsync<PdfAException>(() => PdfAValidation.ValidateAsync(pdf));
             Assert.Equal(PdfAErrorKind.ParseError, error.Kind);
             Assert.Null(error.Finding); Assert.NotEmpty(error.Message);
         }
-        var noIdentity = await PdfAValidation.ValidateAsync(Pdf(xmlOverride: "<x:xmpmeta/>"));
+        var noIdentity = await PdfAValidation.ValidateAsync(Pdf(xmlOverride: "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"/>"));
         Assert.Equal(PdfAValidationErrorKind.XmpMissingPdfAIdentifier, Assert.Single(noIdentity.Errors).Kind);
-        // Core resolves a dangling optional action to null and skips it. A pass
-        // therefore cannot certify that all actions/references were well formed.
-        Assert.True((await PdfAValidation.ValidateAsync(Pdf(catalog: "/OpenAction 99 0 R"))).IsValid);
         Assert.True((await PdfAValidation.ValidateAsync(Pdf())).IsValid);
     }
 

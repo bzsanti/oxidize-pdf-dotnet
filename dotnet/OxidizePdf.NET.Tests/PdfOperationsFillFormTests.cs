@@ -75,6 +75,36 @@ public class PdfOperationsFillFormTests
     }
 
     [Fact]
+    public async Task FillFormFields_ReadOnlyField_RejectsBatchAndPreservesInput()
+    {
+        using var doc = new PdfDocument();
+        doc.EnableForms();
+        using var page = PdfPage.A4();
+        page.AddFormWidget(doc.AddTextField("writable", 50, 600, 300, 620));
+        page.AddFormWidget(doc.AddTextField("locked", 50, 650, 300, 670, readOnly: true));
+        doc.AddPage(page);
+        var template = doc.SaveToBytes();
+        var original = template.ToArray();
+
+        var error = await Assert.ThrowsAsync<PdfExtractionException>(() =>
+            PdfOperations.FillFormFieldsAsync(template, new Dictionary<string, string>
+            {
+                ["writable"] = "changed",
+                ["locked"] = "forbidden",
+            }));
+        Assert.Contains("read-only", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(original, template);
+
+        // The same template remains usable when only the writable field is selected.
+        var filled = await PdfOperations.FillFormFieldsAsync(template,
+            new Dictionary<string, string> { ["writable"] = "allowed" });
+        Assert.Equal(original, filled[..original.Length]);
+        var fields = await new PdfExtractor().GetFormFieldsAsync(filled);
+        Assert.Equal("allowed", fields.Single(f => f.FieldName == "writable").Value);
+        Assert.True(fields.Single(f => f.FieldName == "locked").IsReadOnly);
+    }
+
+    [Fact]
     public async Task FillFormFields_UnknownField_ThrowsPdfExtractionException()
     {
         var template = BuildTemplate("full_name");
