@@ -1,0 +1,37 @@
+## Calidad de Tests (Kripteia)
+
+=== Kripteia Test Quality Report ===
+Overall Score: 98 | Tests: 4 | Files: 1
+
+--- Files ---
+Path                                                          Tests  Score
+--------------------------------------------------------------------------
+...s-core553-review/rust/incremental_form_core_contract.rs        4     98
+
+--- Worst Offenders ---
+  certified_no_changes_policy_rejects_form_fill (/tmp/bindings-core553-review/rust/incremental_form_core_contract.rs:75) - Score: 90
+    i Test 'certified_no_changes_policy_rejects_form_fill' has multiple assertions without diagnostic messages
+    - Test 'certified_no_changes_policy_rejects_form_fill' does not call any production code
+  writable_control_preserves_prefix_and_updates_value (/tmp/bindings-core553-review/rust/incremental_form_core_contract.rs:42) - Score: 100
+    i Test 'writable_control_preserves_prefix_and_updates_value' has multiple assertions without diagnostic messages
+    i Test 'writable_control_preserves_prefix_and_updates_value' uses .unwrap() which silently discards error information
+  missing_field_batch_returns_no_output (/tmp/bindings-core553-review/rust/incremental_form_core_contract.rs:57) - Score: 100
+  read_only_field_rejects_mutation (/tmp/bindings-core553-review/rust/incremental_form_core_contract.rs:65) - Score: 100
+
+--- Details ---
+/tmp/bindings-core553-review/rust/incremental_form_core_contract.rs:
+  writable_control_preserves_prefix_and_updates_value (line 42) - Score: 100
+    i Test 'writable_control_preserves_prefix_and_updates_value' has multiple assertions without diagnostic messages
+    i Test 'writable_control_preserves_prefix_and_updates_value' uses .unwrap() which silently discards error information
+  certified_no_changes_policy_rejects_form_fill (line 75) - Score: 90
+    i Test 'certified_no_changes_policy_rejects_form_fill' has multiple assertions without diagnostic messages
+    - Test 'certified_no_changes_policy_rejects_form_fill' does not call any production code
+
+
+## Analisis de Seguridad (Kripteia Security)
+
+=== Kripteia Security Analysis ===
+
+--- Unsafe Usages (1) ---
+  /tmp/bindings-core553-review/rust/batch.rs:68 — fn oxidize_batch [FFI]
+

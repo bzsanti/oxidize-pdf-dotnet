@@ -1,0 +1,23 @@
+## Calidad de Tests (Kripteia)
+
+=== Kripteia Test Quality Report ===
+Overall Score: 100 | Tests: 5 | Files: 1
+
+--- Files ---
+Path                                                          Tests  Score
+--------------------------------------------------------------------------
+/tmp/bindings-core553-review/csharp/OcrLayerTests.cs              5    100
+
+--- Worst Offenders ---
+  OcrLayerTests.UnicodeLayerIsInvisibleAndPreservesOriginalPdfAndText (/tmp/bindings-core553-review/csharp/OcrLayerTests.cs:27) - Score: 100
+  OcrLayerTests.ExistingLayersAreSkippedWithoutAppendingARevision (/tmp/bindings-core553-review/csharp/OcrLayerTests.cs:46) - Score: 100
+  OcrLayerTests.EmptyFragmentsLeaveDocumentUnchanged (/tmp/bindings-core553-review/csharp/OcrLayerTests.cs:57) - Score: 100
+  OcrLayerTests.InvalidRequestsFailInPlanningAndExecution (/tmp/bindings-core553-review/csharp/OcrLayerTests.cs:66) - Score: 100
+  OcrLayerTests.CertificationRejectsOcrContentChanges (/tmp/bindings-core553-review/csharp/OcrLayerTests.cs:84) - Score: 100
+
+
+## Analisis de Seguridad (Kripteia Security)
+
+=== Kripteia Security Analysis ===
+
+No security issues found.

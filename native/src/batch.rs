@@ -106,9 +106,7 @@ pub unsafe extern "C" fn oxidize_batch(
             .iter()
             .any(|job| matches!(job, Job::Rotate { .. } | Job::Compress { .. }))
         {
-            set_last_error(
-                "Rotate and Compress are unsupported: core 5.5.0 only copies files for these jobs",
-            );
+            set_last_error("Rotate and Compress are unsupported by this binding");
             return ErrorCode::InvalidArgument as c_int;
         }
         let mut jobs = Vec::new();

@@ -1,0 +1,10 @@
+{
+  "README.md": "be6e28d4aff66417ab6fa37b0324f628d7d6c599d6a87271abb7720e11219e88",
+  "docs/FEATURE_PARITY.md": "6ea9ae8a8f862eac64b7bdeec38021f5e6116877f3ebc324dee2ead8476a6f77",
+  "docs/parity-contract.json": "9faedbe3894bb9f7e4e7f96810b18b21a772540b8759e139dc72d09346887255",
+  "dotnet/OxidizePdf.NET.Tests/OcrLayerTests.cs": "a1ddbb669a8754c115dff8ea7db015548115f38348766f9a50cf2c294c4669ab",
+  "native/Cargo.toml": "f74019a78b1f71784565be567ff514e813c28cd1ad071c3eda9c0a3ece0f02c1",
+  "native/src/batch.rs": "704c25626a950dfd6dc490e110ce9862c6f8824fa6f16e2481cddd861403665c",
+  "native/tests/incremental_form_core_contract.rs": "196323ae669d5b6817394c90d950ef206a206103d47aaa5e468a85dd3cb6e9bd",
+  "docs/UPSTREAM-5.5.3.md": "9dd7c11e105d72fd4212531e101a186f2952cd5f9237e6b6be931771398c1178"
+}

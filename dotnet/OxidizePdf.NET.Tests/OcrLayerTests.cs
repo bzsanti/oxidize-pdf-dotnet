@@ -33,7 +33,9 @@ public class OcrLayerTests
         Assert.True(result.PdfBytes.AsSpan().StartsWith(pdf));
         Assert.Equal(JsonSerializer.Serialize(plan), JsonSerializer.Serialize(result.Plan));
         Assert.Equal(new uint[] { 0 }, plan.Pages);
-        Assert.Equal(1u, plan.StreamsAdded);
+        // Core 5.5.3 adds a graphics-state guard before the original streams
+        // and a separate OCR stream that restores that state.
+        Assert.Equal(2u, plan.StreamsAdded);
         Assert.Equal(1u, plan.ResourcesAdded);
         var fragments = await new PdfExtractor().ExtractTextFragmentsAsync(result.PdfBytes, 1);
         Assert.Contains(fragments.Fragments, f => f.Text.Contains("Original"));
