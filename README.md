@@ -29,7 +29,9 @@ for validation and remaining limits.
 The APIs introduced in 0.20.0 include typed XMP metadata, form calculations,
 lazy/streaming readers and batch jobs. Batch timeouts do not interrupt work or
 roll back files; Rotate/Compress and nonzero worker memory caps remain explicitly
-unsupported by this binding. See the [acceptance ledger](docs/FEATURE_PARITY.md).
+unsupported by this binding. Stream readers are disposable and leave inputs open
+by default. The complete NuGet package is validated in CI on .NET 8/9/10. See the
+[acceptance ledger](docs/FEATURE_PARITY.md) and [changelog](CHANGELOG.md).
 
 ## Feature guides
 
