@@ -6,6 +6,22 @@ surface and feature flags remain unchanged. Current validation is recorded in
 [core compatibility notes](UPSTREAM-5.5.4.md); older checkpoints below describe
 their original core versions and do not establish current upstream blockers.
 
+# Release integration — 0.20.0, 2026-10-19
+
+User authorized integration and publication after validation. PR #109 merged into
+develop as 8cb68853a7ab54ebc777bdd8e02a55bdeeb84eea. Its exact source head
+5de06f4568ae529d196fdddc778ce0581a7bf182 passed all 15 PR CI jobs in
+[run 39310679115](https://github.com/bzsanti/oxidize-pdf-dotnet/actions/runs/39310679115):
+eight native builds, four managed platforms, lint/native regression tests, security
+and the complete NuGet gate. PackageReference consumers passed on .NET 8/9/10.
+The initial package checker incorrectly assumed a fixed nuspec XML namespace;
+corrected parsing passes the complete package and rejects a wrong-version control.
+
+The earlier validation ledger below records the state before those checks. Its
+pending-CI statements are superseded by this evidence. Release integration changes
+only documentation; the release PR to main must also pass CI before tagging.
+Core #794/#795/#797 remain explicitly excluded from completed-capability claims.
+
 # Release candidate validation — 0.20.0, 2026-10-19
 
 User authorized continuation through release validation, not publication.
