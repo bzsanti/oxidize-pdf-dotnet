@@ -1,0 +1,12 @@
+   Compiling oxidize-pdf-ffi v0.14.0 (/tmp/oxidize-dotnet-core553/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running tests/incremental_form_core_contract.rs (target/debug/deps/incremental_form_core_contract-5611ce3407fe4ad4)
+
+running 4 tests
+test missing_field_batch_returns_no_output ... ok
+test read_only_field_rejects_mutation ... ok
+test writable_control_preserves_prefix_and_updates_value ... ok
+test certified_no_changes_policy_rejects_form_fill ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

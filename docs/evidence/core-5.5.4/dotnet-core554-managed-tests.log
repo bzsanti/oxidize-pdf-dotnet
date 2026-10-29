@@ -1,0 +1,22 @@
+  OxidizePdf.NET -> /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET/bin/Release/net8.0/OxidizePdf.NET.dll
+  OxidizePdf.NET -> /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET/bin/Release/net9.0/OxidizePdf.NET.dll
+  OxidizePdf.NET -> /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET/bin/Release/net10.0/OxidizePdf.NET.dll
+  OxidizePdf.NET.Tests -> /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET.Tests/bin/Release/net10.0/OxidizePdf.NET.Tests.dll
+Test run for /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET.Tests/bin/Release/net10.0/OxidizePdf.NET.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:  1228, Skipped:     0, Total:  1228, Duration: 13 s - OxidizePdf.NET.Tests.dll (net10.0)
+  OxidizePdf.NET.KernelMemory -> /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET.KernelMemory/bin/Release/net8.0/OxidizePdf.NET.KernelMemory.dll
+  OxidizePdf.NET.KernelMemory -> /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET.KernelMemory/bin/Release/net9.0/OxidizePdf.NET.KernelMemory.dll
+  OxidizePdf.NET.KernelMemory -> /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET.KernelMemory/bin/Release/net10.0/OxidizePdf.NET.KernelMemory.dll
+  OxidizePdf.NET.KernelMemory.Tests -> /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET.KernelMemory.Tests/bin/Release/net10.0/OxidizePdf.NET.KernelMemory.Tests.dll
+Test run for /tmp/oxidize-dotnet-core553/dotnet/OxidizePdf.NET.KernelMemory.Tests/bin/Release/net10.0/OxidizePdf.NET.KernelMemory.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 1 s - OxidizePdf.NET.KernelMemory.Tests.dll (net10.0)

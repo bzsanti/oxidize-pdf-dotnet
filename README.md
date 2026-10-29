@@ -1,6 +1,6 @@
 # OxidizePdf.NET
 
-> Rust core pinned to **5.5.0**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
+> Version 0.20.1 pins Rust core **5.5.4**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
 
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -20,16 +20,18 @@
 - 🌍 **Cross-Platform** - Linux, Windows, macOS — x64 & ARM64, including musl/Alpine
 - 🛠️ **Full PDF toolkit** - Also creates and manipulates PDFs (text, graphics, merge, split, rotate, page extraction)
 
-## New in 0.20.0 — core 5.5.0
+## New in 0.20.1 — core 5.5.4
 
-New typed APIs: `PdfXmp` for catalog metadata, `PdfCalculations` for the two core
-calculation engines, `PdfLazyDocument` / `PdfStreamingDocument` for seekable streams,
-and `PdfBatch` for worker-based file and custom jobs. Stream readers are disposable
-and leave inputs open by default. Batch timeouts do not interrupt work or roll back
-files; Rotate/Compress and nonzero worker memory caps are explicitly unsupported.
-See the [acceptance ledger](docs/FEATURE_PARITY.md) for limits, tests and remaining
-core blockers, and the [changelog](CHANGELOG.md) for all additions since 0.19.0.
-The complete NuGet package is validated in CI on .NET 8/9/10.
+This patch updates the core dependency with PDF correctness and ECDSA security
+fixes while preserving the managed API. See the [release notes](RELEASE-NOTES-v0.20.1.md)
+for validation and remaining limits.
+
+The APIs introduced in 0.20.0 include typed XMP metadata, form calculations,
+lazy/streaming readers and batch jobs. Batch timeouts do not interrupt work or
+roll back files; Rotate/Compress and nonzero worker memory caps remain explicitly
+unsupported by this binding. Stream readers are disposable and leave inputs open
+by default. The complete NuGet package is validated in CI on .NET 8/9/10. See the
+[acceptance ledger](docs/FEATURE_PARITY.md) and [changelog](CHANGELOG.md).
 
 ## Feature guides
 

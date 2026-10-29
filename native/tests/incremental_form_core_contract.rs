@@ -72,7 +72,6 @@ fn read_only_field_rejects_mutation() {
 }
 
 #[test]
-#[ignore = "#92 core 5.5.0 filler does not invoke certification policy checks"]
 fn certified_no_changes_policy_rejects_form_fill() {
     let base = template_with_policy(false, true);
     // Same policy is understood and rejected by the public core object editor.

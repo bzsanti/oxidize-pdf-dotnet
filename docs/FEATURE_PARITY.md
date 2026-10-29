@@ -1,3 +1,11 @@
+# Current core adoption — 5.5.4, 2026-10-28
+
+Development now pins core =5.5.4 under #111. This dependency update does not
+publish a new binding package or establish full API parity. The existing binding
+surface and feature flags remain unchanged. Current validation is recorded in
+[core compatibility notes](UPSTREAM-5.5.4.md); older checkpoints below describe
+their original core versions and do not establish current upstream blockers.
+
 # Release integration — 0.20.0, 2026-10-19
 
 User authorized integration and publication after validation. PR #109 merged into
