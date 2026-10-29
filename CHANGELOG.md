@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-10-29
+
+- Update the exact Rust core pin from 5.5.0 to 5.5.4, including ECDSA dependency remediation for RUSTSEC-2026-0387.
+- Adopt upstream PDF correctness fixes and enable the DocMDP P=1 form-fill rejection regression.
+- Preserve managed APIs, eight native RIDs and explicit unsupported batch operations.
+- See [release notes](RELEASE-NOTES-v0.20.1.md) for validation and remaining limitations.
+
 ## [0.20.0] - Release candidate
 
 - Pin the Rust core to 5.5.0 and adapt validation to its stricter XMP/reference checks.
