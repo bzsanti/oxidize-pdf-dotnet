@@ -1,6 +1,6 @@
 # OxidizePdf.NET
 
-> Rust core pinned to **5.5.0**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
+> Development pins Rust core **5.5.4**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
 
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
