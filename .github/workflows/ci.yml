@@ -171,7 +171,7 @@ jobs:
       - name: Pack release candidate
         run: dotnet pack dotnet/OxidizePdf.NET/OxidizePdf.NET.csproj --configuration Release --output artifacts/packages
       - name: Verify NuGet contents
-        run: python3 validation/check_package.py artifacts/packages/OxidizePdf.NET.0.20.1.nupkg
+        run: python3 validation/check_package.py artifacts/packages/OxidizePdf.NET.0.20.2.nupkg
       - name: Consume NuGet on .NET 8, 9 and 10
         shell: bash
         run: |

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-10-30
+
+- Adopt published core 5.5.5 with extraction, encrypted object stream and signature verification fixes.
+
 ## [0.20.1] - 2026-10-29
 
 - Update the exact Rust core pin from 5.5.0 to 5.5.4, including ECDSA dependency remediation for RUSTSEC-2026-0387.
