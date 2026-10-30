@@ -1,3 +1,3 @@
 # oxidize-dotnet 0.20.2
 
-Updates the exact registry dependency to oxidize-pdf 5.5.5. Inherits fixes for certificate distrust dates, encrypted object streams, text spacing and compact lines, and page generation references during signature verification.
+Updates the exact registry dependency to oxidize-pdf 5.5.5. Inherits fixes for minimum patched trust-store and key-distrust dependency versions, encrypted object streams, text spacing and compact lines, and page generation references during signature and document-timestamp preparation.
