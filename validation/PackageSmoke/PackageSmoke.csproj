@@ -7,6 +7,6 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="OxidizePdf.NET" Version="0.20.1" />
+    <PackageReference Include="OxidizePdf.NET" Version="0.20.2" />
   </ItemGroup>
 </Project>

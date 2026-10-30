@@ -1,6 +1,6 @@
 # OxidizePdf.NET
 
-> Version 0.20.1 pins Rust core **5.5.4**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
+> Version 0.20.2 pins Rust core **5.5.5**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
 
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -20,10 +20,10 @@
 - 🌍 **Cross-Platform** - Linux, Windows, macOS — x64 & ARM64, including musl/Alpine
 - 🛠️ **Full PDF toolkit** - Also creates and manipulates PDFs (text, graphics, merge, split, rotate, page extraction)
 
-## New in 0.20.1 — core 5.5.4
+## New in 0.20.2 — core 5.5.5
 
-This patch updates the core dependency with PDF correctness and ECDSA security
-fixes while preserving the managed API. See the [release notes](RELEASE-NOTES-v0.20.1.md)
+This patch updates the core dependency with text extraction, encrypted object stream and signature verification
+fixes while preserving the managed API. See the [release notes](RELEASE-NOTES-v0.20.2.md)
 for validation and remaining limits.
 
 The APIs introduced in 0.20.0 include typed XMP metadata, form calculations,
