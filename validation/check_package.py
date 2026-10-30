@@ -29,5 +29,5 @@ with zipfile.ZipFile(sys.argv[1]) as package:
         assert package.getinfo(name).file_size > 0, f"Empty asset: {name}"
     nuspec = ET.fromstring(package.read("OxidizePdf.NET.nuspec"))
     assert nuspec.findtext("{*}metadata/{*}id") == "OxidizePdf.NET"
-    assert nuspec.findtext("{*}metadata/{*}version") == "0.20.1"
+    assert nuspec.findtext("{*}metadata/{*}version") == "0.20.2"
 print("Package layout passed: eight native RIDs, three managed TFMs, documentation and metadata")
