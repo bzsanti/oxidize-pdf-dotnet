@@ -1,6 +1,6 @@
 # OxidizePdf.NET
 
-[Docs7 guides](docs/site/index.mdx) · [Context7 usage](docs/site/context7.mdx) · [Documentation publishing and indexing](docs/CONTEXT7.md)
+[Documentation](https://oxidizepdf-net.docs7.io) · [Context7](https://context7.com/llmstxt/oxidizepdf-net_docs7_io_llms_txt) · [Documentation publishing and indexing](docs/CONTEXT7.md)
 
 > Version 0.20.2 pins Rust core **5.5.5**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
 
