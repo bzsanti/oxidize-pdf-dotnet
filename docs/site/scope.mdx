@@ -1,0 +1,14 @@
+---
+title: "Versions and capability limits"
+description: "Managed APIs, runtime packages and remaining binding capabilities."
+---
+
+These pages target **OxidizePdf.NET 0.20.2**, using Rust core **5.5.5**. Use .NET 8 or newer.
+
+- Native runtime binaries are included for supported runtime identifiers. Check the [versioned package documentation](https://github.com/bzsanti/oxidize-pdf-dotnet/blob/v0.20.2/README.md#supported-platforms) for your deployment platform.
+- Rust APIs and Cargo features are not automatically managed APIs. See the [capability inventory](https://github.com/bzsanti/oxidize-pdf-dotnet/blob/v0.20.2/docs/FEATURE_PARITY.md) for what the binding exposes.
+- Chunk token estimates are estimates, not guarantees for every model's tokenizer.
+- The quickstart's full-file byte array does not demonstrate bounded-memory reading.
+- Parsing or extracting text does not certify PDF/A, PDF/UA or signature trust.
+
+Additional guides cover [existing-document operations](https://github.com/bzsanti/oxidize-pdf-dotnet/blob/v0.20.2/docs/EXISTING_DOCUMENT_OPERATIONS.md) and [incremental signing](https://github.com/bzsanti/oxidize-pdf-dotnet/blob/v0.20.2/docs/INCREMENTAL_SIGNING.md). Remaining parity work is tracked in [.NET #81](https://github.com/bzsanti/oxidize-pdf-dotnet/issues/81).
