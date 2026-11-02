@@ -32,7 +32,7 @@ public class RagChunk
     [JsonPropertyName("heading_context")]
     public string? HeadingContext { get; set; }
 
-    /// <summary>Approximate token count (word-count proxy).</summary>
+    /// <summary>Count under the selected counter (word estimate by default).</summary>
     [JsonPropertyName("token_estimate")]
     public int TokenEstimate { get; set; }
 

@@ -12,6 +12,10 @@ namespace OxidizePdf.NET.Pipeline;
 /// </remarks>
 public class SemanticChunkConfig
 {
+    /// <summary>Counter for budgets and TokenEstimate. Defaults to the word proxy.</summary>
+    [JsonPropertyName("token_counter")]
+    public TokenCounterKind TokenCounter { get; set; } = TokenCounterKind.WordProxy;
+
     /// <summary>JSON serialization options used by <see cref="ToJson"/>. Uses snake_case.</summary>
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -48,6 +52,7 @@ public class SemanticChunkConfig
     /// </remarks>
     public void Validate()
     {
+        PdfTokenCounter.ValidateKind(TokenCounter);
         if (MaxTokens <= 0)
             throw new ArgumentException("MaxTokens must be positive");
         if (OverlapTokens < 0)

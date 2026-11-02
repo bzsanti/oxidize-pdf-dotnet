@@ -1,6 +1,13 @@
 using OxidizePdf.NET;
 
 // Consume the packed NuGet, never a project reference or a hand-copied native library.
+if (!PdfTokenCounter.IsAvailable(TokenCounterKind.Cl100kBase))
+    throw new Exception("Published package is missing cl100k_base");
+var exact = PdfTokenCounter.Count("Hello, world!", TokenCounterKind.Cl100kBase);
+if (exact.Count != 4 || !exact.IsExact || exact.CounterName != "cl100k_base")
+    throw new Exception("Exact token counter failed");
+if (PdfTokenCounter.Count("Hello, world!").Count != 2)
+    throw new Exception("Default word estimate changed");
 var xml = PdfXmp.Serialize(new() { Title = "package-smoke" });
 if (PdfXmp.Parse(xml).Title != "package-smoke") throw new Exception("XMP round-trip failed");
 var calculated = PdfCalculations.RunEngine(new PdfCalculationStep[] {
