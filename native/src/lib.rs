@@ -47,6 +47,9 @@ pub mod tagged;
 pub mod text;
 pub mod text_extraction;
 pub mod text_validation;
+pub mod token_counter;
+#[cfg(test)]
+mod token_counter_tests;
 pub mod types;
 pub mod xmp;
 
@@ -94,6 +97,7 @@ pub enum ErrorCode {
     InvalidArgument = 9,
     /// A Rust panic was caught at the FFI boundary (see `oxidize_get_last_error`).
     Panic = 10,
+    UnsupportedFeature = 11,
 }
 
 // ── Panic guards ──────────────────────────────────────────────────────────────

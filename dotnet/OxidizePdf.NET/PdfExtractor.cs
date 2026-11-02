@@ -249,6 +249,7 @@ public class PdfExtractor
     /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
     /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty/oversize, or either non-null config fails validation.</exception>
     /// <exception cref="PdfExtractionException">If chunking fails inside the FFI.</exception>
+    /// <exception cref="NotSupportedException">If the selected token counter is unavailable in the native build.</exception>
     /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
     public Task<List<RagChunk>> RagChunksAsync(
         byte[] pdfBytes,
@@ -292,6 +293,7 @@ public class PdfExtractor
     /// <exception cref="ArgumentNullException">If <paramref name="pdfBytes"/> is null.</exception>
     /// <exception cref="ArgumentException">If <paramref name="pdfBytes"/> is empty/oversize, or either non-null config fails validation.</exception>
     /// <exception cref="PdfExtractionException">If chunking fails inside the FFI.</exception>
+    /// <exception cref="NotSupportedException">If the selected token counter is unavailable in the native build.</exception>
     /// <exception cref="OperationCanceledException">If the operation is cancelled.</exception>
     public Task<List<SemanticChunk>> SemanticChunksAsync(
         byte[] pdfBytes,
@@ -1596,6 +1598,8 @@ public class PdfExtractor
             ? $"{message}: {rustError}"
             : $"{message}: {error}";
 
+        if (errorCode == (int)NativeMethods.ErrorCode.UnsupportedFeature)
+            throw new NotSupportedException(detailedMessage);
         throw new PdfExtractionException(detailedMessage);
     }
 }

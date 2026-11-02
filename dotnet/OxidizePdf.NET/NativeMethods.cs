@@ -8,6 +8,12 @@ namespace OxidizePdf.NET;
 internal static class NativeMethods
 {
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern byte oxidize_token_counter_available(byte counter);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_count_tokens([In] byte[] text, nuint length, byte counter, out nuint count);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_pdfa_validate([In] byte[] pdf, nuint length,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string request, out IntPtr output);
 
@@ -73,6 +79,8 @@ internal static class NativeMethods
 
         /// <summary>A Rust panic was caught at the FFI boundary (see last error message).</summary>
         Panic = 10,
+        /// <summary>The requested capability is absent from the native build.</summary>
+        UnsupportedFeature = 11,
     }
 
     /// <summary>

@@ -14,10 +14,14 @@ namespace OxidizePdf.NET.Pipeline;
 /// </remarks>
 public class HybridChunkConfig
 {
+    /// <summary>Counter for budgets and TokenEstimate. Defaults to the word proxy.</summary>
+    [JsonPropertyName("token_counter")]
+    public TokenCounterKind TokenCounter { get; set; } = TokenCounterKind.WordProxy;
+
     /// <summary>JSON serialization options used by <see cref="ToJson"/>. Uses snake_case and stringifies <see cref="Pipeline.MergePolicy"/>.</summary>
     public static readonly JsonSerializerOptions JsonOptions = BuildOptions();
 
-    /// <summary>Maximum tokens per chunk (approximate — word-count proxy). Default <c>512</c>.</summary>
+    /// <summary>Maximum tokens per chunk under the selected counter. Default <c>512</c>.</summary>
     [JsonPropertyName("max_tokens")]
     public int MaxTokens { get; set; } = 512;
 
@@ -54,6 +58,7 @@ public class HybridChunkConfig
     /// </remarks>
     public void Validate()
     {
+        PdfTokenCounter.ValidateKind(TokenCounter);
         if (MaxTokens <= 0)
             throw new ArgumentException("MaxTokens must be positive");
         if (OverlapTokens < 0)

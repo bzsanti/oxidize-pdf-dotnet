@@ -1,6 +1,8 @@
 # OxidizePdf.NET
 
-> Version 0.20.2 pins Rust core **5.5.5**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
+[Documentation](https://oxidizepdf-net.docs7.io) · [Context7](https://context7.com/llmstxt/oxidizepdf-net_docs7_io_llms_txt) · [Documentation publishing and indexing](docs/CONTEXT7.md)
+
+> Version 0.21.0 pins Rust core **5.5.6**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
 
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -19,6 +21,18 @@
 - 📦 **Zero Dependencies** - Self-contained native binaries in NuGet package
 - 🌍 **Cross-Platform** - Linux, Windows, macOS — x64 & ARM64, including musl/Alpine
 - 🛠️ **Full PDF toolkit** - Also creates and manipulates PDFs (text, graphics, merge, split, rotate, page extraction)
+
+## New in 0.21.0: exact token counting
+
+`PdfTokenCounter.Count(text, TokenCounterKind.Cl100kBase)` reports ordinary-text
+cl100k_base tokens. `SemanticChunkConfig.TokenCounter` and
+`HybridChunkConfig.TokenCounter` select the same counter for chunk budgets.
+Defaults remain `WordProxy`; exact counts exclude chat/model framing overhead.
+Normal packages include the tokenizer. Custom native builds can omit it and
+report availability through `PdfTokenCounter.IsAvailable`; exact requests then
+throw `NotSupportedException` instead of falling back.
+
+See [compatibility and limits](docs/UPSTREAM-5.5.6.md).
 
 ## New in 0.20.2 — core 5.5.5
 

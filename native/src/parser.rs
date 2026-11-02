@@ -2013,6 +2013,7 @@ pub unsafe extern "C" fn oxidize_rag_chunks_with_profile(
 /// - `InvalidUtf8`: a non-null config pointer is not valid UTF-8.
 /// - `InvalidArgument`: a non-null config does not deserialize as the
 ///   matching DTO.
+/// - `UnsupportedFeature`: the selected token counter is absent from this build.
 /// - `PdfParseError`: `pdf_len == 0`, parser fails, or partition fails.
 /// - `SerializationError` / `InvalidUtf8`: response build failure.
 ///
@@ -2074,14 +2075,19 @@ pub unsafe extern "C" fn oxidize_semantic_chunks(
                 return ErrorCode::InvalidUtf8 as c_int;
             }
         };
-        let sem_cfg: oxidize_pdf::pipeline::SemanticChunkConfig =
+        let sem_dto =
             match serde_json::from_str::<crate::pipeline_config::SemanticChunkConfigDto>(sem_str) {
-                Ok(d) => d.into(),
+                Ok(d) => d,
                 Err(e) => {
                     set_last_error(format!("invalid SemanticChunkConfig JSON: {e}"));
                     return ErrorCode::InvalidArgument as c_int;
                 }
             };
+
+        let counter = match sem_dto.token_counter.resolve() {
+            Ok(counter) => counter,
+            Err(code) => return code,
+        };
 
         let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
         let reader = match open_lenient(bytes) {
@@ -2101,7 +2107,8 @@ pub unsafe extern "C" fn oxidize_semantic_chunks(
             }
         };
 
-        let chunker = oxidize_pdf::pipeline::SemanticChunker::new(sem_cfg);
+        let chunker =
+            oxidize_pdf::pipeline::SemanticChunker::new(sem_dto.into()).with_token_counter(counter);
         let sem_chunks = chunker.chunk(&elements);
 
         let results: Vec<SemanticChunkResult> = sem_chunks
@@ -2161,6 +2168,7 @@ pub unsafe extern "C" fn oxidize_semantic_chunks(
 /// - `InvalidUtf8`: a non-null config pointer is not valid UTF-8.
 /// - `InvalidArgument`: a non-null config does not deserialize as the
 ///   matching DTO (malformed JSON or missing fields).
+/// - `UnsupportedFeature`: the selected token counter is absent from this build.
 /// - `PdfParseError`: `pdf_len == 0`, parser fails, or partition fails.
 /// - `SerializationError` / `InvalidUtf8`: response build failure.
 ///
@@ -2214,8 +2222,11 @@ pub unsafe extern "C" fn oxidize_rag_chunks_with_config(
                 }
             };
 
-        let hybrid_cfg: oxidize_pdf::pipeline::HybridChunkConfig = if hybrid_config_json.is_null() {
-            oxidize_pdf::pipeline::HybridChunkConfig::default()
+        let (hybrid_cfg, counter_kind) = if hybrid_config_json.is_null() {
+            (
+                oxidize_pdf::pipeline::HybridChunkConfig::default(),
+                crate::token_counter::CounterKind::default(),
+            )
         } else {
             let s = match CStr::from_ptr(hybrid_config_json).to_str() {
                 Ok(v) => v,
@@ -2225,12 +2236,20 @@ pub unsafe extern "C" fn oxidize_rag_chunks_with_config(
                 }
             };
             match serde_json::from_str::<crate::pipeline_config::HybridChunkConfigDto>(s) {
-                Ok(d) => d.into(),
+                Ok(d) => {
+                    let kind = d.token_counter;
+                    (d.into(), kind)
+                }
                 Err(e) => {
                     set_last_error(format!("invalid HybridChunkConfig JSON: {e}"));
                     return ErrorCode::InvalidArgument as c_int;
                 }
             }
+        };
+
+        let counter = match counter_kind.resolve() {
+            Ok(counter) => counter,
+            Err(code) => return code,
         };
 
         let bytes = slice::from_raw_parts(pdf_bytes, pdf_len);
@@ -2251,7 +2270,8 @@ pub unsafe extern "C" fn oxidize_rag_chunks_with_config(
             }
         };
 
-        let chunker = oxidize_pdf::pipeline::HybridChunker::new(hybrid_cfg);
+        let chunker =
+            oxidize_pdf::pipeline::HybridChunker::new(hybrid_cfg).with_token_counter(counter);
         let hybrid_chunks = chunker.chunk(&elements);
         let chunks: Vec<oxidize_pdf::pipeline::RagChunk> = hybrid_chunks
             .iter()
