@@ -1,3 +1,12 @@
+# Current increment: core 5.5.6 and exact token counting, 2026-11-02
+
+The registry pin is =5.5.6 (#122). Issue #104 adds typed counter selection,
+standalone counting, availability/error semantics and both chunkers. Defaults
+remain heuristic. Full parity under #81/core #710 is still incomplete; no global
+percentage is inferred. See [contracts and limits](UPSTREAM-5.5.6.md).
+
+The following entries are historical checkpoints.
+
 # Current core adoption — 5.5.5, 2026-10-30
 
 The exact registry pin is =5.5.5, tracked in #117. This update preserves the existing API surface and feature selection; it does not establish full upstream parity.

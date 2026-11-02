@@ -247,3 +247,32 @@ jobs:
       - name: Run Cargo Audit
         working-directory: native
         run: cargo audit
+
+  token-counter-minimal:
+    name: Token counter without optional tokenizer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test native feature absence
+        run: cargo test --manifest-path native/Cargo.toml --no-default-features token_counter_tests
+      - name: Build native without tokenizer
+        run: |
+          cargo build --manifest-path native/Cargo.toml --no-default-features
+          mkdir -p dotnet/OxidizePdf.NET/runtimes/linux-x64/native
+          cp native/target/debug/liboxidize_pdf_ffi.so dotnet/OxidizePdf.NET/runtimes/linux-x64/native/
+      - name: Verify discovery and unavailable errors through managed FFI
+        env:
+          OXIDIZE_EXPECT_NO_TIKTOKEN: '1'
+        run: dotnet test dotnet/OxidizePdf.NET.Tests --filter FullyQualifiedName~TokenCounterTests
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify independent pinned tokenizer oracle
+        run: |
+          python -m pip install tiktoken==0.12.0
+          python tools/token_counter_oracle.py
+          git diff --exit-code -- dotnet/OxidizePdf.NET.Tests/fixtures/token-counter-oracle.json

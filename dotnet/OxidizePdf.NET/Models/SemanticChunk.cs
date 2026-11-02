@@ -24,7 +24,7 @@ public class SemanticChunk
     [JsonPropertyName("page_numbers")]
     public List<int> PageNumbers { get; set; } = new();
 
-    /// <summary>Estimated number of tokens in this chunk (whitespace word count).</summary>
+    /// <summary>Count under the selected counter (word estimate by default).</summary>
     [JsonPropertyName("token_estimate")]
     public int TokenEstimate { get; set; }
 

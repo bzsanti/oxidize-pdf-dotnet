@@ -96,6 +96,8 @@ impl From<PartitionConfigDto> for RustPartition {
 
 #[derive(Debug, Deserialize)]
 pub struct HybridChunkConfigDto {
+    #[serde(default)]
+    pub token_counter: crate::token_counter::CounterKind,
     pub max_tokens: usize,
     pub overlap_tokens: usize,
     pub merge_adjacent: bool,
@@ -133,6 +135,8 @@ impl From<HybridChunkConfigDto> for RustHybrid {
 
 #[derive(Debug, Deserialize)]
 pub struct SemanticChunkConfigDto {
+    #[serde(default)]
+    pub token_counter: crate::token_counter::CounterKind,
     pub max_tokens: usize,
     pub overlap_tokens: usize,
     pub respect_element_boundaries: bool,

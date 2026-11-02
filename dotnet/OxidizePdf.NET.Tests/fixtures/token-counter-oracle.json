@@ -1,0 +1,63 @@
+{
+  "oracle": "Python tiktoken 0.12.0",
+  "encoding": "cl100k_base",
+  "mode": "encode_ordinary",
+  "cases": [
+    {
+      "text": "",
+      "count": 0
+    },
+    {
+      "text": "hello world",
+      "count": 2
+    },
+    {
+      "text": "a\nb",
+      "count": 3
+    },
+    {
+      "text": "Hello, world!",
+      "count": 4
+    },
+    {
+      "text": "One more sentence.",
+      "count": 4
+    },
+    {
+      "text": "https://example.com/verify",
+      "count": 6
+    },
+    {
+      "text": "Español: café, niño. 中文。",
+      "count": 12
+    },
+    {
+      "text": "مرحبا بالعالم",
+      "count": 10
+    },
+    {
+      "text": "日本語の文章です。",
+      "count": 8
+    },
+    {
+      "text": "🙂🚀",
+      "count": 5
+    },
+    {
+      "text": "a\u0000b",
+      "count": 3
+    },
+    {
+      "text": "<|endoftext|>",
+      "count": 7
+    },
+    {
+      "text": " \t\r\n",
+      "count": 2
+    },
+    {
+      "text": "Hello, world!\nOne more sentence.",
+      "count": 8
+    }
+  ]
+}
