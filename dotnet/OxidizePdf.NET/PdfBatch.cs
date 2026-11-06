@@ -20,11 +20,15 @@ public abstract record PdfBatchJob
     public sealed record Split(string Input, string OutputPattern, int PagesPerFile = 1) : PdfBatchJob;
     /// <summary>Merge input files to Output.</summary>
     public sealed record Merge(IReadOnlyList<string> Inputs, string Output) : PdfBatchJob;
-    /// <summary>Unsupported in core 5.5.0; rejected before any batch work starts.</summary>
+    /// <summary>Compose a clockwise rotation (multiple of 90 degrees) onto selected zero-based
+    /// pages, or all pages when Pages is null. Stored page dimensions and content are retained.
+    /// Invalid angles, nonnegative out-of-range pages and unreadable inputs are per-job failures;
+    /// negative page indices reject the entire request before any work.
+    /// rotation failures preserve an existing output. Timeouts do not roll back completed writes.</summary>
     public sealed record Rotate(string Input, string Output, int Rotation, IReadOnlyList<int>? Pages = null) : PdfBatchJob;
     /// <summary>Extract selected core page indices.</summary>
     public sealed record Extract(string Input, string Output, IReadOnlyList<int> Pages) : PdfBatchJob;
-    /// <summary>Unsupported in core 5.5.0; rejected before any batch work starts.</summary>
+    /// <summary>Unsupported by the pinned core; rejected before any batch work starts.</summary>
     public sealed record Compress(string Input, string Output, byte Quality) : PdfBatchJob;
     /// <summary>Explicit caller operation; never sourced from PDF scripts.</summary>
     public sealed record Custom(string Name, [property: JsonIgnore] Action Operation) : PdfBatchJob;
