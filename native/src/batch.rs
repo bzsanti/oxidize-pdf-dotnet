@@ -104,9 +104,9 @@ pub unsafe extern "C" fn oxidize_batch(
         if request
             .jobs
             .iter()
-            .any(|job| matches!(job, Job::Rotate { .. } | Job::Compress { .. }))
+            .any(|job| matches!(job, Job::Compress { .. }))
         {
-            set_last_error("Rotate and Compress are unsupported by this binding");
+            set_last_error("Compress is unsupported by this binding");
             return ErrorCode::InvalidArgument as c_int;
         }
         let mut jobs = Vec::new();
