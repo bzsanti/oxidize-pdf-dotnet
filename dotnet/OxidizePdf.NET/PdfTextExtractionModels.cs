@@ -93,7 +93,7 @@ public sealed class PdfTextExtractionOptions
     /// <summary>Merge hyphenated line endings.</summary>
     public bool MergeHyphenated { get; set; } = true;
     /// <summary>TJ kerning threshold relative to font size.</summary>
-    public double TjSpaceThreshold { get; set; } = 0.2;
+    public double TjSpaceThreshold { get; set; } = 0.17;
     /// <summary>Group text into lines and paragraphs.</summary>
     public bool ReconstructParagraphs { get; set; } = false;
     /// <summary>Include marked artifact text.</summary>
@@ -102,6 +102,12 @@ public sealed class PdfTextExtractionOptions
     public bool ReorderColumns { get; set; } = false;
     /// <summary>Apply scale-relative reading order.</summary>
     public bool ReadingOrder { get; set; } = false;
+    /// <summary>Order horizontal single-column runs by baseline and position; RTL runs retain source order.</summary>
+    public bool VisualLineOrder { get; set; } = false;
+    /// <summary>Recover missing ToUnicode entries from supported explicit simple-font encodings. Default: false.</summary>
+    public bool IncompleteToUnicodeEncodingFallback { get; set; } = false;
+    /// <summary>Append normal annotation appearance text after page content. Default: false.</summary>
+    public bool IncludeAnnotationAppearances { get; set; } = false;
     /// <summary>Standalone carriage-return policy.</summary>
     public CarriageReturnHandling CarriageReturnHandling { get; set; } = CarriageReturnHandling.Remove;
     /// <summary>Per-page emitted-text budget; null is unlimited, zero permits no emitted bytes.</summary>
@@ -122,6 +128,8 @@ public enum PdfRecoveryLocation
     PageContents,
     /// <summary>Invoked Form XObject.</summary>
     FormXObject,
+    /// <summary>Annotation appearance stream; ObjectId identifies its stream object.</summary>
+    AnnotationAppearance,
 }
 /// <summary>PdfRecoveryAction values reported by core.</summary>
 public enum PdfRecoveryAction
@@ -174,13 +182,13 @@ public sealed class PdfSpaceDecision
 /// <summary>PdfTextRecoveryDiagnostic returned by text extraction.</summary>
 public sealed class PdfTextRecoveryDiagnostic
 {
-    /// <summary>Content or Form location.</summary>
+    /// <summary>Content, Form or annotation appearance location.</summary>
     [JsonPropertyName("location")] public PdfRecoveryLocation Location { get; init; } = default;
     /// <summary>Zero-based Contents index, when applicable.</summary>
     [JsonPropertyName("contents_index")] public ulong? ContentsIndex { get; init; } = null;
     /// <summary>Invoked Form resource name.</summary>
     [JsonPropertyName("form_name")] public string? FormName { get; init; } = null;
-    /// <summary>Form object number and generation.</summary>
+    /// <summary>Form or annotation appearance stream object number and generation.</summary>
     [JsonPropertyName("object_id")] public uint[]? ObjectId { get; init; } = null;
     /// <summary>Recovery or omission.</summary>
     [JsonPropertyName("action")] public PdfRecoveryAction Action { get; init; } = default;

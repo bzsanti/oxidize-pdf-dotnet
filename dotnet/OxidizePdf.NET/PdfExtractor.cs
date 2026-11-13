@@ -1467,14 +1467,17 @@ public class PdfExtractor
                 MaxExtractedBytes = (nuint)options.MaxExtractedBytes
             };
 
-            var result = NativeMethods.oxidize_extract_text_with_options_v2(
+            var result = NativeMethods.oxidize_extract_text_with_options_v3(
                 pdfPtr,
                 (nuint)pdfBytes.Length,
                 ref nativeOptions,
                 out textPtr,
                 out bool truncated,
                 options.IncludeLinkAnnotations,
-                options.IncludeUnreliableFigureText);
+                options.IncludeUnreliableFigureText,
+                options.VisualLineOrder,
+                options.IncompleteToUnicodeEncodingFallback,
+                options.IncludeAnnotationAppearances);
 
             ThrowIfError(result, "Failed to extract text with options");
 

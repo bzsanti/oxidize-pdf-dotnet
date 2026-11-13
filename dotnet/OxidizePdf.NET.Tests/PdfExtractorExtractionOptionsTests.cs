@@ -102,7 +102,7 @@ public class PdfExtractorExtractionOptionsTests
         Assert.False(options.DetectColumns);
         Assert.Equal(50.0, options.ColumnThreshold);
         Assert.True(options.MergeHyphenated);
-        Assert.Equal(0.2, options.TjSpaceThreshold);
+        Assert.Equal(0.17, options.TjSpaceThreshold);
         Assert.False(options.ReconstructParagraphs);
         Assert.False(options.IncludeArtifacts);
     }

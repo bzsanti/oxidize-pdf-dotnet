@@ -2,7 +2,7 @@
 
 [Documentation](https://oxidizepdf-net.docs7.io) · [Context7](https://context7.com/llmstxt/oxidizepdf-net_docs7_io_llms_txt) · [Documentation publishing and indexing](docs/CONTEXT7.md)
 
-> Version 0.21.0 pins Rust core **5.5.6**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
+> Version 0.22.0 pins Rust core **5.6.0**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
 
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
