@@ -159,7 +159,7 @@ pub struct ExtractionOptionsFFI {
     pub merge_hyphenated: bool,
     /// Synthesise `U+0020` when a `TJ` numeric kern advance exceeds
     /// `tj_space_threshold * font_size` (oxidize-pdf 2.10.0, issue #272).
-    /// Upstream default `0.2`.
+    /// Upstream default `0.17`.
     pub tj_space_threshold: f64,
     /// Group fragments into single-line and paragraph-level fragments
     /// (oxidize-pdf 2.10.0, issue #261). Upstream default `false`.
@@ -1135,6 +1135,38 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options_v2(
     include_link_annotations: bool,
     include_unreliable_figure_text: bool,
 ) -> c_int {
+    oxidize_extract_text_with_options_v3(
+        pdf_bytes,
+        pdf_len,
+        options,
+        out_text,
+        out_truncated,
+        include_link_annotations,
+        include_unreliable_figure_text,
+        false,
+        false,
+        false,
+    )
+}
+
+/// Extract text with opt-in core 5.6 visual ordering, encoding recovery and appearances.
+/// The original options layout and v1/v2 entry points remain unchanged.
+///
+/// # Safety
+/// Same pointer requirements as `oxidize_extract_text_with_options`.
+#[no_mangle]
+pub unsafe extern "C" fn oxidize_extract_text_with_options_v3(
+    pdf_bytes: *const u8,
+    pdf_len: usize,
+    options: *const ExtractionOptionsFFI,
+    out_text: *mut *mut c_char,
+    out_truncated: *mut bool,
+    include_link_annotations: bool,
+    include_unreliable_figure_text: bool,
+    visual_line_order: bool,
+    incomplete_tounicode_encoding_fallback: bool,
+    include_annotation_appearances: bool,
+) -> c_int {
     crate::ffi_guard(move || {
         clear_last_error();
 
@@ -1185,7 +1217,10 @@ pub unsafe extern "C" fn oxidize_extract_text_with_options_v2(
             .with_reading_order(reading_order)
             .with_carriage_return_handling(carriage_return_handling)
             .with_link_annotation_extraction(include_link_annotations)
-            .with_unreliable_figure_text(include_unreliable_figure_text);
+            .with_unreliable_figure_text(include_unreliable_figure_text)
+            .with_visual_line_order(visual_line_order)
+            .with_incomplete_tounicode_encoding_fallback(incomplete_tounicode_encoding_fallback)
+            .with_annotation_appearance_extraction(include_annotation_appearances);
         let text_pages = match extractor.extract_from_document(&document) {
             Ok(pages) => pages,
             Err(e) => {
