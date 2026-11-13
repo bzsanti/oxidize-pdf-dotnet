@@ -2,7 +2,7 @@ namespace OxidizePdf.NET.Models;
 
 /// <summary>
 /// Options for controlling text extraction behavior from parsed PDFs.
-/// Defaults match oxidize-pdf 5.1.4 <c>ExtractionOptions::default()</c>.
+/// Defaults match oxidize-pdf 5.6.0 <c>ExtractionOptions::default()</c>.
 /// When bumping the core dependency, verify these defaults against upstream
 /// (<c>oxidize-pdf-core/src/text/extraction.rs</c>, <c>impl Default for
 /// ExtractionOptions</c>) — they are duplicated here as plain literals and
@@ -36,9 +36,9 @@ public class ExtractionOptions
     /// kerning offset, expressed as a fraction of the current font size
     /// (introduced in oxidize-pdf 2.10.0, upstream issue #272). When the synthesised advance
     /// exceeds <c>TjSpaceThreshold × font_size</c>, the extractor inserts one
-    /// <c>U+0020</c>. Default: 0.2.
+    /// <c>U+0020</c>. Default: 0.17. Set 0.2 to retain the earlier sensitivity.
     /// </summary>
-    public double TjSpaceThreshold { get; set; } = 0.2;
+    public double TjSpaceThreshold { get; set; } = 0.17;
 
     /// <summary>
     /// Reconstruct visual lines and paragraphs from raw text fragments
@@ -73,6 +73,17 @@ public class ExtractionOptions
     /// <see cref="PreserveLayout"/> or <see cref="ReorderColumns"/> is enabled.
     /// </summary>
     public bool ReadingOrder { get; set; }
+
+    /// <summary>Order horizontal single-column runs by baseline and position.
+    /// RTL runs retain source order; this is not general bidi or column analysis. Default: false.</summary>
+    public bool VisualLineOrder { get; set; }
+
+    /// <summary>Recover missing ToUnicode entries from supported explicit simple-font encodings.
+    /// Existing mappings take precedence. Default: false (strict decoding).</summary>
+    public bool IncompleteToUnicodeEncodingFallback { get; set; }
+
+    /// <summary>Append normal annotation appearance text after page content. Default: false.</summary>
+    public bool IncludeAnnotationAppearances { get; set; }
 
     /// <summary>Append URI targets from link annotations in page annotation order.
     /// Targets are extracted as text without scheme filtering and are never followed or executed. Default: false.</summary>

@@ -1,3 +1,7 @@
+# Current increment: core 5.6.0 extraction controls
+
+The registry pin is =5.6.0 (#125). See [contracts and limits](UPSTREAM-5.6.0.md). Earlier capability inventories below remain historical evidence.
+
 # Current increment: core 5.5.6 and exact token counting, 2026-11-02
 
 The registry pin is =5.5.6 (#122). Issue #104 adds typed counter selection,

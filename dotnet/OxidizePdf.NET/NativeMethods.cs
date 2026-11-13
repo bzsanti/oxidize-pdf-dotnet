@@ -1459,6 +1459,20 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.I1)] bool includeLinkAnnotations,
         [MarshalAs(UnmanagedType.I1)] bool includeUnreliableFigureText);
 
+    /// <summary>Extract text with core 5.6 recovery and appearance policies.</summary>
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int oxidize_extract_text_with_options_v3(
+        IntPtr pdfBytes,
+        nuint pdfLen,
+        ref ExtractionOptionsNative options,
+        out IntPtr outText,
+        [MarshalAs(UnmanagedType.I1)] out bool outTruncated,
+        [MarshalAs(UnmanagedType.I1)] bool includeLinkAnnotations,
+        [MarshalAs(UnmanagedType.I1)] bool includeUnreliableFigureText,
+        [MarshalAs(UnmanagedType.I1)] bool visualLineOrder,
+        [MarshalAs(UnmanagedType.I1)] bool incompleteToUnicodeEncodingFallback,
+        [MarshalAs(UnmanagedType.I1)] bool includeAnnotationAppearances);
+
     /// <summary>Extract positioned fragments and rendering modes from one page.</summary>
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int oxidize_extract_text_fragments(

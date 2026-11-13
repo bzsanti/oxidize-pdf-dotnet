@@ -34,6 +34,12 @@ struct Settings {
     include_unreliable_figure_text: bool,
     normalize_non_breaking_spaces: bool,
     track_space_decisions: bool,
+    #[serde(default)]
+    visual_line_order: bool,
+    #[serde(default, rename = "IncompleteToUnicodeEncodingFallback")]
+    incomplete_tounicode_encoding_fallback: bool,
+    #[serde(default)]
+    include_annotation_appearances: bool,
 }
 impl Settings {
     fn extractor(self) -> Result<TextExtractor, String> {
@@ -59,6 +65,9 @@ impl Settings {
             max_extracted_bytes: self.max_extracted_bytes,
         })
         .with_reading_order(self.reading_order)
+        .with_visual_line_order(self.visual_line_order)
+        .with_incomplete_tounicode_encoding_fallback(self.incomplete_tounicode_encoding_fallback)
+        .with_annotation_appearance_extraction(self.include_annotation_appearances)
         .with_carriage_return_handling(carriage)
         .with_link_annotation_extraction(self.include_link_annotations)
         .with_unreliable_figure_text(self.include_unreliable_figure_text)
@@ -143,6 +152,7 @@ fn recovered(r: RecoveredText) -> Result<Value, String> {
  let (location,contents_index,form_name,object_id)=match d.location {
  RecoveryLocation::PageContents(i)=>(0,Some(i),None,None),
  RecoveryLocation::FormXObject{name,object}=>(1,None,Some(name),Some(object)),
+ RecoveryLocation::AnnotationAppearance{object}=>(2,None,None,Some(object)),
  _=>return Err("Unsupported recovery location".to_string()),
  };
  let (action,filter_index,kind,error)=match d.action {
