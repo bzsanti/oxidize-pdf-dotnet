@@ -30,6 +30,22 @@ var batch = PdfBatch.Run(new PdfBatchJob[] { new PdfBatchJob.Custom("smoke", () 
 if (called != 1 || batch.Successful != 1) throw new Exception("Batch callback failed");
 if (!PdfGeneration.IsAvailable || !PdfGeneration.SupportsRayon)
     throw new Exception("Package is missing optional generation engines");
+// Run inside this independent consumer process: a stack regression must not take down xUnit.
+foreach (ulong stack in new ulong[] { 0, 16384, 2097151 })
+{
+    int callbacks = 0;
+    try
+    {
+        using var rejected = PdfGeneration.Create(new[] { new PdfGenerationPage(0, 200, 300) },
+            spec => { callbacks++; return new PdfPage(spec.Width, spec.Height); },
+            new PdfGenerationOptions { Mode = PdfGenerationMode.Rayon, MaxThreads = 1, StackSize = stack });
+        throw new Exception("Unsafe stack size was accepted");
+    }
+    catch (PdfGenerationException e) when (e.ErrorCode == 9)
+    {
+        if (callbacks != 0) throw new Exception("Callback ran before stack validation");
+    }
+}
 string generated = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".pdf");
 try
 {

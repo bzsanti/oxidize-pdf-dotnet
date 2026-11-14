@@ -1,8 +1,9 @@
 # Optional page generation
 
-`PdfGeneration.Save` runs page callbacks through core 5.6.0's
-`ParallelPageGenerator`, then writes their pages through
-`HighPerformanceDocument`. It is separate from `PdfBatch` file jobs. Default
+`PdfGeneration.Create` runs page callbacks through core 5.6.0's
+`ParallelPageGenerator`, then returns an owned `PdfGeneratedDocument` backed by
+`HighPerformanceDocument`. Its `Save` method can be called repeatedly and `Dispose`
+releases pages and retained buffers. `PdfGeneration.Save` is a one-shot convenience. It is separate from `PdfBatch` file jobs. Default
 native builds include performance and Rayon. Availability comes from the loaded
 library, not a managed compile-time constant.
 
@@ -24,7 +25,8 @@ existing platform build/test matrix.
 Each callback must return a fresh owned PdfPage. Ownership transfers to Save:
 the binding snapshots it with a SafeHandle-pinned clone and disposes it; do not
 reuse or mutate it concurrently. The core owns the clone. All callbacks finish
-before Save returns or throws. Exceptions become PdfGenerationException with the
+before Create returns or throws. No callbacks run during an owner Save; Save and
+Dispose on the owner are serialized. Exceptions become PdfGenerationException with the
 first captured managed exception as InnerException; other callbacks already
 running may finish. Their side effects are not rolled back. Input order is
 preserved even if callbacks finish out of order; Index is caller identity and
@@ -39,12 +41,19 @@ follows the core's resolved-target policy. Concurrent calls must not share an
 output path. Disk publication is not a transaction over callback side effects.
 
 Options map to the core: positive MaxThreads, ChunkSize and StreamBufferSize;
-StackSize and ThreadNamePrefix configure the Rayon pool. Only Normal priority,
+StackSize and ThreadNamePrefix configure the Rayon pool. The binding rejects
+stacks below 2 MiB before creating workers because they must enter the CLR. This
+minimum does not protect arbitrary caller recursion from stack overflow. Only Normal priority,
 LoadBalancing=true, MemoryLimitPerCallback=0 and ResourceDeduplication=true are
 supported. Unsupported requests fail before callbacks. Compression controls PDF
 stream compression. StreamingWriter avoids a full output buffer, but pages and
 writer resources remain resident. MemoryPoolSize bounds retained buffer capacity,
-not allocations, callback memory, total document size or process RSS. Pool statistics are not exposed: the published core does not update all return/eviction counters.
+not allocations, callback memory, total document size or process RSS. PoolRequests and PoolHits are cumulative over an owner's saves; buffered
+repeated saves can reuse capacity, while zero retention or disabled pooling cannot.
+RecordedPages and ThreadUsage describe initial generation and are populated when
+CollectMetrics is true. The core's incomplete return/eviction counters are not
+exposed. ErrorCode distinguishes I/O (6), unsupported engines (11), and invalid
+requests/callback failures (9); callback exceptions remain in InnerException.
 
 Native requests are limited to 64 MiB of JSON (including base64 font bytes).
 Synchronous callbacks should not wait for their containing Save operation.

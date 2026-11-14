@@ -34,7 +34,7 @@ public sealed record PdfGenerationOptions
     public int MaxThreads { get; init; } = Math.Min(Environment.ProcessorCount, 8);
     /// <summary>Positive number of pages per scheduling chunk.</summary>
     public int ChunkSize { get; init; } = 4;
-    /// <summary>Worker stack size in bytes, passed to the core thread pool.</summary>
+    /// <summary>Worker stack size, at least 2 MiB for managed callbacks. Arbitrary callbacks may require more.</summary>
     public ulong StackSize { get; init; } = 2 * 1024 * 1024;
     /// <summary>Native worker thread-name prefix.</summary>
     public string ThreadNamePrefix { get; init; } = "pdf-worker";
@@ -60,11 +60,12 @@ public sealed record PdfGenerationOptions
     public bool CollectMetrics { get; init; } = true;
 }
 /// <summary>Completed output; Mode reports the executor actually selected.</summary>
-public sealed record PdfGenerationResult(int Pages, PdfGenerationMode Mode);
+public sealed record PdfGenerationResult(int Pages, PdfGenerationMode Mode, ulong PoolRequests,
+    ulong PoolHits, int RecordedPages, IReadOnlyDictionary<int, int> ThreadUsage);
 /// <summary>Core generation, persistence, availability or callback failure.</summary>
 public sealed class PdfGenerationException : Exception
 {
-    /// <summary>Native error code, or zero for a managed callback failure.</summary>
+    /// <summary>Native error code: 6 for I/O, 11 for unavailable engines, 9 for invalid requests or callback failure.</summary>
     public int ErrorCode { get; }
     internal PdfGenerationException(int code, string? message, Exception? inner = null) : base(message, inner) => ErrorCode = code;
 }
@@ -84,12 +85,22 @@ public static class PdfGeneration
         IReadOnlyDictionary<string, byte[]>? fonts = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
+        using var document = Create(pages, render, options, fonts);
+        return document.Save(path);
+    }
+
+    /// <summary>Generate owned pages for repeated saves. Dispose the returned document to release
+    /// pages and retained buffers. Callbacks transfer fresh pages and finish before return.</summary>
+    public static PdfGeneratedDocument Create(IReadOnlyList<PdfGenerationPage> pages,
+        Func<PdfGenerationPage, PdfPage> render, PdfGenerationOptions? options = null,
+        IReadOnlyDictionary<string, byte[]>? fonts = null)
+    {
         ArgumentNullException.ThrowIfNull(pages);
         ArgumentNullException.ThrowIfNull(render);
         var snapshot = pages.ToArray();
         foreach (var page in snapshot) ArgumentNullException.ThrowIfNull(page);
         var ownedFonts = fonts?.ToDictionary(p => p.Key, p => (byte[])p.Value.Clone()) ?? new();
-        byte[] input = JsonSerializer.SerializeToUtf8Bytes(new { Path = path, Pages = snapshot, Options = options ?? new(), Fonts = ownedFonts });
+        byte[] input = JsonSerializer.SerializeToUtf8Bytes(new { Pages = snapshot, Options = options ?? new(), Fonts = ownedFonts });
         if (input.Length > 64 * 1024 * 1024) throw new ArgumentOutOfRangeException(nameof(pages), "Generation request exceeds 64 MiB.");
         Exception? failure = null;
         NativeMethods.GenerationCallback callback = ordinal =>
@@ -107,13 +118,16 @@ public static class PdfGeneration
         IntPtr output = IntPtr.Zero;
         try
         {
-            int code = NativeMethods.oxidize_generation_save(input, (nuint)input.Length, callback, out output);
+            int code = NativeMethods.oxidize_generation_create(input, (nuint)input.Length, callback, out output);
             if (code != 0 || failure is not null) throw new PdfGenerationException(code, NativeMethods.GetLastError(), failure);
-            return JsonSerializer.Deserialize<PdfGenerationResult>(Marshal.PtrToStringUTF8(output)!)!;
+            var owner = new GenerationSafeHandle(output);
+            output = IntPtr.Zero;
+            try { return new PdfGeneratedDocument(owner); }
+            catch { owner.Dispose(); throw; }
         }
         finally
         {
-            if (output != IntPtr.Zero) NativeMethods.oxidize_free_string(output);
+            if (output != IntPtr.Zero) NativeMethods.oxidize_generation_free(output);
             GC.KeepAlive(callback);
         }
     }

@@ -270,6 +270,15 @@
       "render",
       "options",
       "fonts"
+    ],
+    "PdfGeneration.Create": [
+      "pages",
+      "render",
+      "options",
+      "fonts"
+    ],
+    "PdfGeneratedDocument.Save": [
+      "path"
     ]
   },
   "properties": {
@@ -762,7 +771,11 @@
     ],
     "PdfGenerationResult": [
       "Pages",
-      "Mode"
+      "Mode",
+      "PoolRequests",
+      "PoolHits",
+      "RecordedPages",
+      "ThreadUsage"
     ]
   },
   "defaults": {
@@ -1064,6 +1077,8 @@
     "GenerationTests.CallbackFailurePreservesDestinationAndJoinsCallbacks",
     "GenerationTests.RayonUsesBoundedConcurrentCallbacks",
     "GenerationTests.ZeroRetentionBudgetStillWritesBufferedOutput",
-    "GenerationAvailabilityTests.LoadedBinaryMatchesExpectedFeaturesAndFallback"
+    "GenerationAvailabilityTests.LoadedBinaryMatchesExpectedFeaturesAndFallback",
+    "GenerationTests.ReusableOwnerSerializesConcurrentSavesAndDispose",
+    "GenerationTests.IoAndCallbackErrorsKeepTheirCategories"
   ]
 }

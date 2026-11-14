@@ -84,6 +84,10 @@ public sealed class GenerationTests : IDisposable
         Assert.Matches(@"/Subtype\s*/Image", pdf);
         Assert.Matches(@"/Width\s+1\b", pdf);
         Assert.Matches(@"/Height\s+1\b", pdf);
+        string content = OxidizePdf.NET.Tests.TestHelpers.ContentStreamHelper.DecompressAllContentStreams(File.ReadAllBytes(Output));
+        Assert.Contains("/pixel Do", content);
+        Assert.Contains("10.00 0.00 0.00 20.00 40.00 50.00 cm", content);
+        Assert.Matches(@"(?:<[^>]+>|\([^)]{2,}\))\s*Tj", content);
     }
 
     [Fact]
@@ -110,6 +114,62 @@ public sealed class GenerationTests : IDisposable
             var page = Render(s); page.Dispose(); return page;
         }));
         Assert.False(File.Exists(Output));
+    }
+
+    [Theory]
+    [InlineData(true, 16777216, true, 1)]
+    [InlineData(true, 0, true, 0)]
+    [InlineData(false, 16777216, false, 0)]
+    public void RepeatedSavesExposePoolReuseAndMetrics(bool pooling, ulong budget, bool metrics, ulong hits)
+    {
+        using var doc = PdfGeneration.Create([new(0, 200, 300)], Render, new()
+        { Mode = PdfGenerationMode.Serial, StreamingWriter = false, MemoryPooling = pooling, MemoryPoolSize = budget, CollectMetrics = metrics });
+        var first = doc.Save(Output);
+        var second = doc.Save(Output);
+        Assert.Equal(1UL, first.PoolRequests);
+        Assert.Equal(2UL, second.PoolRequests);
+        Assert.Equal(hits, second.PoolHits);
+        Assert.Equal(metrics ? 1 : 0, second.RecordedPages);
+        Assert.Equal(metrics ? 1 : 0, second.ThreadUsage.Values.Sum());
+        AssertPages(Encoding.Latin1.GetString(File.ReadAllBytes(Output)), ["PageMarker0"], ["0 0 200 300"]);
+    }
+
+    [Fact]
+    public async Task ReusableOwnerSerializesConcurrentSavesAndDispose()
+    {
+        var doc = PdfGeneration.Create([new(0, 200, 300)], Render, new() { StreamingWriter = false });
+        await Task.WhenAll(Enumerable.Range(0, 8).Select(i => Task.Run(() => doc.Save(Path.Combine(directory, $"{i}.pdf")))));
+        Assert.Equal(9UL, doc.Save(Output).PoolRequests);
+        await Task.WhenAll(Task.Run(() => doc.Dispose()), Task.Run(() =>
+        {
+            try { doc.Save(Output); } catch (ObjectDisposedException) { }
+        }));
+        doc.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => doc.Save(Output));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(16384)]
+    [InlineData(2097151)]
+    public void SmallStacksRejectBeforeManagedCallbacks(ulong size)
+    {
+        int called = 0;
+        var error = Assert.Throws<PdfGenerationException>(() => PdfGeneration.Save(Output, [new(0, 200, 300)], s =>
+        { called++; return Render(s); }, new() { Mode = PdfGenerationMode.Rayon, StackSize = size }));
+        Assert.Equal(9, error.ErrorCode);
+        Assert.Equal(0, called);
+        Assert.False(File.Exists(Output));
+    }
+
+    [Fact]
+    public void IoAndCallbackErrorsKeepTheirCategories()
+    {
+        var io = Assert.Throws<PdfGenerationException>(() => PdfGeneration.Save(Path.Combine(directory, "missing", "out.pdf"), [new(0, 200, 300)], Render));
+        Assert.Equal(6, io.ErrorCode);
+        var callback = Assert.Throws<PdfGenerationException>(() => PdfGeneration.Save(Output, [new(0, 200, 300)], _ => throw new InvalidOperationException("callback")));
+        Assert.Equal(9, callback.ErrorCode);
+        Assert.IsType<InvalidOperationException>(callback.InnerException);
     }
 
     [Fact]
@@ -216,7 +276,7 @@ public sealed class GenerationAvailabilityTests
         {
             if (expected == "none")
             {
-                Assert.Throws<PdfGenerationException>(() => PdfGeneration.Save(path, [new(0, 200, 300)], Render));
+                Assert.Equal(11, Assert.Throws<PdfGenerationException>(() => PdfGeneration.Save(path, [new(0, 200, 300)], Render)).ErrorCode);
                 Assert.Equal(0, calls);
                 Assert.False(File.Exists(path));
             }
@@ -228,7 +288,7 @@ public sealed class GenerationAvailabilityTests
                 Assert.True(File.Exists(path));
                 if (expected == "serial")
                 {
-                    Assert.Throws<PdfGenerationException>(() => PdfGeneration.Save(path, [new(0, 200, 300)], Render, new() { Mode = PdfGenerationMode.Rayon }));
+                    Assert.Equal(11, Assert.Throws<PdfGenerationException>(() => PdfGeneration.Save(path, [new(0, 200, 300)], Render, new() { Mode = PdfGenerationMode.Rayon })).ErrorCode);
                     Assert.Equal(1, calls);
                 }
             }
