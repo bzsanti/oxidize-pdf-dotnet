@@ -263,6 +263,13 @@
     ],
     "PdfTokenCounter.IsAvailable": [
       "counter"
+    ],
+    "PdfGeneration.Save": [
+      "path",
+      "pages",
+      "render",
+      "options",
+      "fonts"
     ]
   },
   "properties": {
@@ -735,6 +742,27 @@
     ],
     "Pipeline.HybridChunkConfig": [
       "TokenCounter"
+    ],
+    "PdfGenerationOptions": [
+      "Mode",
+      "MaxThreads",
+      "ChunkSize",
+      "LoadBalancing",
+      "MemoryLimitPerCallback",
+      "StreamingWriter",
+      "StreamBufferSize",
+      "Compression",
+      "MemoryPooling",
+      "MemoryPoolSize",
+      "ResourceDeduplication",
+      "CollectMetrics",
+      "StackSize",
+      "ThreadNamePrefix",
+      "ThreadPriority"
+    ],
+    "PdfGenerationResult": [
+      "Pages",
+      "Mode"
     ]
   },
   "defaults": {
@@ -1032,6 +1060,10 @@
     "TokenCounterTests.AvailabilityMatchesNativeBuild",
     "TokenCounterTests.CountsMatchPinnedIndependentOracle",
     "TokenCounterTests.RejectsInvalidInputWithoutSubstitution",
-    "TokenCounterTests.BothChunkersUseSelectedBudgetsAndRejectUnavailableCounter"
+    "TokenCounterTests.BothChunkersUseSelectedBudgetsAndRejectUnavailableCounter",
+    "GenerationTests.CallbackFailurePreservesDestinationAndJoinsCallbacks",
+    "GenerationTests.RayonUsesBoundedConcurrentCallbacks",
+    "GenerationTests.ZeroRetentionBudgetStillWritesBufferedOutput",
+    "GenerationAvailabilityTests.LoadedBinaryMatchesExpectedFeaturesAndFallback"
   ]
 }

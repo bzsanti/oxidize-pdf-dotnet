@@ -1,3 +1,17 @@
+# Current increment: optional generation and batch Rotate (#101)
+
+The current source uses registry core 5.6.0. `PdfGeneration` exposes the real
+page callback executor and atomic writer; default native builds include
+performance and Rayon. Serial-only and unavailable configurations are explicit.
+See [generation contracts](GENERATION.md). `PdfBatch` remains the separate core
+worker pool; its historical SupportsRayon/SupportsPerformanceEngine properties
+remain false because these are not alternate batch executors. Rotate is enabled,
+Compress and nonzero batch memory caps remain rejected before work.
+
+The inventories below are historical; this entry supersedes their claims that
+all optional generation is unavailable. Full repository parity is not claimed.
+Acceptance and integration are pending the final review/CI of this increment.
+
 # Current increment: core 5.6.0 extraction controls
 
 The registry pin is =5.6.0 (#125). See [contracts and limits](UPSTREAM-5.6.0.md). Earlier capability inventories below remain historical evidence.

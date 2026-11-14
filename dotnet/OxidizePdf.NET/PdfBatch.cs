@@ -74,13 +74,13 @@ public sealed record PdfBatchProgress(int TotalJobs, int CompletedJobs, int Fail
     double ElapsedSeconds, double? EstimatedRemainingSeconds, double Throughput, double Percentage, bool IsComplete);
 
 /// <summary>Explicit synchronous batch execution through core workers. Supports the same
-/// RIDs as the native library. Rayon/performance engines are not compiled in this build.
+/// RIDs as the native library. Optional page generation is exposed separately by PdfGeneration.
 /// Caller paths may be overwritten by core operations; jobs must use nonconflicting outputs.</summary>
 public static class PdfBatch
 {
-    /// <summary>Optional Rayon engine is unavailable in this build.</summary>
+    /// <summary>Rayon is not an alternate executor for batch file jobs; see PdfGeneration.SupportsRayon.</summary>
     public static bool SupportsRayon => false;
-    /// <summary>Optional performance engine is unavailable in this build.</summary>
+    /// <summary>The performance writer does not execute batch jobs; see PdfGeneration.IsAvailable.</summary>
     public static bool SupportsPerformanceEngine => false;
     /// <summary>Execute up to 256 jobs / 1 MiB JSON. Cancellation is checked before starting;
     /// the consuming core BatchProcessor exposes no running cancellation handle. Custom
