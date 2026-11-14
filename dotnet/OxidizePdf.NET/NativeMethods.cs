@@ -5,7 +5,7 @@ namespace OxidizePdf.NET;
 /// <summary>
 /// P/Invoke declarations for oxidize-pdf FFI library
 /// </summary>
-internal static class NativeMethods
+internal static partial class NativeMethods
 {
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern byte oxidize_token_counter_available(byte counter);

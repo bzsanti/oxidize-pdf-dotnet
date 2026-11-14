@@ -263,6 +263,22 @@
     ],
     "PdfTokenCounter.IsAvailable": [
       "counter"
+    ],
+    "PdfGeneration.Save": [
+      "path",
+      "pages",
+      "render",
+      "options",
+      "fonts"
+    ],
+    "PdfGeneration.Create": [
+      "pages",
+      "render",
+      "options",
+      "fonts"
+    ],
+    "PdfGeneratedDocument.Save": [
+      "path"
     ]
   },
   "properties": {
@@ -735,6 +751,31 @@
     ],
     "Pipeline.HybridChunkConfig": [
       "TokenCounter"
+    ],
+    "PdfGenerationOptions": [
+      "Mode",
+      "MaxThreads",
+      "ChunkSize",
+      "LoadBalancing",
+      "MemoryLimitPerCallback",
+      "StreamingWriter",
+      "StreamBufferSize",
+      "Compression",
+      "MemoryPooling",
+      "MemoryPoolSize",
+      "ResourceDeduplication",
+      "CollectMetrics",
+      "StackSize",
+      "ThreadNamePrefix",
+      "ThreadPriority"
+    ],
+    "PdfGenerationResult": [
+      "Pages",
+      "Mode",
+      "PoolRequests",
+      "PoolHits",
+      "RecordedPages",
+      "ThreadUsage"
     ]
   },
   "defaults": {
@@ -1021,6 +1062,10 @@
     "BatchTests.SerialStopAndTimeoutContractsDoNotClaimInterruption",
     "BatchTests.UnsupportedMemoryAndProgressFailuresLeaveNoRunningCallbacks",
     "BatchTests.BuiltInMergeAndExtractWriteReadableFilesAndRetainFailures",
+    "BatchRotationTests.SelectedAndAllPagesComposeRotationAndPreserveContent",
+    "BatchRotationTests.InvalidJobsPreserveExistingOutput",
+    "BatchRotationTests.MixedJobsRetainOrderStopTimeoutAndCallbackLifetime",
+    "BatchRotationTests.UnsupportedOptionsRejectBeforeRotationOrCallbacks",
     "StreamReaderTests.StreamingReadsRealPagesWithPartialReadsAndCacheBudgets",
     "StreamReaderTests.LazyObjectsKeepTypesGenerationsAndEffectiveOptions",
     "StreamReaderTests.OwnershipMalformedInputAndContentLimitsReleaseResources",
@@ -1028,6 +1073,12 @@
     "TokenCounterTests.AvailabilityMatchesNativeBuild",
     "TokenCounterTests.CountsMatchPinnedIndependentOracle",
     "TokenCounterTests.RejectsInvalidInputWithoutSubstitution",
-    "TokenCounterTests.BothChunkersUseSelectedBudgetsAndRejectUnavailableCounter"
+    "TokenCounterTests.BothChunkersUseSelectedBudgetsAndRejectUnavailableCounter",
+    "GenerationTests.CallbackFailurePreservesDestinationAndJoinsCallbacks",
+    "GenerationTests.RayonUsesBoundedConcurrentCallbacks",
+    "GenerationTests.ZeroRetentionBudgetStillWritesBufferedOutput",
+    "GenerationAvailabilityTests.LoadedBinaryMatchesExpectedFeaturesAndFallback",
+    "GenerationTests.ReusableOwnerSerializesConcurrentSavesAndDispose",
+    "GenerationTests.IoAndCallbackErrorsKeepTheirCategories"
   ]
 }

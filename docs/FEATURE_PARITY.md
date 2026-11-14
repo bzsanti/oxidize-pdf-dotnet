@@ -1,6 +1,40 @@
+# Current increment: optional generation and batch Rotate (#101)
+
+The current source uses registry core 5.6.0. `PdfGeneration` exposes the real
+page callback executor and atomic writer; default native builds include
+performance and Rayon. Serial-only and unavailable configurations are explicit.
+See [generation contracts](GENERATION.md). `PdfBatch` remains the separate core
+worker pool; its historical SupportsRayon/SupportsPerformanceEngine properties
+remain false because these are not alternate batch executors. Rotate is enabled,
+Compress and nonzero batch memory caps remain rejected before work.
+
+The inventories below are historical; this entry supersedes their claims that
+all optional generation is unavailable. Full repository parity is not claimed.
+Acceptance and integration are pending the final review/CI of this increment.
+
 # Current increment: core 5.6.0 extraction controls
 
 The registry pin is =5.6.0 (#125). See [contracts and limits](UPSTREAM-5.6.0.md). Earlier capability inventories below remain historical evidence.
+
+# Batch Rotate increment — 2026-11-06
+
+Current source enables `PdfBatchJob.Rotate` through the existing core 5.5.6
+worker pool. This supersedes the historical Rotate rejection below; it is not
+a published binding release or completion of #101. Selected zero-based pages
+or all pages (`Pages = null`) compose with existing rotation and preserve
+content and stored dimensions. Invalid angles, nonnegative out-of-range pages
+and unreadable input produce per-job failures without replacing existing output.
+Negative page indices are malformed requests and reject the entire batch.
+Compress and nonzero memory caps remain rejected before work; optional
+Rayon/performance engines remain unavailable. Timeouts do not interrupt running
+operations or roll back completed writes.
+
+Acceptance tests: `BatchRotationTests` uses real FFI and an independent reader
+for its fixture page tree, rotations, boxes and decompressed content streams.
+It also covers ordered mixed outcomes, stop-on-error, zero timeout and preflight
+rejection. Local .NET validation passed 1,244 tests; both no-rotation and
+ignored-selection mutations fail the intended geometry assertions. Scoped independent
+quality/security reviews and Clippy passed. Platform CI remains required before integration.
 
 # Current increment: core 5.5.6 and exact token counting, 2026-11-02
 

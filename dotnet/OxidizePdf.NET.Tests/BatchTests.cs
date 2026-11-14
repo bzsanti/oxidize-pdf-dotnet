@@ -48,7 +48,7 @@ public class BatchTests
         int called = 0;
         Assert.Throws<PdfBatchException>(() => PdfBatch.Run([new PdfBatchJob.Custom("never", () => called++)], new() { MemoryLimitPerWorker = 1 }));
         Assert.Equal(0, called);
-        foreach (var unsupported in new PdfBatchJob[] { new PdfBatchJob.Rotate("in.pdf", "out.pdf", 90), new PdfBatchJob.Compress("in.pdf", "out.pdf", 80) })
+        foreach (var unsupported in new PdfBatchJob[] { new PdfBatchJob.Compress("in.pdf", "out.pdf", 80) })
         {
             var unsupportedError = Assert.Throws<PdfBatchException>(() => PdfBatch.Run([new PdfBatchJob.Custom("never", () => called++), unsupported]));
             Assert.Contains("unsupported", unsupportedError.Message);

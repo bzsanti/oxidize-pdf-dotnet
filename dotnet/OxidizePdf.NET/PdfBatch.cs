@@ -20,11 +20,15 @@ public abstract record PdfBatchJob
     public sealed record Split(string Input, string OutputPattern, int PagesPerFile = 1) : PdfBatchJob;
     /// <summary>Merge input files to Output.</summary>
     public sealed record Merge(IReadOnlyList<string> Inputs, string Output) : PdfBatchJob;
-    /// <summary>Unsupported in core 5.5.0; rejected before any batch work starts.</summary>
+    /// <summary>Compose a clockwise rotation (multiple of 90 degrees) onto selected zero-based
+    /// pages, or all pages when Pages is null. Stored page dimensions and content are retained.
+    /// Invalid angles, nonnegative out-of-range pages and unreadable inputs are per-job failures;
+    /// negative page indices reject the entire request before any work.
+    /// rotation failures preserve an existing output. Timeouts do not roll back completed writes.</summary>
     public sealed record Rotate(string Input, string Output, int Rotation, IReadOnlyList<int>? Pages = null) : PdfBatchJob;
     /// <summary>Extract selected core page indices.</summary>
     public sealed record Extract(string Input, string Output, IReadOnlyList<int> Pages) : PdfBatchJob;
-    /// <summary>Unsupported in core 5.5.0; rejected before any batch work starts.</summary>
+    /// <summary>Unsupported by the pinned core; rejected before any batch work starts.</summary>
     public sealed record Compress(string Input, string Output, byte Quality) : PdfBatchJob;
     /// <summary>Explicit caller operation; never sourced from PDF scripts.</summary>
     public sealed record Custom(string Name, [property: JsonIgnore] Action Operation) : PdfBatchJob;
@@ -70,13 +74,13 @@ public sealed record PdfBatchProgress(int TotalJobs, int CompletedJobs, int Fail
     double ElapsedSeconds, double? EstimatedRemainingSeconds, double Throughput, double Percentage, bool IsComplete);
 
 /// <summary>Explicit synchronous batch execution through core workers. Supports the same
-/// RIDs as the native library. Rayon/performance engines are not compiled in this build.
+/// RIDs as the native library. Optional page generation is exposed separately by PdfGeneration.
 /// Caller paths may be overwritten by core operations; jobs must use nonconflicting outputs.</summary>
 public static class PdfBatch
 {
-    /// <summary>Optional Rayon engine is unavailable in this build.</summary>
+    /// <summary>Rayon is not an alternate executor for batch file jobs; see PdfGeneration.SupportsRayon.</summary>
     public static bool SupportsRayon => false;
-    /// <summary>Optional performance engine is unavailable in this build.</summary>
+    /// <summary>The performance writer does not execute batch jobs; see PdfGeneration.IsAvailable.</summary>
     public static bool SupportsPerformanceEngine => false;
     /// <summary>Execute up to 256 jobs / 1 MiB JSON. Cancellation is checked before starting;
     /// the consuming core BatchProcessor exposes no running cancellation handle. Custom
