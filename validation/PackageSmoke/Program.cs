@@ -52,7 +52,7 @@ try
     foreach (var mode in new[] { PdfGenerationMode.Serial, PdfGenerationMode.Rayon })
     {
         var result = PdfGeneration.Save(generated, new[] { new PdfGenerationPage(0, 210, 310) },
-            spec => new PdfPage(spec.Width, spec.Height).DrawTextAt(OxidizePdf.NET.Models.StandardFont.Helvetica, 12, 20, 30, "Generation smoke"),
+            spec => new PdfPage(spec.Width, spec.Height).DrawTextAt(StandardFont.Helvetica, 12, 20, 30, "Generation smoke"),
             new PdfGenerationOptions { Mode = mode });
         if (result.Pages != 1 || result.Mode != mode || !File.Exists(generated))
             throw new Exception("Package generation failed");
