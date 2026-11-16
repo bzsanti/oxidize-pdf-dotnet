@@ -1,6 +1,6 @@
 # Current increment: optional generation and batch Rotate (#101)
 
-The current source uses registry core 5.6.0. `PdfGeneration` exposes the real
+The current source uses registry core 5.6.1. `PdfGeneration` exposes the real
 page callback executor and atomic writer; default native builds include
 performance and Rayon. Serial-only and unavailable configurations are explicit.
 See [generation contracts](GENERATION.md). `PdfBatch` remains the separate core
@@ -10,7 +10,9 @@ Compress and nonzero batch memory caps remain rejected before work.
 
 The inventories below are historical; this entry supersedes their claims that
 all optional generation is unavailable. Full repository parity is not claimed.
-Acceptance and integration are pending the final review/CI of this increment.
+Generation and batch work was integrated by PR #128 after review and CI.
+Release 0.23.0 adopts core 5.6.1; package publication and consumer validation
+remain tracked in #129.
 
 # Current increment: core 5.6.0 extraction controls
 

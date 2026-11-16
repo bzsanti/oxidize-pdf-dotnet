@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-16
+
+- Adopt published core 5.6.1 for strict indirect stream lengths and compact object-stream IDs.
+- Publish optional generation APIs and the batch work integrated in #101.
+- See [release notes](RELEASE-NOTES-v0.23.0.md) for contracts and limitations.
+
 ## [0.20.2] - 2026-10-30
 
 - Adopt published core 5.5.5 with extraction, encrypted object stream and signature verification fixes.
