@@ -2,7 +2,7 @@
 
 [Documentation](https://oxidizepdf-net.docs7.io) · [Context7](https://context7.com/llmstxt/oxidizepdf-net_docs7_io_llms_txt) · [Documentation publishing and indexing](docs/CONTEXT7.md)
 
-> Version 0.22.0 pins Rust core **5.6.0**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
+> Version 0.23.0 pins Rust core **5.6.1**. Current validation and remaining capabilities: [feature parity](docs/FEATURE_PARITY.md).
 
 [![NuGet](https://img.shields.io/nuget/v/OxidizePdf.NET.svg)](https://www.nuget.org/packages/OxidizePdf.NET/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -41,8 +41,9 @@ fixes while preserving the managed API. See the [release notes](RELEASE-NOTES-v0
 for validation and remaining limits.
 
 The APIs introduced in 0.20.0 include typed XMP metadata, form calculations,
-lazy/streaming readers and batch jobs. Batch timeouts do not interrupt work or
-roll back files; Rotate/Compress and nonzero worker memory caps remain explicitly
+lazy/streaming readers and batch jobs. The current source also enables selected/all-page
+rotation through the existing batch API. Batch timeouts do not interrupt work or
+roll back files; Compress and nonzero worker memory caps remain explicitly
 unsupported by this binding. Stream readers are disposable and leave inputs open
 by default. The complete NuGet package is validated in CI on .NET 8/9/10. See the
 [acceptance ledger](docs/FEATURE_PARITY.md) and [changelog](CHANGELOG.md).

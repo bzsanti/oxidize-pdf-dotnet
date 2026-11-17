@@ -31,6 +31,9 @@ public sealed class PdfPage : IDisposable
     /// </summary>
     internal void MarkConsumed() => _consumed = true;
 
+    // P/Invoke pins the SafeHandle while the native callback snapshot is cloned.
+    internal IntPtr CloneForGeneration() => NativeMethods.oxidize_generation_clone_page(_safeHandle);
+
     /// <summary>
     /// Exposes the native page handle for use by <see cref="PdfDocument.AddPage"/>.
     /// </summary>

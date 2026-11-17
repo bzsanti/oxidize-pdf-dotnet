@@ -18,6 +18,7 @@ pub mod font_inspection;
 pub mod form_validation;
 pub mod forms;
 pub mod free_text;
+pub mod generation;
 pub mod geometric;
 pub mod graphics;
 pub mod header_footer;
